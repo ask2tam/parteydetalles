@@ -14,12 +14,6 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&amp;display=swap" data-precedence="default"/>
   <link rel="icon" href="https://ask2tam.github.io/parteydetalles/assets/favicon.ico" type="image/x-icon"/>
 
-  <script>
-    if (window.location.pathname.includes('.html')) {
-      window.history.replaceState(null, '', '/' + window.location.search + window.location.hash);
-    }
-  </script>
-
   <style>
     #btn-musica {
       position: fixed;
@@ -32,7 +26,7 @@
       background-color: #6b7139;
       border: none;
       color: white;
-      display: none;
+      display: none; /* Se mantiene oculto al inicio */
       align-items: center;
       justify-content: center;
       cursor: pointer;
@@ -62,7 +56,6 @@
 </button>
 
 <main class="min-h-screen w-full bg-[#efe9dc] flex justify-center">
-  <!-- Portada / Dialogo -->
   <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden" role="dialog" aria-label="Portada de la invitación">
     <img src="assets/solangeyenrique_portada.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover"/>
     
@@ -82,7 +75,6 @@
 </main>
 
 <script>
-  // PARÁMETROS DE LA URL
   const urlParams = new URLSearchParams(window.location.search);
   const nombreInvitado = urlParams.get('invitado');
   const numeroPases = urlParams.get('pases');
@@ -94,26 +86,40 @@
     document.getElementById('txt-pases').textContent = `Tenemos ${textoPase} para ti`;
   }
 
-  // MÚSICA Y PORTADA
   const musica = document.getElementById('musica-boda');
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
+    // 1. Mostramos el botón flotante inmediatamente al hacer click
+    btnMusica.style.display = 'flex';
+
+    // 2. Intentamos reproducir la música
     musica.play()
-      .then(() => { btnMusica.style.display = 'flex'; })
+      .then(() => {
+        // Reproducción exitosa: aseguramos que el ícono sea el de sonido encendido
+        actualizarIconos(false);
+      })
       .catch(error => {
-        console.log("Audio bloqueado:", error);
-        btnMusica.style.display = 'flex';
+        console.log("Audio bloqueado por el navegador:", error);
+        // Si el navegador lo bloquea, mostramos el icono de apagado para que pinchen el botón
         actualizarIconos(true);
       });
+
+    // 3. Abrir el enlace externo
     window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
   });
 
+  // Control manual del botón reproducir/pausar
   btnMusica.addEventListener('click', function() {
-    if (musica.paused) { musica.play(); actualizarIconos(false); } 
-    else { musica.pause(); actualizarIconos(true); }
+    if (musica.paused) { 
+      musica.play(); 
+      actualizarIconos(false); 
+    } else { 
+      musica.pause(); 
+      actualizarIconos(true); 
+    }
   });
 
   function actualizarIconos(estaPausado) {
