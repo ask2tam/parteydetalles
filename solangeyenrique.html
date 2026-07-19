@@ -51,35 +51,28 @@
       padding: 0 20px;
     }
 
-    /* CONTENEDOR Y ESCALADO DE ALTA RESOLUCIÓN PARA EL IFRAME */
+    /* CONTENEDOR DE ALTA RESOLUCIÓN Y AJUSTE INMUTABLE DE PROPORCIÓN */
     .canva-wrapper {
-      position: absolute; 
-      top: 0; 
-      left: 0; 
-      width: 100%; 
-      height: 100%; 
+      position: relative;
+      width: 100%;
+      /* Esto bloquea la proporción vertical exacta de Canva (9:16) y evita que se distorsione o "apastele" */
+      aspect-ratio: 9 / 16; 
+      max-width: 520px;
+      margin: 0 auto;
       overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     }
 
     .high-res-iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       border: none;
-      display: block;
-      /* Forzamos dimensiones de renderizado gigantes en segundo plano (Full HD Vertical) */
-      width: 1080px !important;
-      height: 1920px !important;
-      
-      /* Punto de origen arriba a la izquierda para el encogimiento */
-      transform-origin: top left;
-      
-      /* Operación matemática: Ajusta la escala dividiendo el ancho dinámico del contenedor actual (100%) entre el ancho virtual (1080px) */
-      transform: scale(calc(100vw / 1080));
-    }
-
-    /* En pantallas de escritorio limitamos el cálculo al ancho máximo establecido del contenedor (520px) */
-    @media (min-width: 520px) {
-      .high-res-iframe {
-        transform: scale(calc(520px / 1080));
-      }
+      /* Obliga al navegador a renderizar bordes limpios y enfocados */
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
     }
   </style>
 </head>
@@ -110,16 +103,16 @@
     </div>
   </div>
 
-  <!-- Contenedor Principal de la Invitación -->
-  <div class="w-full max-w-[520px] bg-[#efe9dc] h-screen overflow-hidden relative">
-    <div class="canva-wrapper" style="-webkit-overflow-scrolling: touch; overflow-y: auto;">
+  <!-- Contenedor Principal de la Invitación (Optimizado) -->
+  <div class="w-full bg-[#efe9dc] min-h-screen overflow-y-auto flex items-center justify-center p-0 sm:p-4">
+    <div class="canva-wrapper">
       <iframe 
         class="high-res-iframe"
         title="Invitación Solangel &amp; Enrique" 
-        loading="lazy" 
+        loading="eager" 
         src="https://www.canva.com/design/DAHPwJ_cqec/r8rvf6G4cYcKYpzd4Pr0EA/view?embed"
         allow="fullscreen"
-        scrolling="yes">
+        scrolling="no">
       </iframe>
     </div>
   </div>
