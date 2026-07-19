@@ -42,7 +42,7 @@
     }
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
-     
+    
     .vista-portada {
       display: flex;
       flex-direction: column;
@@ -50,7 +50,7 @@
       align-items: center;
       min-height: 100vh;
       width: 100%;
-      padding: 40px 20px 24px 20px; 
+      padding: 20px 20px 40px 20px; 
       box-sizing: border-box;
     }
 
@@ -61,8 +61,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 20px;
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-bottom: 25px; 
+      transition: margin 0.3s ease;
     }
 
     .contenedor-escalable {
@@ -73,7 +73,7 @@
       transition: transform 0.3s ease;
     }
 
-    /* --- SOBRE POSTAL --- */
+    /* --- SOBRE POSTAL (840x560) --- */
     .wrapper-sobre {
       position: relative;
       width: 840px; 
@@ -81,86 +81,7 @@
       background-color: #4f542a; 
       border-radius: 12px;
       box-shadow: 0 35px 70px rgba(0,0,0,0.3);
-      overflow: visible; /* Clave para que la tarjeta se asome hacia arriba sin recortarse */
-    }
-
-    /* --- Sello de Lacre Animado --- */
-    .wrapper-lacre {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 100px;
-      height: 100px;
-      z-index: 6; 
-      cursor: pointer;
-      transition: opacity 0.4s ease, transform 0.3s ease;
-    }
-
-    .sello-lacre {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      animation: latido-corazon 1.6s infinite ease-in-out;
-      transform-origin: center center;
-    }
-
-    .wrapper-lacre:hover .sello-lacre { 
-      animation: shake 0.3s ease-in-out infinite;
-    }
-
-    /* --- BOTÓN VER DETALLES --- */
-    .btn-animado-detalles {
-      display: inline-block;
-      font-family: 'Montserrat', sans-serif;
-      text-decoration: none;
-      background-color: #6b7139;
-      color: white;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      padding: 10px 28px;
-      border-radius: 9999px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-      cursor: pointer;
-    }
-
-    .btn-animado-detalles:hover {
-      background-color: #555b2e;
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-    }
-
-    .btn-animado-detalles:active {
-      transform: scale(0.98);
-    }
-
-    .reproducir-flotacion {
-      animation: bucle-flotar 2s infinite ease-in-out;
-    }
-
-    @keyframes bucle-flotar {
-      0% { transform: translateY(0px) scale(1); }
-      50% { transform: translateY(-6px) scale(1.02); }
-      100% { transform: translateY(0px) scale(1); }
-    }
-
-    @keyframes latido-corazon {
-      0% { transform: scale(1); }
-      14% { transform: scale(1.08); }
-      28% { transform: scale(1); }
-      42% { transform: scale(1.08); }
-      70% { transform: scale(1); }
-    }
-
-    @keyframes shake {
-      0% { transform: scale(1.05) rotate(0deg); }
-      20% { transform: scale(1.05) rotate(-3deg); }
-      40% { transform: scale(1.05) rotate(3deg); }
-      60% { transform: scale(1.05) rotate(-1.5deg); }
-      80% { transform: scale(1.05) rotate(1.5deg); }
-      100% { transform: scale(1.05) rotate(0deg); }
+      overflow: visible; 
     }
 
     /* --- LAS 4 SOLAPAS TRIANGULARES --- */
@@ -216,7 +137,7 @@
       z-index: 3;
     }
 
-    /* --- TARJETA COMPLETA (Suben fondo y contenidos juntos) --- */
+    /* --- TARJETA --- */
     .tarjeta-invitado {
       position: absolute;
       top: 0;
@@ -226,11 +147,21 @@
       background-color: #efe9dc;
       border-radius: 12px;
       z-index: 2; 
+      transform: translateY(0); 
+      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.6s; 
       overflow: hidden;
       box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-      transform: translateY(0);
-      /* Espera 0.6s a que la solapa empiece a abrirse y sube en 0.9s */
-      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.6s; 
+    }
+
+    /* MODIFICADO: Centrado vertical absoluto de los textos */
+    .tarjeta-contenido {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center; /* Centrado vertical */
+      align-items: center;     /* Centrado horizontal */
     }
 
     .tarjeta-imagen {
@@ -243,66 +174,64 @@
       z-index: 1;
     }
 
-    .tarjeta-contenido {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end; 
-      align-items: center;     
-      padding-bottom: 40px;      
-      box-sizing: border-box;
-      z-index: 2;
-    }
-
-    /* --- ESTADOS DE APERTURA --- */
+    /* --- ANIMACIÓN --- */
     .sobre-abierto .solapa-superior {
       transform: rotateX(180deg);
       z-index: 1; 
     }
 
-    /* Desplazamos la tarjeta completa hacia arriba (Fondo + Texto) */
     .sobre-abierto .tarjeta-invitado {
-      transform: translateY(-65%); 
-    }
-
-    /* Esta clase rompe el bloqueo táctil/click de las solapas laterales tras la subida */
-    .tarjeta-invitado.interactiva {
-      z-index: 20 !important;
-    }
-
-    .sobre-abierto .wrapper-lacre {
-      opacity: 0;
-      pointer-events: none;
-      transform: translate(-50%, -50%) scale(0.8);
-    }
-    .sobre-abierto .sello-lacre {
-      animation: none;
+      transform: translateY(-60%); 
+      z-index: 2; 
     }
 
     .texto-personalizado {
       font-family: 'Montserrat', sans-serif;
       color: #5d6232; 
       text-align: center;
+      z-index: 3;
     }
 
     /* --- MEDIA QUERIES RESPONSIVOS --- */
     @media (max-width: 900px) {
-      .area-sobre { width: 630px; height: 420px; }
-      .contenedor-escalable { transform: scale(0.75); }
+      .area-sobre {
+        width: 630px;  
+        height: 420px; 
+      }
+      .contenedor-escalable {
+        transform: scale(0.75);
+      }
     }
+
     @media (max-width: 680px) {
-      .area-sobre { width: 462px; height: 308px; }
-      .contenedor-escalable { transform: scale(0.55); }
+      .area-sobre {
+        width: 462px;  
+        height: 308px; 
+      }
+      .contenedor-escalable {
+        transform: scale(0.55);
+      }
     }
+
     @media (max-width: 500px) {
-      .area-sobre { width: 352px; height: 235px; }
-      .contenedor-escalable { transform: scale(0.42); }
+      .area-sobre {
+        width: 352px;  
+        height: 235px; 
+        margin-bottom: 15px;
+      }
+      .contenedor-escalable {
+        transform: scale(0.42);
+      }
     }
+
     @media (max-width: 380px) {
-      .area-sobre { width: 302px; height: 201px; }
-      .contenedor-escalable { transform: scale(0.36); }
+      .area-sobre {
+        width: 302px;  
+        height: 201px; 
+      }
+      .contenedor-escalable {
+        transform: scale(0.36);
+      }
     }
   </style>
 </head>
@@ -316,47 +245,38 @@
 </button>
 
 <main class="min-h-screen w-full flex justify-center">
-  <div id="portada" class="fixed inset-0 z-50 w-full h-full overflow-y-visible" style="background: url('assets/solangeyenrique_fondo.jpg') no-repeat center center fixed; background-size: cover;" role="dialog" aria-label="Portada de la invitación">
+  <div id="portada" class="fixed inset-0 z-50 w-full h-full overflow-y-auto" style="background: url('assets/solangeyenrique_fondo.jpg') no-repeat center center fixed; background-size: cover;" role="dialog" aria-label="Portada de la invitación">
     
     <div class="vista-portada">
       
-      <div class="w-full flex flex-col items-center" style="margin-bottom: auto;">
-        <button id="btn-abrir" class="py-2 rounded-full bg-[#6b7139] text-white text-sm tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; padding-left: 2rem; padding-right: 2rem;" aria-label="Abrir invitación">
-          Abrir invitación
-        </button>
-      </div>
-      
-      <div id="area-sobre-postal" class="area-sobre">
+      <div class="area-sobre">
         <div class="contenedor-escalable">
           <div id="contenedor-sobre" class="wrapper-sobre">
-            
-            <div id="wrapper-sello" class="wrapper-lacre">
-              <img id="img-sello" src="assets/solangeyenrique_sello.png" alt="Sello de Lacre" class="sello-lacre" />
-            </div>
             
             <div class="solapa-superior"></div>
             <div class="solapa-izquierda"></div>
             <div class="solapa-derecha"></div>
             <div class="solapa-inferior"></div>
             
-            <!-- Estructura limpia donde todo el bloque sube en conjunto -->
-            <div id="tarjeta-principal" class="tarjeta-invitado">
+            <div class="tarjeta-invitado">
               <img src="assets/solangeyenrique_tarjeta.jpg" alt="Solangel &amp; Enrique" class="tarjeta-imagen"/>
               
               <div class="tarjeta-contenido">
                 <div class="texto-personalizado">
                   <p id="txt-invitado" style="font-size: 32px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12px;"></p>
-                  <p id="txt-pases" style="font-size: 20px; font-weight: 400; font-style: italic; opacity: 0.95; margin-bottom: 20px;"></p>
-                  
-                  <a id="btn-ver-detalles" href="https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique" target="_blank" rel="noopener noreferrer" class="btn-animado-detalles" style="display: none; margin: 0 auto;">
-                    Ver Detalles
-                  </a>
+                  <p id="txt-pases" style="font-size: 20px; font-weight: 400; font-style: italic; opacity: 0.95;"></p>
                 </div>
               </div>
             </div>
 
           </div>
         </div>
+      </div>
+
+      <div class="w-full flex flex-col items-center">
+        <button id="btn-abrir" class="py-2 rounded-full bg-[#6b7139] text-white text-sm tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; padding-left: 2rem; padding-right: 2rem; margin-bottom: 10px;" aria-label="Abrir invitación">
+          Abrir invitación
+        </button>
       </div>
 
     </div>
@@ -381,57 +301,24 @@
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
   const contenedorSobre = document.getElementById('contenedor-sobre');
-  const areaSobrePostal = document.getElementById('area-sobre-postal');
-  const tarjetaPrincipal = document.getElementById('tarjeta-principal');
-  
-  const btnAbrir = document.getElementById('btn-abrir');
-  const imgSello = document.getElementById('wrapper-sello'); 
-  const btnVerDetalles = document.getElementById('btn-ver-detalles');
 
-  let sobreAbierto = false;
-
-  function ejecutarAperturaSobre() {
-    if (sobreAbierto) return;
-    sobreAbierto = true;
-
-    areaSobrePostal.style.transform = 'translateY(10px)';
+  document.getElementById('btn-abrir').addEventListener('click', function() {
     contenedorSobre.classList.add('sobre-abierto');
     btnMusica.style.display = 'flex';
-    
-    btnAbrir.style.transition = 'opacity 0.5s ease';
-    btnAbrir.style.opacity = '0';
-    setTimeout(() => btnAbrir.style.display = 'none', 500);
 
     musica.play()
-      .then(() => actualizarIconos(false))
-      .catch(error => actualizarIconos(true));
+      .then(() => {
+        actualizarIconos(false);
+      })
+      .catch(error => {
+        console.log("Audio restringido:", error);
+        actualizarIconos(true);
+      });
 
-    // 1. Hacemos que el botón ocupe su espacio desde YA, pero invisible e inclemente al clic
-    btnVerDetalles.style.display = 'inline-block';
-    btnVerDetalles.style.opacity = '0';
-    btnVerDetalles.style.pointerEvents = 'none';
-
-    // 2. Al terminar la animación de subida, lo revelamos suavemente
-    tarjetaPrincipal.addEventListener('transitionend', function(e) {
-      if (e.propertyName === 'transform') {
-        // Traemos la tarjeta al frente absoluto
-        tarjetaPrincipal.classList.add('interactiva');
-        
-        // Activamos los clics y hacemos el fade-in sin alterar el diseño
-        btnVerDetalles.style.pointerEvents = 'auto';
-        btnVerDetalles.style.transition = 'opacity 0.4s ease';
-        btnVerDetalles.style.opacity = '1';
-        
-        // Iniciamos el bucle flotante una vez que sea visible
-        setTimeout(() => {
-          btnVerDetalles.classList.add('reproducir-flotacion');
-        }, 400);
-      }
-    });
-  }
-
-  btnAbrir.addEventListener('click', ejecutarAperturaSobre);
-  imgSello.addEventListener('click', ejecutarAperturaSobre);
+    setTimeout(() => {
+      window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
+    }, 1800); 
+  });
 
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
