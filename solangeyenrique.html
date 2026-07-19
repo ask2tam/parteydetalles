@@ -79,7 +79,7 @@
     </div>
   </div>
 
-  <!-- Contenedor Principal de la Invitación (Iframe de respaldo) -->
+  <!-- Contenedor Principal de la Invitación (Iframe para PC) -->
   <div class="w-full max-w-[520px] bg-[#efe9dc] h-screen overflow-hidden relative">
     <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;">
       <iframe 
@@ -114,7 +114,7 @@
   const iconOff = document.getElementById('icon-sound-off');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
-    // 1. Activar la reproducción de música en esta pestaña
+    // 1. Iniciar música de fondo obligatoria para ambos casos
     musica.play()
       .then(() => { btnMusica.style.display = 'flex'; })
       .catch(error => {
@@ -123,15 +123,19 @@
         actualizarIconos(true);
       });
 
-    // 2. DISPARAR LA NUEVA PESTAÑA CON LA VERSIÓN COMPLETA (Alta resolución)
-    // Al ser un evento gatillado directamente por el click del usuario, los navegadores no lo bloquearán como pop-up.
-    window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
+    // 2. DETECCIÓN DE DISPOSITIVO MÓVIL (Celular o Tablet)
+    const esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
-    // 3. Ocultar la portada en la pestaña de origen
-    const portada = document.getElementById('portada');
-    portada.style.transition = 'opacity 0.5s ease';
-    portada.style.opacity = '0';
-    setTimeout(() => { portada.style.display = 'none'; }, 500);
+    if (esMovil) {
+      // Si es celular: Abre la pestaña limpia de alta resolución
+      window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
+    } else {
+      // Si es PC: No abre pestaña, solo oculta la portada con animación suave para revelar el iframe
+      const portada = document.getElementById('portada');
+      portada.style.transition = 'opacity 0.5s ease';
+      portada.style.opacity = '0';
+      setTimeout(() => { portada.style.display = 'none'; }, 500);
+    }
   });
 
   btnMusica.addEventListener('click', function() {
