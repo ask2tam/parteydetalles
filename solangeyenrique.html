@@ -25,7 +25,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      z-index: 70; /* Máxima prioridad sobre el sobre */
+      z-index: 70; 
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -42,29 +42,30 @@
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
     
-    /* --- ANIMACIÓN DEL SOBRE --- */
+    /* --- DISEÑO DEL SOBRE MÁS GRANDE --- */
     .wrapper-sobre {
       position: relative;
-      width: 280px;
-      height: 200px;
-      background-color: #555b2e; /* Color interno del sobre */
-      border-radius: 0 0 8px 8px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-      margin-bottom: 40px;
+      width: 360px; /* Aumentado de 280px a 360px */
+      height: 240px; /* Aumentado de 200px a 240px */
+      background-color: #555b2e; 
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+      margin-top: auto; /* Empuja el sobre hacia el centro vertical superior */
+      margin-bottom: auto;
     }
 
-    /* Solapa superior (Triángulo que abre) */
+    /* Solapa superior grande (Triángulo que abre) */
     .solapa {
       position: absolute;
       top: 0;
       left: 0;
       width: 0;
       height: 0;
-      border-left: 140px solid transparent;
-      border-right: 140px solid transparent;
-      border-top: 100px solid #6b7139; /* Color de la solapa */
+      border-left: 180px solid transparent;  /* Mitad del ancho total */
+      border-right: 180px solid transparent; /* Mitad del ancho total */
+      border-top: 130px solid #6b7139; 
       transform-origin: top;
-      transition: transform 0.6s ease-in-out;
+      transition: transform 0.7s ease-in-out;
       z-index: 3;
     }
 
@@ -75,27 +76,27 @@
       left: 0;
       width: 0;
       height: 0;
-      border-left: 140px solid #777d42;
-      border-right: 140px solid #777d42;
-      border-bottom: 100px solid #636934;
-      border-radius: 0 0 8px 8px;
+      border-left: 180px solid #777d42;
+      border-right: 180px solid #777d42;
+      border-bottom: 130px solid #636934;
+      border-radius: 0 0 12px 12px;
       z-index: 4;
       pointer-events: none;
     }
 
-    /* La tarjeta con el nombre del invitado dentro del sobre */
+    /* La tarjeta interior que emerge */
     .tarjeta-invitado {
       position: absolute;
-      bottom: 10px;
+      bottom: 12px;
       left: 15px;
-      width: 250px;
-      height: 160px;
+      width: 330px; /* Ajustado al nuevo ancho */
+      height: 200px; /* Ajustado a la nueva altura */
       background-color: #efe9dc;
-      border-radius: 4px;
-      padding: 15px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      border-radius: 6px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
       z-index: 2;
-      transition: transform 0.6s ease-in-out 0.4s; /* Delay para esperar que abra la solapa */
+      transition: transform 0.7s ease-in-out 0.4s; 
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -105,17 +106,18 @@
     /* Clases de activación al hacer click */
     .sobre-abierto .solapa {
       transform: rotateX(180deg);
-      z-index: 1; /* Pasa atrás al abrirse */
+      z-index: 1; 
     }
 
     .sobre-abierto .tarjeta-invitado {
-      transform: translateY(-90px); /* Saca la tarjeta hacia arriba */
+      transform: translateY(-110px); /* Saca la tarjeta proporcionalmente más arriba */
     }
 
     .texto-personalizado {
       font-family: 'Montserrat', sans-serif;
       color: #6b7139;
       text-align: center;
+      margin-bottom: 0px;
     }
   </style>
 </head>
@@ -129,24 +131,25 @@
 </button>
 
 <main class="min-h-screen w-full bg-[#efe9dc] flex justify-center">
-  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden flex flex-col items-center justify-center" role="dialog" aria-label="Portada de la invitación">
+  <!-- Flex-col con estructura distribuida para mandar elementos abajo -->
+  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden flex flex-col items-center pt-12 pb-10" role="dialog" aria-label="Portada de la invitación">
     <img src="assets/solangeyenrique_portada.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover opacity-30"/>
     
-    <!-- Contenedor del Sobre Estilizado -->
+    <!-- Contenedor del Sobre (Crece y se posiciona cómodamente en el centro/superior) -->
     <div id="contenedor-sobre" class="wrapper-sobre z-10">
       <div class="solapa"></div>
       <div class="tarjeta-invitado">
         <div class="texto-personalizado">
-          <p id="txt-invitado" style="font-size: 15px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 5px;"></p>
-          <p id="txt-pases" style="font-size: 11px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
+          <p id="txt-invitado" style="font-size: 18px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 8px;"></p>
+          <p id="txt-pases" style="font-size: 13px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
         </div>
       </div>
       <div class="cuerpo-sobre"></div>
     </div>
 
-    <!-- Botón de Acción -->
-    <div class="z-20 flex flex-col items-center">
-      <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif;" aria-label="Abrir invitación">
+    <!-- Contenedor Inferior Fijo para el Botón -->
+    <div class="z-20 w-full flex flex-col items-center mt-auto">
+      <button id="btn-abrir" class="px-8 py-3 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px" aria-label="Abrir invitación">
         Abrir invitación
       </button>
     </div>
@@ -173,26 +176,21 @@
   const contenedorSobre = document.getElementById('contenedor-sobre');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
-    // 1. Desencadenamos la animación CSS agregando la clase activa al sobre
     contenedorSobre.classList.add('sobre-abierto');
-
-    // 2. Mostramos de inmediato el botón flotante de música
     btnMusica.style.display = 'flex';
 
-    // 3. Intentamos reproducir la música
     musica.play()
       .then(() => {
         actualizarIconos(false);
       })
       .catch(error => {
-        console.log("Audio restringido por el navegador:", error);
+        console.log("Audio restringido:", error);
         actualizarIconos(true);
       });
 
-    // 4. Retrasamos la apertura de la ventana externa para que el usuario aprecie el sobre abriéndose
     setTimeout(() => {
       window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
-    }, 1200);
+    }, 1400); // Un poco más de tiempo para disfrutar de la tarjeta saliendo del sobre más grande
   });
 
   btnMusica.addEventListener('click', function() {
