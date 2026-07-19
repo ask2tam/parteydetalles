@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Solangel &amp; Enrique · Nos casamos</title>
+  <meta name="description" content="Te invitamos a nuestra boda — 05 de Setiembre, Apata, Jauja."/>
+  <meta property="og:title" content="Solangel &amp; Enrique · Nos casamos" />
+  <meta property="og:description" content="Te invitamos a nuestra boda — 05 de Setiembre, Apata, Jauja." />
+  <meta property="og:image" content="https://ask2tam.github.io/parteydetalles/assets/solangeyenrique_miniatura.jpg" />
+
+  <link rel="preload" as="image" href="assets/solangeyenrique_portada.jpg"/>
+  <link rel="stylesheet" href="assets/styles-DQlqYdCA.css" data-precedence="default"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&amp;display=swap" data-precedence="default"/>
+
+  <script>
+    if (window.location.pathname.includes('.html')) {
+      window.history.replaceState(null, '', '/' + window.location.search + window.location.hash);
+    }
+  </script>
+
+  <style>
+    #btn-musica {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 40;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #6b7139;
+      border: none;
+      color: white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+    #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
+    #btn-musica:active { transform: scale(0.95); }
+    
+    /* Estilos para el texto de personalización */
+    .texto-personalizado {
+      font-family: 'Montserrat', sans-serif;
+      color: #6b7139;
+      text-align: center;
+      margin-bottom: 15px;
+      padding: 0 20px;
+    }
+  </style>
+</head>
+<body>
+
+<audio id="musica-boda" src="https://melody-weave-tool.lovable.app/__l5e/assets-v1/6853efb5-ab29-4783-a33a-9189e2497331/risk-it-all.mp3" loop></audio>
+
+<button id="btn-musica" aria-label="Silenciar música">
+  <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+  <svg id="icon-sound-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
+</button>
+
+<main class="min-h-screen w-full bg-[#efe9dc] flex justify-center">
+  <!-- Portada / Dialogo -->
+  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden" role="dialog" aria-label="Portada de la invitación">
+    <img src="assets/solangeyenrique_portada.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover"/>
+    
+    <div class="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 pt-16 bg-gradient-to-t from-[#efe9dc] via-[#efe9dc]/85 to-transparent">
+      
+      <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px" aria-label="Abrir invitación">
+      Abrir invitación
+      </button>
+      <div class="texto-personalizado">
+        <p id="txt-invitado" style="font-size: 16px; font-weight: 500; letter-spacing: 0.05em; margin-bottom: 0px;"></p>
+        <p id="txt-pases" style="font-size: 12px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- Contenedor Principal de la Invitación -->
+  <div class="w-full max-w-[520px] bg-[#efe9dc] h-screen overflow-hidden relative">
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;">
+      <iframe 
+        title="Invitación Solangel &amp; Enrique" 
+        loading="lazy" 
+        src="https://www.canva.com/design/DAHPwJ_cqec/r8rvf6G4cYcKYpzd4Pr0EA/view?embed" 
+        allow="fullscreen" 
+        scrolling="yes" 
+        style="width: 100%; height: 100%; min-height: 100%; border: none; display: block;">
+      </iframe>
+    </div>
+  </div>
+</main>
+
+<script>
+  // PARÁMETROS DE LA URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const nombreInvitado = urlParams.get('invitado');
+  const numeroPases = urlParams.get('pases');
+  if (nombreInvitado) {
+    document.getElementById('txt-invitado').textContent = "Para: " + nombreInvitado;
+  }
+  if (numeroPases) {
+    const textoPase = numeroPases === '1' ? '(1) pase' : `(${numeroPases}) pases`;
+    document.getElementById('txt-pases').textContent = `Tenemos ${textoPase} para ti`;
+  }
+
+  // MÚSICA Y PORTADA
+  const musica = document.getElementById('musica-boda');
+  const btnMusica = document.getElementById('btn-musica');
+  const iconOn = document.getElementById('icon-sound-on');
+  const iconOff = document.getElementById('icon-sound-off');
+
+  document.getElementById('btn-abrir').addEventListener('click', function() {
+    musica.play()
+      .then(() => { btnMusica.style.display = 'flex'; })
+      .catch(error => {
+        console.log("Audio bloqueado:", error);
+        btnMusica.style.display = 'flex';
+        actualizarIconos(true);
+      });
+
+    const portada = document.getElementById('portada');
+    portada.style.transition = 'opacity 0.5s ease';
+    portada.style.opacity = '0';
+    setTimeout(() => { portada.style.display = 'none'; }, 500);
+  });
+
+  btnMusica.addEventListener('click', function() {
+    if (musica.paused) { musica.play(); actualizarIconos(false); } 
+    else { musica.pause(); actualizarIconos(true); }
+  });
+
+  function actualizarIconos(estaPausado) {
+    if (estaPausado) {
+      iconOn.style.display = 'none';
+      iconOff.style.display = 'block';
+    } else {
+      iconOn.style.display = 'block';
+      iconOff.style.display = 'none';
+    }
+  }
+</script>
+
+</body>
+</html>
