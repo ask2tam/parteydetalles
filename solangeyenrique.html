@@ -36,15 +36,16 @@
     }
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
-     
+      
     .vista-portada {
       display: flex;
       flex-direction: column;
-      justify-content: flex-end; 
-      align-items: center;
+      justify-content: center; /* Centrado vertical */
+      align-items: center;    /* Centrado horizontal perfecto */
       min-height: 100vh;
+      min-height: 100dvh; /* Altura dinámica real para iOS */
       width: 100%;
-      padding: 40px 20px 24px 20px; 
+      padding: 40px 20px calc(40px + env(safe-area-inset-bottom)) 20px; /* Respeta barra inferior de iPhone */
       box-sizing: border-box;
     }
 
@@ -75,7 +76,7 @@
       background-color: #4f542a; 
       border-radius: 12px;
       box-shadow: 0 35px 70px rgba(0,0,0,0.3);
-      overflow: visible; /* Clave para que la tarjeta se asome hacia arriba sin recortarse */
+      overflow: visible;
     }
 
     /* --- Sello de Lacre Animado --- */
@@ -210,7 +211,7 @@
       z-index: 3;
     }
 
-    /* --- TARJETA COMPLETA (Suben fondo y contenidos juntos) --- */
+    /* --- TARJETA COMPLETA --- */
     .tarjeta-invitado {
       position: absolute;
       top: 0;
@@ -223,7 +224,6 @@
       overflow: hidden;
       box-shadow: 0 10px 30px rgba(0,0,0,0.15);
       transform: translateY(0);
-      /* Espera 0.6s a que la solapa empiece a abrirse y sube en 0.9s */
       transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.6s; 
     }
 
@@ -244,7 +244,7 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-end; 
-      align-items: center;     
+      align-items: center;      
       padding-bottom: 40px;      
       box-sizing: border-box;
       z-index: 2;
@@ -256,12 +256,10 @@
       z-index: 1; 
     }
 
-    /* Desplazamos la tarjeta completa hacia arriba (Fondo + Texto) */
     .sobre-abierto .tarjeta-invitado {
       transform: translateY(-65%); 
     }
 
-    /* Esta clase rompe el bloqueo táctil/click de las solapas laterales tras la subida */
     .tarjeta-invitado.interactiva {
       z-index: 20 !important;
     }
@@ -291,11 +289,23 @@
       .contenedor-escalable { transform: scale(0.55); }
     }
     @media (max-width: 500px) {
-      .area-sobre { width: 352px; height: 235px; }
+      .area-sobre { 
+        width: 352px; 
+        height: 235px; 
+        margin-top: 10px;
+        margin-bottom: 40px; /* Empuja el sobre hacia arriba sin mover el eje horizontal */
+        transform: none;      /* Previene errores de descentrado en pantallas angostas */
+      }
       .contenedor-escalable { transform: scale(0.42); }
     }
     @media (max-width: 380px) {
-      .area-sobre { width: 302px; height: 201px; }
+      .area-sobre { 
+        width: 302px; 
+        height: 201px; 
+        margin-top: 10px;
+        margin-bottom: 40px; 
+        transform: none; 
+      }
       .contenedor-escalable { transform: scale(0.36); }
     }
   </style>
@@ -333,7 +343,6 @@
             <div class="solapa-derecha"></div>
             <div class="solapa-inferior"></div>
             
-            <!-- Estructura limpia donde todo el bloque sube en conjunto -->
             <div id="tarjeta-principal" class="tarjeta-invitado">
               <img src="assets/solangeyenrique_tarjeta.jpg" alt="Solangel &amp; Enrique" class="tarjeta-imagen"/>
               
@@ -388,6 +397,7 @@
     if (sobreAbierto) return;
     sobreAbierto = true;
 
+    // Se mantiene centrado tanto para PC como móviles aplicando únicamente la pequeña bajada de rebote vertical
     areaSobrePostal.style.transform = 'translateY(10px)';
     contenedorSobre.classList.add('sobre-abierto');
     btnMusica.style.display = 'flex';
@@ -400,23 +410,18 @@
       .then(() => actualizarIconos(false))
       .catch(error => actualizarIconos(true));
 
-    // 1. Hacemos que el botón ocupe su espacio desde YA, pero invisible e inclemente al clic
     btnVerDetalles.style.display = 'inline-block';
     btnVerDetalles.style.opacity = '0';
     btnVerDetalles.style.pointerEvents = 'none';
 
-    // 2. Al terminar la animación de subida, lo revelamos suavemente
     tarjetaPrincipal.addEventListener('transitionend', function(e) {
       if (e.propertyName === 'transform') {
-        // Traemos la tarjeta al frente absoluto
         tarjetaPrincipal.classList.add('interactiva');
         
-        // Activamos los clics y hacemos el fade-in sin alterar el diseño
         btnVerDetalles.style.pointerEvents = 'auto';
         btnVerDetalles.style.transition = 'opacity 0.4s ease';
         btnVerDetalles.style.opacity = '1';
         
-        // Iniciamos el bucle flotante una vez que sea visible
         setTimeout(() => {
           btnVerDetalles.classList.add('reproducir-flotacion');
         }, 400);
