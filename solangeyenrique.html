@@ -79,19 +79,6 @@
     </div>
   </div>
 
-  <!-- Contenedor Principal de la Invitación (Iframe para PC) -->
-  <div class="w-full max-w-[520px] bg-[#efe9dc] h-screen overflow-hidden relative">
-    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;">
-      <iframe 
-        title="Invitación Solangel &amp; Enrique" 
-        loading="lazy" 
-        src="https://www.canva.com/design/DAHPwJ_cqec/r8rvf6G4cYcKYpzd4Pr0EA/view?embed"
-        allow="fullscreen"
-        scrolling="yes" 
-        style="width: 100%; height: 100%; min-height: 100%; border: none; display: block;">
-      </iframe>
-    </div>
-  </div>
 </main>
 
 <script>
@@ -114,7 +101,6 @@
   const iconOff = document.getElementById('icon-sound-off');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
-    // 1. Iniciar música de fondo obligatoria para ambos casos
     musica.play()
       .then(() => { btnMusica.style.display = 'flex'; })
       .catch(error => {
@@ -122,20 +108,7 @@
         btnMusica.style.display = 'flex';
         actualizarIconos(true);
       });
-
-    // 2. DETECCIÓN DE DISPOSITIVO MÓVIL (Celular o Tablet)
-    const esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-
-    if (esMovil) {
-      // Si es celular: Abre la pestaña limpia de alta resolución
-      window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
-    } else {
-      // Si es PC: No abre pestaña, solo oculta la portada con animación suave para revelar el iframe
-      const portada = document.getElementById('portada');
-      portada.style.transition = 'opacity 0.5s ease';
-      portada.style.opacity = '0';
-      setTimeout(() => { portada.style.display = 'none'; }, 500);
-    }
+    window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
   });
 
   btnMusica.addEventListener('click', function() {
