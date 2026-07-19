@@ -14,13 +14,18 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&amp;display=swap" data-precedence="default"/>
   <link rel="icon" href="https://ask2tam.github.io/parteydetalles/assets/favicon.ico" type="image/x-icon"/>
 
+  <script>
+    if (window.location.pathname.includes('.html')) {
+      window.history.replaceState(null, '', '/' + window.location.search + window.location.hash);
+    }
+  </script>
+
   <style>
     #btn-musica {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      /* CAMBIO: Subimos el z-index a 60 para ganarle al z-50 de la portada */
-      z-index: 60; 
+      z-index: 70; /* Máxima prioridad sobre el sobre */
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -37,12 +42,80 @@
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
     
+    /* --- ANIMACIÓN DEL SOBRE --- */
+    .wrapper-sobre {
+      position: relative;
+      width: 280px;
+      height: 200px;
+      background-color: #555b2e; /* Color interno del sobre */
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+      margin-bottom: 40px;
+    }
+
+    /* Solapa superior (Triángulo que abre) */
+    .solapa {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      border-left: 140px solid transparent;
+      border-right: 140px solid transparent;
+      border-top: 100px solid #6b7139; /* Color de la solapa */
+      transform-origin: top;
+      transition: transform 0.6s ease-in-out;
+      z-index: 3;
+    }
+
+    /* Laterales e inferior del sobre */
+    .cuerpo-sobre {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      border-left: 140px solid #777d42;
+      border-right: 140px solid #777d42;
+      border-bottom: 100px solid #636934;
+      border-radius: 0 0 8px 8px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* La tarjeta con el nombre del invitado dentro del sobre */
+    .tarjeta-invitado {
+      position: absolute;
+      bottom: 10px;
+      left: 15px;
+      width: 250px;
+      height: 160px;
+      background-color: #efe9dc;
+      border-radius: 4px;
+      padding: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 2;
+      transition: transform 0.6s ease-in-out 0.4s; /* Delay para esperar que abra la solapa */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Clases de activación al hacer click */
+    .sobre-abierto .solapa {
+      transform: rotateX(180deg);
+      z-index: 1; /* Pasa atrás al abrirse */
+    }
+
+    .sobre-abierto .tarjeta-invitado {
+      transform: translateY(-90px); /* Saca la tarjeta hacia arriba */
+    }
+
     .texto-personalizado {
       font-family: 'Montserrat', sans-serif;
       color: #6b7139;
       text-align: center;
-      margin-bottom: 15px;
-      padding: 0 20px;
     }
   </style>
 </head>
@@ -56,20 +129,28 @@
 </button>
 
 <main class="min-h-screen w-full bg-[#efe9dc] flex justify-center">
-  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden" role="dialog" aria-label="Portada de la invitación">
-    <img src="assets/solangeyenrique_portada.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover"/>
+  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden flex flex-col items-center justify-center" role="dialog" aria-label="Portada de la invitación">
+    <img src="assets/solangeyenrique_portada.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover opacity-30"/>
     
-    <div class="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 pt-16 bg-gradient-to-t from-[#efe9dc] via-[#efe9dc]/85 to-transparent">
-      
-      <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px" aria-label="Abrir invitación">
-      Abrir invitación
-      </button>
-      <div class="texto-personalizado">
-        <p id="txt-invitado" style="font-size: 16px; font-weight: 500; letter-spacing: 0.05em; margin-bottom: 0px;"></p>
-        <p id="txt-pases" style="font-size: 12px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
+    <!-- Contenedor del Sobre Estilizado -->
+    <div id="contenedor-sobre" class="wrapper-sobre z-10">
+      <div class="solapa"></div>
+      <div class="tarjeta-invitado">
+        <div class="texto-personalizado">
+          <p id="txt-invitado" style="font-size: 15px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 5px;"></p>
+          <p id="txt-pases" style="font-size: 11px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
+        </div>
       </div>
-
+      <div class="cuerpo-sobre"></div>
     </div>
+
+    <!-- Botón de Acción -->
+    <div class="z-20 flex flex-col items-center">
+      <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif;" aria-label="Abrir invitación">
+        Abrir invitación
+      </button>
+    </div>
+
   </div>
 </main>
 
@@ -89,14 +170,14 @@
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
-  const portada = document.getElementById('portada');
+  const contenedorSobre = document.getElementById('contenedor-sobre');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
-    // 1. Mostramos el botón flotante
-    btnMusica.style.display = 'flex';
+    // 1. Desencadenamos la animación CSS agregando la clase activa al sobre
+    contenedorSobre.classList.add('sobre-abierto');
 
-    // 2. CAMBIO NUEVO: Ocultamos la portada para descubrir el resto de la página trasera si existiese
-    portada.style.display = 'none';
+    // 2. Mostramos de inmediato el botón flotante de música
+    btnMusica.style.display = 'flex';
 
     // 3. Intentamos reproducir la música
     musica.play()
@@ -104,12 +185,14 @@
         actualizarIconos(false);
       })
       .catch(error => {
-        console.log("Audio bloqueado:", error);
+        console.log("Audio restringido por el navegador:", error);
         actualizarIconos(true);
       });
 
-    // 4. Abrir ventana externa
-    window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
+    // 4. Retrasamos la apertura de la ventana externa para que el usuario aprecie el sobre abriéndose
+    setTimeout(() => {
+      window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
+    }, 1200);
   });
 
   btnMusica.addEventListener('click', function() {
