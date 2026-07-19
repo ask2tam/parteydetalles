@@ -50,6 +50,37 @@
       margin-bottom: 15px;
       padding: 0 20px;
     }
+
+    /* CONTENEDOR Y ESCALADO DE ALTA RESOLUCIÓN PARA EL IFRAME */
+    .canva-wrapper {
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden;
+    }
+
+    .high-res-iframe {
+      border: none;
+      display: block;
+      /* Forzamos dimensiones de renderizado gigantes en segundo plano (Full HD Vertical) */
+      width: 1080px !important;
+      height: 1920px !important;
+      
+      /* Punto de origen arriba a la izquierda para el encogimiento */
+      transform-origin: top left;
+      
+      /* Operación matemática: Ajusta la escala dividiendo el ancho dinámico del contenedor actual (100%) entre el ancho virtual (1080px) */
+      transform: scale(calc(100vw / 1080));
+    }
+
+    /* En pantallas de escritorio limitamos el cálculo al ancho máximo establecido del contenedor (520px) */
+    @media (min-width: 520px) {
+      .high-res-iframe {
+        transform: scale(calc(520px / 1080));
+      }
+    }
   </style>
 </head>
 <body>
@@ -76,21 +107,19 @@
         <p id="txt-pases" style="font-size: 12px; font-weight: 400; font-style: italic; opacity: 0.9;"></p>
       </div>
 
-
     </div>
   </div>
 
   <!-- Contenedor Principal de la Invitación -->
   <div class="w-full max-w-[520px] bg-[#efe9dc] h-screen overflow-hidden relative">
-    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;">
+    <div class="canva-wrapper" style="-webkit-overflow-scrolling: touch; overflow-y: auto;">
       <iframe 
+        class="high-res-iframe"
         title="Invitación Solangel &amp; Enrique" 
         loading="lazy" 
         src="https://www.canva.com/design/DAHPwJ_cqec/r8rvf6G4cYcKYpzd4Pr0EA/view?embed"
-		width="3840px" height="1080"
-		allow="fullscreen"
-        scrolling="yes" 
-        style="width: 100%; height: 100%; min-height: 100%; border: none; display: block;">
+        allow="fullscreen"
+        scrolling="yes">
       </iframe>
     </div>
   </div>
