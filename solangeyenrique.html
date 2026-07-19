@@ -19,14 +19,15 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      z-index: 40;
+      /* CAMBIO: Subimos el z-index a 60 para ganarle al z-50 de la portada */
+      z-index: 60; 
       width: 40px;
       height: 40px;
       border-radius: 50%;
       background-color: #6b7139;
       border: none;
       color: white;
-      display: none; /* Se mantiene oculto al inicio */
+      display: none; 
       align-items: center;
       justify-content: center;
       cursor: pointer;
@@ -36,7 +37,6 @@
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
     
-    /* Estilos para el texto de personalización */
     .texto-personalizado {
       font-family: 'Montserrat', sans-serif;
       color: #6b7139;
@@ -71,7 +71,6 @@
 
     </div>
   </div>
-
 </main>
 
 <script>
@@ -90,28 +89,29 @@
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
+  const portada = document.getElementById('portada');
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
-    // 1. Mostramos el botón flotante inmediatamente al hacer click
+    // 1. Mostramos el botón flotante
     btnMusica.style.display = 'flex';
 
-    // 2. Intentamos reproducir la música
+    // 2. CAMBIO NUEVO: Ocultamos la portada para descubrir el resto de la página trasera si existiese
+    portada.style.display = 'none';
+
+    // 3. Intentamos reproducir la música
     musica.play()
       .then(() => {
-        // Reproducción exitosa: aseguramos que el ícono sea el de sonido encendido
         actualizarIconos(false);
       })
       .catch(error => {
-        console.log("Audio bloqueado por el navegador:", error);
-        // Si el navegador lo bloquea, mostramos el icono de apagado para que pinchen el botón
+        console.log("Audio bloqueado:", error);
         actualizarIconos(true);
       });
 
-    // 3. Abrir el enlace externo
+    // 4. Abrir ventana externa
     window.open("https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique", "_blank");
   });
 
-  // Control manual del botón reproducir/pausar
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
       musica.play(); 
