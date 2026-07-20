@@ -65,34 +65,12 @@
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
-
+  
   document.getElementById('btn-abrir').addEventListener('click', function() {
   btnMusica.style.display = 'flex';
-
-  // 1. Desbloqueo síncrono del contexto de audio para iOS antes de perder el foco
-  if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
-    const ContextoAudio = window.AudioContext || window.webkitAudioContext;
-    const ctx = new ContextoAudio();
-    ctx.resume();
-  }
-
-  // 2. Intentar reproducir el elemento de audio inmediatamente
-  const playPromise = musica.play();
-
-  // 3. Abrir la pestaña nueva justo después de haber solicitado la reproducción
+  musica.play();
+  actualizarIconos(false);
   window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
-
-  // 4. Manejar de forma asíncrona la respuesta visual del botón
-  if (playPromise !== undefined) {
-    playPromise
-      .then(() => {
-        actualizarIconos(false);
-      })
-      .catch(error => {
-        console.log("Audio restringido por iOS:", error);
-        actualizarIconos(true);
-      });
-  }
   });
 
   btnMusica.addEventListener('click', function() {
