@@ -39,7 +39,6 @@
 </head>
 <body>
 
-<!-- Preload="auto" le indica al navegador que descargue el buffer del audio de inmediato -->
 <audio id="musica-boda" src="https://melody-weave-tool.lovable.app/__l5e/assets-v1/6853efb5-ab29-4783-a33a-9189e2497331/risk-it-all.mp3" preload="auto" loop></audio>
 
 <button id="btn-musica" aria-label="Silenciar música">
@@ -53,7 +52,7 @@
     
     <div class="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 pt-16 bg-gradient-to-t from-[#efe9dc] via-[#efe9dc]/85 to-transparent">
       
-      <!-- El botón inicia bloqueado (disabled) y semi-transparente mientras el audio carga -->
+      <!-- Inicia bloqueado temporalmente por seguridad informática/móvil -->
       <button id="btn-abrir" disabled class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px; opacity: 0.6; cursor: not-allowed;" aria-label="Abrir invitación">
       Cargando...
       </button>
@@ -63,26 +62,38 @@
 </main>
 
 <script>
-  // MÚSICA Y PORTADA
+
   const musica = document.getElementById('musica-boda');
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
   const btnAbrir = document.getElementById('btn-abrir');
 
-  // EVENTO PRINCIPAL: Se ejecuta de manera síncrona inmediata para evitar bloqueos en iOS
+  function activarInvitacion() {
+    if (btnAbrir.disabled === false) return;
+    btnAbrir.disabled = false;
+    btnAbrir.innerText = "Abrir invitación";
+    btnAbrir.style.opacity = "1";
+    btnAbrir.style.cursor = "pointer";
+  }
+  if (musica.readyState >= 1) { 
+    activarInvitacion();
+  } else {
+    musica.addEventListener('loadedmetadata', activarInvitacion);
+  }
+  setTimeout(activarInvitacion, 2500);
+
   btnAbrir.addEventListener('click', function() {
     btnMusica.style.display = 'flex';
-
-    // 1. Forzamos el inicio del audio de inmediato (ya precargado en memoria)
-    musica.play();
-    actualizarIconos(false);
-
-    // 2. Inmediatamente después abrimos la pestaña con la invitación
-    window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
+    musica.play().then(() => {
+      actualizarIconos(false);
+    }).catch((error) => {
+      console.log("La reproducción automática falló o requiere interacción directa sobre el reproductor:", error);
+      actualizarIconos(true);
+    });
+	window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
   });
 
-  // CONTROL DEL BOTÓN FLOTANTE DE MÚSICA
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
       musica.play(); 
@@ -91,16 +102,6 @@
       musica.pause(); 
       actualizarIconos(true); 
     }
-  });
-
-// MONITOREO DE PRECARGA: Desbloquea el botón tras un tiempo de seguridad extra
-  musica.addEventListener('canplaythrough', function() {
-    setTimeout(function() {
-      btnAbrir.disabled = false;
-      btnAbrir.innerText = "Abrir invitación";
-      btnAbrir.style.opacity = "1";
-      btnAbrir.style.cursor = "pointer";
-    }, 1000);
   });
 
   function actualizarIconos(estaPausado) {
