@@ -14,7 +14,6 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&amp;display=swap" data-precedence="default"/>
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon"/>
 
-
   <style>
     #btn-musica {
       position: fixed;
@@ -36,12 +35,12 @@
     }
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
-    
   </style>
 </head>
 <body>
 
-<audio id="musica-boda" src="https://melody-weave-tool.lovable.app/__l5e/assets-v1/6853efb5-ab29-4783-a33a-9189e2497331/risk-it-all.mp3" loop></audio>
+<!-- Se agrega el atributo preload="auto" para forzar la carga anticipada del audio -->
+<audio id="musica-boda" src="https://melody-weave-tool.lovable.app/__l5e/assets-v1/6853efb5-ab29-4783-a33a-9189e2497331/risk-it-all.mp3" preload="auto" loop></audio>
 
 <button id="btn-musica" aria-label="Silenciar música">
   <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
@@ -53,18 +52,14 @@
     <img src="assets/solangeyenrique_fondo.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover"/>
     
     <div class="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 pt-16 bg-gradient-to-t from-[#efe9dc] via-[#efe9dc]/85 to-transparent">
-      
       <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px" aria-label="Abrir invitación">
       Abrir invitación
       </button>
-
     </div>
   </div>
-
 </main>
 
 <script>
-
   // MÚSICA Y PORTADA
   const musica = document.getElementById('musica-boda');
   const btnMusica = document.getElementById('btn-musica');
@@ -73,7 +68,12 @@
 
   document.getElementById('btn-abrir').addEventListener('click', function() {
     btnMusica.style.display = 'flex';
-	musica.play()
+
+    // 1. Ejecución síncrona inmediata para evitar el bloqueo del pop-up en iOS (Safari)
+    window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
+
+    // 2. Disparo inmediato del reproductor antes de perder por completo el foco de interacción
+    musica.play()
       .then(() => {
         actualizarIconos(false);
       })
@@ -81,8 +81,6 @@
         console.log("Audio restringido:", error);
         actualizarIconos(true);
       });
-
-    window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
   });
 
   btnMusica.addEventListener('click', function() {
