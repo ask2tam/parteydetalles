@@ -10,24 +10,24 @@
   <meta property="og:image" content="https://ask2tam.github.io/parteydetalles/assets/solangeyenrique_miniatura.jpg" />
 
   <link rel="preload" as="image" href="assets/solangeyenrique_fondo.jpg"/>
-  <link rel="preload" as="image" href="assets/solangeyenrique_tarjeta.jpg"/>
   <link rel="stylesheet" href="assets/styles-DQlqYdCA.css" data-precedence="default"/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&amp;display=swap" data-precedence="default"/>
-  <link rel="icon" href="https://ask2tam.github.io/parteydetalles/assets/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon"/>
+
 
   <style>
     #btn-musica {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      z-index: 70; 
+      z-index: 70;
       width: 40px;
       height: 40px;
       border-radius: 50%;
       background-color: #6b7139;
       border: none;
       color: white;
-      display: none; 
+      display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
@@ -36,278 +36,7 @@
     }
     #btn-musica:hover { transform: scale(1.05); background-color: #555b2e; }
     #btn-musica:active { transform: scale(0.95); }
-      
-    .vista-portada {
-      display: flex;
-      flex-direction: column;
-      justify-content: center; /* Centrado vertical */
-      align-items: center;    /* Centrado horizontal perfecto */
-      min-height: 100vh;
-      min-height: 100dvh; /* Altura dinámica real para iOS */
-      width: 100%;
-      padding: 40px 20px calc(40px + env(safe-area-inset-bottom)) 20px; /* Respeta barra inferior de iPhone */
-      box-sizing: border-box;
-    }
-
-    .area-sobre {
-      position: relative;
-      width: 840px;
-      height: 560px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-top: 20px;
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .contenedor-escalable {
-      position: absolute;
-      width: 840px;
-      height: 560px;
-      transform-origin: center center;
-      transition: transform 0.3s ease;
-    }
-
-    /* --- SOBRE POSTAL --- */
-    .wrapper-sobre {
-      position: relative;
-      width: 840px; 
-      height: 560px; 
-      background-color: #4f542a; 
-      border-radius: 12px;
-      box-shadow: 0 35px 70px rgba(0,0,0,0.3);
-      overflow: visible;
-    }
-
-    /* --- Sello de Lacre Animado --- */
-    .wrapper-lacre {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 100px;
-      height: 100px;
-      z-index: 6; 
-      cursor: pointer;
-      transition: opacity 0.4s ease, transform 0.3s ease;
-    }
-
-    .sello-lacre {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      animation: latido-corazon 1.6s infinite ease-in-out;
-      transform-origin: center center;
-    }
-
-    .wrapper-lacre:hover .sello-lacre { 
-      animation: shake 0.3s ease-in-out infinite;
-    }
-
-    /* --- BOTÓN VER DETALLES --- */
-    .btn-animado-detalles {
-      display: inline-block;
-      font-family: 'Montserrat', sans-serif;
-      text-decoration: none;
-      background-color: #6b7139;
-      color: white;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      padding: 10px 28px;
-      border-radius: 9999px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-      cursor: pointer;
-    }
-
-    .btn-animado-detalles:hover {
-      background-color: #555b2e;
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-    }
-
-    .btn-animado-detalles:active {
-      transform: scale(0.98);
-    }
-
-    .reproducir-flotacion {
-      animation: bucle-flotar 2s infinite ease-in-out;
-    }
-
-    @keyframes bucle-flotar {
-      0% { transform: translateY(0px) scale(1); }
-      50% { transform: translateY(-6px) scale(1.02); }
-      100% { transform: translateY(0px) scale(1); }
-    }
-
-    @keyframes latido-corazon {
-      0% { transform: scale(1); }
-      14% { transform: scale(1.08); }
-      28% { transform: scale(1); }
-      42% { transform: scale(1.08); }
-      70% { transform: scale(1); }
-    }
-
-    @keyframes shake {
-      0% { transform: scale(1.05) rotate(0deg); }
-      20% { transform: scale(1.05) rotate(-3deg); }
-      40% { transform: scale(1.05) rotate(3deg); }
-      60% { transform: scale(1.05) rotate(-1.5deg); }
-      80% { transform: scale(1.05) rotate(1.5deg); }
-      100% { transform: scale(1.05) rotate(0deg); }
-    }
-
-    /* --- LAS 4 SOLAPAS TRIANGULARES --- */
-    .solapa-superior {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 0;
-      height: 0;
-      border-left: 420px solid transparent;
-      border-right: 420px solid transparent;
-      border-top: 290px solid #6b7139;
-      transform-origin: top;
-      transition: transform 0.8s ease-in-out;
-      z-index: 5; 
-    }
-
-    .solapa-inferior {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 0;
-      height: 0;
-      border-left: 420px solid transparent;
-      border-right: 420px solid transparent;
-      border-bottom: 290px solid #5d6232;
-      z-index: 4; 
-    }
-
-    .solapa-izquierda {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 0;
-      height: 0;
-      border-top: 280px solid transparent;
-      border-bottom: 280px solid transparent;
-      border-left: 430px solid #72793d;
-      border-radius: 12px 0 0 12px;
-      z-index: 3;
-    }
-
-    .solapa-derecha {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 0;
-      height: 0;
-      border-top: 280px solid transparent;
-      border-bottom: 280px solid transparent;
-      border-right: 430px solid #72793d;
-      border-radius: 0 12px 12px 0;
-      z-index: 3;
-    }
-
-    /* --- TARJETA COMPLETA --- */
-    .tarjeta-invitado {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%; 
-      height: 100%; 
-      background-color: #efe9dc;
-      border-radius: 12px;
-      z-index: 2; 
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-      transform: translateY(0);
-      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.6s; 
-    }
-
-    .tarjeta-imagen {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      z-index: 1;
-    }
-
-    .tarjeta-contenido {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end; 
-      align-items: center;      
-      padding-bottom: 40px;      
-      box-sizing: border-box;
-      z-index: 2;
-    }
-
-    /* --- ESTADOS DE APERTURA --- */
-    .sobre-abierto .solapa-superior {
-      transform: rotateX(180deg);
-      z-index: 1; 
-    }
-
-    .sobre-abierto .tarjeta-invitado {
-      transform: translateY(-65%); 
-    }
-
-    .tarjeta-invitado.interactiva {
-      z-index: 20 !important;
-    }
-
-    .sobre-abierto .wrapper-lacre {
-      opacity: 0;
-      pointer-events: none;
-      transform: translate(-50%, -50%) scale(0.8);
-    }
-    .sobre-abierto .sello-lacre {
-      animation: none;
-    }
-
-    .texto-personalizado {
-      font-family: 'Montserrat', sans-serif;
-      color: #5d6232; 
-      text-align: center;
-    }
-
-    /* --- MEDIA QUERIES RESPONSIVOS --- */
-    @media (max-width: 900px) {
-      .area-sobre { width: 630px; height: 420px; }
-      .contenedor-escalable { transform: scale(0.75); }
-    }
-    @media (max-width: 680px) {
-      .area-sobre { width: 462px; height: 308px; }
-      .contenedor-escalable { transform: scale(0.55); }
-    }
-    @media (max-width: 500px) {
-      .area-sobre { 
-        width: 352px; 
-        height: 235px; 
-        margin-top: 10px;
-        margin-bottom: 40px; /* Empuja el sobre hacia arriba sin mover el eje horizontal */
-        transform: none;      /* Previene errores de descentrado en pantallas angostas */
-      }
-      .contenedor-escalable { transform: scale(0.42); }
-    }
-    @media (max-width: 380px) {
-      .area-sobre { 
-        width: 302px; 
-        height: 201px; 
-        margin-top: 10px;
-        margin-bottom: 40px; 
-        transform: none; 
-      }
-      .contenedor-escalable { transform: scale(0.36); }
-    }
+    
   </style>
 </head>
 <body>
@@ -319,118 +48,42 @@
   <svg id="icon-sound-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
 </button>
 
-<main class="min-h-screen w-full flex justify-center">
-  <div id="portada" class="fixed inset-0 z-50 w-full h-full overflow-y-visible" style="background: url('assets/solangeyenrique_fondo.jpg') no-repeat center center fixed; background-size: cover;" role="dialog" aria-label="Portada de la invitación">
+<main class="min-h-screen w-full bg-[#efe9dc] flex justify-center">
+  <div id="portada" class="fixed inset-0 z-50 w-full h-full bg-[#efe9dc] overflow-hidden" role="dialog" aria-label="Portada de la invitación">
+    <img src="assets/solangeyenrique_fondo.jpg" alt="Solangel &amp; Enrique" class="absolute inset-0 w-full h-full object-cover"/>
     
-    <div class="vista-portada">
+    <div class="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 pt-16 bg-gradient-to-t from-[#efe9dc] via-[#efe9dc]/85 to-transparent">
       
-      <div class="w-full flex flex-col items-center" style="margin-bottom: auto;">
-        <button id="btn-abrir" class="py-2 rounded-full bg-[#6b7139] text-white text-sm tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; padding-left: 2rem; padding-right: 2rem;" aria-label="Abrir invitación">
-          Abrir invitación
-        </button>
-      </div>
-      
-      <div id="area-sobre-postal" class="area-sobre">
-        <div class="contenedor-escalable">
-          <div id="contenedor-sobre" class="wrapper-sobre">
-            
-            <div id="wrapper-sello" class="wrapper-lacre">
-              <img id="img-sello" src="assets/solangeyenrique_sello.png" alt="Sello de Lacre" class="sello-lacre" />
-            </div>
-            
-            <div class="solapa-superior"></div>
-            <div class="solapa-izquierda"></div>
-            <div class="solapa-derecha"></div>
-            <div class="solapa-inferior"></div>
-            
-            <div id="tarjeta-principal" class="tarjeta-invitado">
-              <img src="assets/solangeyenrique_tarjeta.jpg" alt="Solangel &amp; Enrique" class="tarjeta-imagen"/>
-              
-              <div class="tarjeta-contenido">
-                <div class="texto-personalizado">
-                  <p id="txt-invitado" style="font-size: 32px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12px;"></p>
-                  <p id="txt-pases" style="font-size: 20px; font-weight: 400; font-style: italic; opacity: 0.95; margin-bottom: 20px;"></p>
-                  
-                  <a id="btn-ver-detalles" href="https://invitaciones.parteydetalles.com/web-lovable-solangel-enrique" target="_blank" rel="noopener noreferrer" class="btn-animado-detalles" style="display: none; margin: 0 auto;">
-                    Ver Detalles
-                  </a>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
+      <button id="btn-abrir" class="px-6 py-2 rounded-full bg-[#6b7139] text-white text-xs tracking-[0.25em] uppercase shadow-xl hover:scale-105 transition animate-pulse focus:outline-none" style="font-family:'Montserrat', sans-serif; margin-bottom: 5px" aria-label="Abrir invitación">
+      Abrir invitación
+      </button>
 
     </div>
-
   </div>
+
 </main>
 
 <script>
-  const urlParams = new URLSearchParams(window.location.search);
-  const nombreInvitado = urlParams.get('invitado');
-  const numeroPases = urlParams.get('pases');
-  if (nombreInvitado) {
-    document.getElementById('txt-invitado').textContent = "Para: " + nombreInvitado;
-  }
-  if (numeroPases) {
-    const textoPase = numeroPases === '1' ? '(1) pase' : `(${numeroPases}) pases`;
-    document.getElementById('txt-pases').textContent = `Tenemos ${textoPase} para ti`;
-  }
 
+  // MÚSICA Y PORTADA
   const musica = document.getElementById('musica-boda');
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
-  const contenedorSobre = document.getElementById('contenedor-sobre');
-  const areaSobrePostal = document.getElementById('area-sobre-postal');
-  const tarjetaPrincipal = document.getElementById('tarjeta-principal');
-  
-  const btnAbrir = document.getElementById('btn-abrir');
-  const imgSello = document.getElementById('wrapper-sello'); 
-  const btnVerDetalles = document.getElementById('btn-ver-detalles');
 
-  let sobreAbierto = false;
-
-  function ejecutarAperturaSobre() {
-    if (sobreAbierto) return;
-    sobreAbierto = true;
-
-    // Se mantiene centrado tanto para PC como móviles aplicando únicamente la pequeña bajada de rebote vertical
-    areaSobrePostal.style.transform = 'translateY(10px)';
-    contenedorSobre.classList.add('sobre-abierto');
+  document.getElementById('btn-abrir').addEventListener('click', function() {
     btnMusica.style.display = 'flex';
-    
-    btnAbrir.style.transition = 'opacity 0.5s ease';
-    btnAbrir.style.opacity = '0';
-    setTimeout(() => btnAbrir.style.display = 'none', 500);
+	musica.play()
+      .then(() => {
+        actualizarIconos(false);
+      })
+      .catch(error => {
+        console.log("Audio restringido:", error);
+        actualizarIconos(true);
+      });
 
-    musica.play()
-      .then(() => actualizarIconos(false))
-      .catch(error => actualizarIconos(true));
-
-    btnVerDetalles.style.display = 'inline-block';
-    btnVerDetalles.style.opacity = '0';
-    btnVerDetalles.style.pointerEvents = 'none';
-
-    tarjetaPrincipal.addEventListener('transitionend', function(e) {
-      if (e.propertyName === 'transform') {
-        tarjetaPrincipal.classList.add('interactiva');
-        
-        btnVerDetalles.style.pointerEvents = 'auto';
-        btnVerDetalles.style.transition = 'opacity 0.4s ease';
-        btnVerDetalles.style.opacity = '1';
-        
-        setTimeout(() => {
-          btnVerDetalles.classList.add('reproducir-flotacion');
-        }, 400);
-      }
-    });
-  }
-
-  btnAbrir.addEventListener('click', ejecutarAperturaSobre);
-  imgSello.addEventListener('click', ejecutarAperturaSobre);
+    window.open("https://invitaciones.parteydetalles.com/solangel-enrique", "_blank");
+  });
 
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
