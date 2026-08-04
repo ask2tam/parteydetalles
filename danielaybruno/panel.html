@@ -747,8 +747,19 @@
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    const arrayBuffer = evt.target.result;
+                    
+                    // Decodificación robusta para soportar UTF-8 puro (tildes, ñ, etc.) tanto en CSV como Excel
+                    const decoder = new TextDecoder('utf-8');
+                    const textContent = decoder.decode(arrayBuffer);
+
+                    let workbook;
+                    if (file.name.endsWith('.csv')) {
+                        workbook = XLSX.read(textContent, { type: 'string' });
+                    } else {
+                        workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+                    }
+
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
                     const getColValue = (row, keys) => {
@@ -837,7 +848,7 @@
                     await cargarDatos();
                 } catch (err) {
                     console.error(err);
-                    alert(`Error en la carga masiva: ${err.message || 'Verifique el archivo Excel'}`);
+                    alert(`Error en la carga masiva: ${err.message || 'Verifique el archivo'}`);
                 }
             };
             reader.readAsArrayBuffer(file);
