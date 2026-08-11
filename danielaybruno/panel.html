@@ -506,7 +506,7 @@
                 let waUrl = '';
                 if (inv.whatsapp) {
                     const phoneClean = inv.whatsapp.replace(/\D/g, '');
-                    const msgWa = `¡Hola ${inv.nombre}! 👋 Les escribimos de parte de la boda de Daniela y Bruno 💍. Notamos que intentaste registrarte en la lista de invitados. Ya te hemos incluido, por favor ingresa nuevamente a la web para confirmar tu asistencia y pases. ¡Te esperamos!`;
+                    const msgWa = `¡Hola ${inv.nombre}! Les escribimos de parte de la boda de Daniela y Bruno. Notamos que intentaste registrarte en la lista de invitados. Ya te hemos incluido, por favor ingresa nuevamente a la web para confirmar tu asistencia y pases. ¡Te esperamos!`;
                     waUrl = `https://wa.me/${phoneClean}?text=${encodeURIComponent(msgWa)}`;
                 }
 

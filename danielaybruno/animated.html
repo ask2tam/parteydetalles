@@ -317,10 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     video.play().catch(() => {});
 
-    // Forzar la reproducción del vídeo al interactuar si fue pausado
     document.addEventListener('click', (e) => {
-      // Usamos .closest() para capturar adecuadamente si se hace click dentro de un botón o enlace
-      if (e.target.closest('a, button, input, video')) return;
+      if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
       if (video.paused) video.play().catch(() => {});
     });
   }
@@ -330,9 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   if (audio) {
     audio.volume = 1.0;
-    audio.loop = true; // Garantiza que el audio se repita al finalizar
 
+    // Funciones helper para actualizar la UI según el estado del audio
     const playAudio = () => {
+      if (audio.currentTime === audio.duration) audio.currentTime = 0;
       return audio.play().then(() => {
         if (iconMuted) iconMuted.style.display = 'none';
         if (iconPlaying) iconPlaying.style.display = 'block';
@@ -345,23 +344,40 @@ document.addEventListener('DOMContentLoaded', () => {
       if (iconPlaying) iconPlaying.style.display = 'none';
     };
 
-    // Toggle exclusivo desde el botón flotante
+    // Toggle manual desde el botón flotante
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Evita que el click interactúe con los eventos del document
-        
+        e.stopPropagation(); // Evita interferir con clics globales del document
         if (audio.paused) {
           playAudio().catch(err => {
             console.error("Error al intentar reproducir el audio:", err);
-            alert("No se pudo reproducir el audio. Verifica la interacción del usuario o la ruta del archivo.");
+            alert("No se pudo cargar el audio. Revisa que la ruta del archivo sea correcta.");
           });
         } else {
           pauseAudio();
         }
       });
     }
+
+    // Intento de inicio en la primera interacción (click, scroll o touch)
+    const unlockAudioOnInteraction = () => {
+      if (audio.paused) {
+        playAudio().catch(() => {
+          // Si el navegador lo bloquea, el usuario podrá activarlo con el botón flotante
+        });
+      }
+      // Se eliminan los listeners tras el primer intento
+      ['click', 'scroll', 'touchstart'].forEach(evt => {
+        window.removeEventListener(evt, unlockAudioOnInteraction);
+      });
+    };
+
+    ['click', 'scroll', 'touchstart'].forEach(evt => {
+      window.addEventListener(evt, unlockAudioOnInteraction);
+    });
   }
 });
 </script>
+<script src="assets/animacion-texto.js" defer></script>
 <script src="assets/responsive.js" defer></script>
 </html>
