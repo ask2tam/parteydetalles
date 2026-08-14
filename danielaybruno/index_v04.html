@@ -39,19 +39,19 @@
       width: 100vw !important;
     }
 
-    /* Capa flotante principal */
+    /* Capa flotante con z-index máximo */
     #hero-screen-overlay {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      z-index: 2147483647 !important;
+      z-index: 2147483647 !important; /* Valor máximo de z-index */
       display: flex !important;
       flex-direction: column !important;
       justify-content: flex-end !important;
       align-items: center !important;
-      background-color: #121212 !important;
+      background-color: #1a1a1a !important;
       background-image: url('assets/fondo.png') !important;
       background-repeat: no-repeat !important;
       background-size: auto 135vh !important;
@@ -61,30 +61,22 @@
       color: #ffffff !important;
       box-sizing: border-box !important;
       margin: 0 !important;
-      padding: 0 0 calc(95px + env(safe-area-inset-bottom)) 0 !important;
+      padding: 0 !important;
     }
 
     @media (min-width: 601px) {
       #hero-screen-overlay {
         background-size: 130vw auto !important;
         background-position: center 42% !important;
-        padding-bottom: 70px !important;
       }
     }
 
-    /* Capa de oscurecimiento */
     .hero-overlay-bg {
       position: absolute !important;
       top: 0 !important; left: 0 !important;
       width: 100% !important; height: 100% !important;
-      background: rgba(0, 0, 0, 0.35) !important;
+      background: rgba(0, 0, 0, 0.22) !important;
       z-index: 1 !important;
-      opacity: 0 !important;
-      transition: opacity 1s ease !important;
-    }
-
-    #hero-screen-overlay.loaded .hero-overlay-bg {
-      opacity: 1 !important;
     }
 
     #hero-screen-overlay.fade-out {
@@ -93,19 +85,7 @@
       pointer-events: none !important;
     }
 
-    /* Elementos ocultos durante la carga inicial */
-    .header-content-overlay,
-    .envelope-image-overlay {
-      opacity: 0 !important;
-      transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out !important;
-    }
-
-    #hero-screen-overlay.loaded .header-content-overlay,
-    #hero-screen-overlay.loaded .envelope-image-overlay {
-      opacity: 1 !important;
-    }
-
-    /* Tipografía de la Portada */
+    /* Tipografía aislada con px fijos para prevenir distorsiones de Canva */
     .header-content-overlay {
       position: relative !important;
       z-index: 2 !important;
@@ -113,10 +93,8 @@
       color: #ffffff !important;
       text-transform: uppercase !important;
       padding: 0 10px !important;
-      margin-bottom: 25px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
+      margin-bottom: -10px !important;
+      transition: opacity 1s ease, transform 1s ease !important;
     }
 
     #hero-screen-overlay.opening .header-content-overlay {
@@ -126,85 +104,39 @@
 
     .sub-title-overlay {
       font-family: 'WeddingSansOverlay', sans-serif !important;
-      font-size: 13px !important;
-      letter-spacing: 0.18em !important;
+      font-size: 16px !important;
+      letter-spacing: 0.05em !important;
       font-weight: 400 !important;
-      margin: 0 0 12px 0 !important;
+      margin-bottom: 18px !important;
       opacity: 0.95 !important;
     }
 
-    /* Nombres */
     .main-title-overlay {
       font-family: 'WeddingSerifOverlay', serif !important;
       font-size: 68px !important;
-      line-height: 0.88 !important;
+      line-height: 0.95 !important;
       font-weight: 300 !important;
-      letter-spacing: 0.07em !important;
-      text-shadow: 0 3px 18px rgba(0, 0, 0, 0.7) !important;
+      letter-spacing: 0.05em !important;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6) !important;
       margin: 0 !important;
-    }
-
-    /* SUBIMOS "NOS CASAMOS" + "DANIELA" DANDO MAS MARGEN ABAJO DE DANIELA */
-    .title-daniela {
-      margin-bottom: 14px !important; /* Incrementado para subir Daniela y descolgar el ampersand */
     }
 
     @media (max-width: 600px) {
       .main-title-overlay {
-        font-size: 60px !important;
+        font-size: 48px !important;
       }
     }
 
-    /* '&' - AHORA PERFECTAMENTE CENTRADO ENTRE AMBOS NOMBRES */
     .ampersand-overlay {
       display: block !important;
       font-family: 'WeddingCursiveOverlay', serif !important;
-      font-size: 42px !important;
-      line-height: 0.88 !important;
-      margin: 2px 0 10px 0 !important; /* Espaciado simétrico milimétrico */
+      font-size: 55px !important;
+      margin: 8px !important;
       text-transform: lowercase !important;
       font-weight: 300 !important;
-      text-align: center !important;
     }
 
-    /* Contenedor del Sobre */
-    .envelope-wrapper-overlay {
-      position: relative !important;
-      z-index: 3 !important;
-      width: 100% !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      align-items: center !important;
-      cursor: not-allowed !important;
-      pointer-events: none !important;
-      margin: 0 !important;
-    }
-
-    .envelope-wrapper-overlay.ready {
-      cursor: pointer !important;
-      pointer-events: auto !important;
-    }
-
-    /* Ancho de sobre nivelado al original */
-    .envelope-image-overlay {
-      width: 82% !important;
-      max-width: 390px !important;
-      height: auto !important;
-      display: block !important;
-      filter: drop-shadow(0px -6px 22px rgba(0, 0, 0, 0.45)) !important;
-      transform-origin: center center !important;
-      will-change: transform, opacity !important;
-    }
-
-    @media (min-width: 601px) {
-      .envelope-image-overlay {
-        width: 80% !important;
-        max-width: 440px !important;
-      }
-    }
-
-    /* Animaciones del sobre */
+    /* Keyframes de animación aislados */
     @keyframes heartbeatOverlay {
       0% { transform: translateY(0) scale(1); }
       15% { transform: translateY(-4px) scale(1.03); }
@@ -215,69 +147,100 @@
     }
 
     @keyframes zoomCinematicOverlay {
-      0% { transform: scale(1); opacity: 1; filter: drop-shadow(0px -6px 22px rgba(0, 0, 0, 0.45)); }
-      50% { opacity: 0.8; }
-      100% { transform: scale(20); opacity: 0; filter: drop-shadow(0px 0px 50px rgba(0, 0, 0, 0.9)) blur(8px); }
+      0% {
+        transform: scale(1);
+        opacity: 1;
+        filter: drop-shadow(0px -6px 22px rgba(0, 0, 0, 0.45));
+      }
+      50% {
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(20);
+        opacity: 0;
+        filter: drop-shadow(0px 0px 50px rgba(0, 0, 0, 0.9)) blur(8px);
+      }
+    }
+
+    .envelope-wrapper-overlay {
+      position: relative !important;
+      z-index: 3 !important;
+      width: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+    }
+
+    .envelope-wrapper-overlay.ready {
+      cursor: pointer !important;
+      pointer-events: auto !important;
+    }
+
+    .envelope-image-overlay {
+      width: 100% !important;
+      height: auto !important;
+      display: block !important;
+      filter: drop-shadow(0px -6px 22px rgba(0, 0, 0, 0.45)) !important;
+      transform-origin: center center !important;
+      opacity: 0.6 !important;
+      transition: opacity 0.5s ease !important;
+      will-change: transform, opacity !important; /* Fuerza la aceleración GPU fluida */
+    }
+
+    @media (min-width: 601px) {
+      .envelope-image-overlay {
+        width: 90% !important;
+        max-width: 640px !important;
+      }
     }
 
     .envelope-wrapper-overlay.ready .envelope-image-overlay {
+      opacity: 1 !important;
       animation: heartbeatOverlay 2.5s infinite ease-in-out !important;
     }
 
+    /* Duración calibrada para la animación de zoom */
     .envelope-wrapper-overlay.zoom-envelope .envelope-image-overlay {
       animation: zoomCinematicOverlay 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
     }
 
-    /* ========================================================================== */
-    /* BOTÓN: POSICIONAMIENTO DINÁMICO POR PORCENTAJE                            */
-    /* ========================================================================== */
+    /* Botón con dimensiones en px absolutos */
     .btn-abrir-status-overlay {
-      position: fixed !important;
-      top: 50%;
-      left: 50% !important;
-      transform: translate(-50%, -50%) !important;
-      opacity: 0 !important;
-      z-index: 10 !important;
+      position: relative !important;
+      z-index: 4 !important;
       padding: 12px 28px !important;
       border-radius: 28px !important;
       background: #8C9070 !important;
       color: #ffffff !important;
-      font-size: 13px !important;
+      font-size: 14px !important;
       font-weight: 500 !important;
       letter-spacing: 3px !important;
       text-transform: uppercase !important;
-      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5) !important;
-      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      opacity: 0.6 !important;
+      transition: all 0.4s ease !important;
+      margin-top: -15px !important;
+      margin-bottom: 25px !important;
       display: inline-block !important;
       text-align: center !important;
-      white-space: nowrap !important;
-      will-change: top, opacity !important;
-      cursor: default !important;
+      line-height: 1.2 !important;
+      width: auto !important;
+      height: auto !important;
     }
 
-    .btn-abrir-status-overlay.show-center {
+    .envelope-wrapper-overlay.ready .btn-abrir-status-overlay {
       opacity: 1 !important;
-      transition: opacity 0.6s ease !important;
-    }
-
-    .btn-abrir-status-overlay.animating {
-      transition: top 1.3s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease !important;
-    }
-
-    .envelope-wrapper-overlay.ready ~ .btn-abrir-status-overlay,
-    .btn-abrir-status-overlay.ready-btn {
-      cursor: pointer !important;
-    }
-
-    .envelope-wrapper-overlay.ready ~ .btn-abrir-status-overlay:hover,
-    .btn-abrir-status-overlay.ready-btn:hover {
-      background: #7A7E5F !important;
+      box-shadow: 0 8px 24px rgba(140, 144, 112, 0.45) !important;
     }
 
     .envelope-wrapper-overlay.zoom-envelope .btn-abrir-status-overlay {
       opacity: 0 !important;
-      transform: translate(-50%, 30px) !important;
-      transition: opacity 0.5s ease, transform 0.5s ease !important;
+      transform: translateY(10px) !important;
+      transition: opacity 0.6s ease, transform 0.6s ease !important;
     }
 
     /* Control de Música Flotante */
@@ -301,6 +264,7 @@
     }
   </style>
 
+  <!-- Activar la clase de bloqueo antes del renderizado -->
   <script>document.documentElement.classList.add('overlay-active');</script>
 </head>
 <body>
@@ -324,21 +288,18 @@
 
     <header class="header-content-overlay">
       <p class="sub-title-overlay">NOS CASAMOS</p>
-      <h1 class="main-title-overlay title-daniela">DANIELA</h1>
+      <h1 class="main-title-overlay">DANIELA</h1>
       <span class="ampersand-overlay">&amp;</span>
       <h1 class="main-title-overlay">BRUNO</h1>
     </header>
 
     <div id="envelope-wrapper-overlay" class="envelope-wrapper-overlay">
-      <img id="envelope-img-overlay" src="assets/sobre.png" alt="Sobre invitación" class="envelope-image-overlay">
+      <img src="assets/sobre.png" alt="Sobre invitación" class="envelope-image-overlay">
+      <span id="btn-abrir-text-overlay" class="btn-abrir-status-overlay">Cargando...</span>
     </div>
-
-    <!-- Botón con posición fija administrado por JS -->
-    <span id="btn-abrir-text-overlay" class="btn-abrir-status-overlay">Cargando...</span>
   </div>
 
   <!-- PEGA AQUÍ TODO EL CONTENIDO ORIGINAL QUE VIENE DE CANVA -->
-
   <link rel="stylesheet" href="assets/canva.css">
   
 <style>
@@ -642,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="assets/responsive.js" defer></script>
 
   <!-- ========================================================================== -->
-  <!-- 3. LÓGICA DE PRECARGA Y ANIMACIÓN                                          -->
+  <!-- 3. LÓGICA JAVASCRIPT                                                       -->
   <!-- ========================================================================== -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -651,69 +612,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const iconOn = document.getElementById('icon-sound-on-overlay');
       const iconOff = document.getElementById('icon-sound-off-overlay');
       const envelopeWrapper = document.getElementById('envelope-wrapper-overlay');
-      const envelopeImg = document.getElementById('envelope-img-overlay');
       const btnAbrirText = document.getElementById('btn-abrir-text-overlay');
       const heroScreen = document.getElementById('hero-screen-overlay');
 
-      function precargarImagen(url) {
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(url);
-          img.onerror = () => resolve(url);
-          img.src = url;
-        });
+      let cargado = false;
+
+      function activarInvitacion() {
+        if (cargado) return;
+        cargado = true;
+        envelopeWrapper.classList.add('ready');
+        btnAbrirText.innerText = "Abrir invitación";
       }
 
-      function precargarAudio(audioElement) {
-        return new Promise((resolve) => {
-          if (audioElement.readyState >= 1) {
-            resolve();
-          } else {
-            audioElement.addEventListener('loadedmetadata', resolve, { once: true });
-            setTimeout(resolve, 2500);
-          }
-        });
+      if (musica.readyState >= 1) {
+        activarInvitacion();
+      } else {
+        musica.addEventListener('loadedmetadata', activarInvitacion);
       }
+      setTimeout(activarInvitacion, 3000);
 
-      function obtenerPosicionSobre(porcentaje = 0.84) {
-        const rect = envelopeImg.getBoundingClientRect();
-        return `${rect.top + (rect.height * porcentaje)}px`;
-      }
-
-      Promise.all([
-        precargarImagen('assets/fondo.png'),
-        precargarImagen('assets/sobre.png'),
-        precargarAudio(musica),
-        document.fonts ? document.fonts.ready : Promise.resolve()
-      ]).then(() => {
-
-        heroScreen.classList.add('loaded');
-        btnAbrirText.classList.add('show-center');
-
-        setTimeout(() => {
-          btnAbrirText.classList.add('animating');
-          void btnAbrirText.offsetHeight;
-          
-          btnAbrirText.style.setProperty('top', obtenerPosicionSobre(0.84), 'important');
-
-          setTimeout(() => {
-            btnAbrirText.innerText = "Abrir invitación";
-            envelopeWrapper.classList.add('ready');
-            btnAbrirText.classList.add('ready-btn');
-          }, 650);
-
-        }, 2000);
-      });
-
-      window.addEventListener('resize', () => {
-        if (envelopeWrapper.classList.contains('ready')) {
-          btnAbrirText.style.setProperty('top', obtenerPosicionSobre(0.84), 'important');
-        }
-      });
-
-      function abrirInvitacion() {
-        if (!envelopeWrapper.classList.contains('ready')) return;
-
+      // Disparar animación
+      envelopeWrapper.addEventListener('click', function() {
         btnMusica.style.display = 'flex';
         musica.play().then(() => {
           actualizarIconos(false);
@@ -729,16 +648,15 @@ document.addEventListener('DOMContentLoaded', () => {
           heroScreen.classList.add('fade-out');
         }, 200);
 
+        // Remover overlay y devolver scroll nativo a Canva
         setTimeout(() => {
           heroScreen.remove();
           document.documentElement.classList.remove('overlay-active');
           window.scrollTo(0, 0);
         }, 1600);
-      }
+      });
 
-      envelopeWrapper.addEventListener('click', abrirInvitacion);
-      btnAbrirText.addEventListener('click', abrirInvitacion);
-
+      // Control de música
       btnMusica.addEventListener('click', function() {
         if (musica.paused) { 
           musica.play(); 
