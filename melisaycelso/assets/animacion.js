@@ -1,9 +1,208 @@
+window.addEventListener('DOMContentLoaded', () => {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .canva-fade-element {
+      opacity: 0 !important;
+      transform: translateX(-20px) !important;
+      pointer-events: none !important;
+      transition: opacity 1.8s cubic-bezier(0.16, 1, 0.3, 1), transform 1.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .canva-fade-element.canva-fade-visible {
+      opacity: 1 !important;
+      transform: translate(0, 0) !important;
+      pointer-events: auto !important;
+    }
 
+    #LB4kzRntXlY6nwYW, #LB4kzRntXlY6nwYW p,
+    #LBdJDfSJjnp7dWHM, #LBdJDfSJjnp7dWHM p, #LBdJDfSJjnp7dWHM div,
+    #LBl3PJS5KzvVrxPR, #LBl3PJS5KzvVrxPR p,
+    #LBB76xmSRSB7S1R5, #LBB76xmSRSB7S1R5 p,
+    #LBy6vgh0HGnmJgTG, #LBy6vgh0HGnmJgTG p,
+    #LBj5RbQT05n3zwQ2, #LBj5RbQT05n3zwQ2 p,
+    #LB8fc1jRXWTVxbWN, #LB8fc1jRXWTVxbWN p {
+      visibility: visible !important;
+      white-space: pre-wrap !important;
+    }
 
+    .word-fade {
+      opacity: 0 !important;
+      transform: translateY(6px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      display: inline-block;
+    }
+    .word-fade.word-visible {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
+    .char-fade {
+      opacity: 0 !important;
+      transition: opacity 0.4s ease !important;
+      display: inline-block;
+    }
+    .char-fade.char-visible {
+      opacity: 1 !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Función palabra por palabra (inmediata)
+  function aplicarEfectoPalabras(selector, velocidadPalabra = 70) {
+    const contenedor = document.querySelector(selector);
+    if (!contenedor) return;
+
+    const parrafosInternos = contenedor.querySelectorAll('p');
+    const objetivos = parrafosInternos.length > 0 ? Array.from(parrafosInternos) : [contenedor];
+    const todasLasSpans = [];
+
+    objetivos.forEach(p => {
+      const texto = p.textContent;
+      p.textContent = '';
+      const partes = texto.split(/(\s+)/);
+
+      partes.forEach(parte => {
+        if (parte.trim() === '') {
+          p.appendChild(document.createTextNode(parte));
+        } else {
+          const span = document.createElement('span');
+          span.textContent = parte;
+          span.className = 'word-fade';
+          p.appendChild(span);
+          todasLasSpans.push(span);
+        }
+      });
+    });
+
+    // Guardamos la función de ejecución en el elemento
+    contenedor._animarPalabras = function() {
+      let index = 0;
+      function mostrarSiguiente() {
+        if (index < todasLasSpans.length) {
+          todasLasSpans[index].classList.add('word-visible');
+          index++;
+          setTimeout(mostrarSiguiente, velocidadPalabra);
+        }
+      }
+      mostrarSiguiente();
+    };
+  }
+
+  // Función letra por letra (inmediata)
+  function aplicarEfectoLetras(selector, velocidadLetra = 25) {
+    const contenedor = document.querySelector(selector);
+    if (!contenedor) return;
+
+    const parrafosInternos = contenedor.querySelectorAll('p');
+    const objetivos = parrafosInternos.length > 0 ? Array.from(parrafosInternos) : [contenedor];
+    const todasLasChars = [];
+
+    objetivos.forEach(el => {
+      const htmlOriginal = el.innerHTML;
+      const htmlConToken = htmlOriginal.replace(/<br\s*[\/]?>/gi, '___BREAK___');
+      
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlConToken;
+      const textoPlano = tempDiv.textContent;
+
+      el.textContent = '';
+      const fragmentos = textoPlano.split(/(___BREAK___|\s+)/);
+
+      fragmentos.forEach(frag => {
+        if (frag === '___BREAK___') {
+          el.appendChild(document.createElement('br'));
+        } else if (frag === '' ) {
+          // Vacíos
+        } else if (/^\s+$/.test(frag)) {
+          el.appendChild(document.createTextNode(frag));
+        } else {
+          for (let i = 0; i < frag.length; i++) {
+            const span = document.createElement('span');
+            span.textContent = frag[i];
+            span.className = 'char-fade';
+            el.appendChild(span);
+            todasLasChars.push(span);
+          }
+        }
+      });
+    });
+
+    // Guardamos la función de ejecución en el elemento
+    contenedor._animarLetras = function() {
+      let index = 0;
+      function mostrarSiguienteLetra() {
+        if (index < todasLasChars.length) {
+          todasLasChars[index].classList.add('char-visible');
+          index++;
+          setTimeout(mostrarSiguienteLetra, velocidadLetra);
+        }
+      }
+      mostrarSiguienteLetra();
+    };
+  }
+
+  // 1. PREPARAR EFECTOS
+  aplicarEfectoLetras('#LB4kzRntXlY6nwYW', 100);
+  aplicarEfectoLetras('#LBdJDfSJjnp7dWHM', 100);
+  aplicarEfectoLetras('#LBB76xmSRSB7S1R5', 130);
+  aplicarEfectoLetras('#LBy6vgh0HGnmJgTG', 50);
+  aplicarEfectoLetras('#LBj5RbQT05n3zwQ2', 130);
+  aplicarEfectoLetras('#LB8fc1jRXWTVxbWN', 50);
+  aplicarEfectoPalabras('#LBl3PJS5KzvVrxPR', 150);
+
+  // 2. FUNCIÓN GLOBAL PARA DISPARAR SOLO LOS TEXTOS AL ABRIR LA INVITACIÓN
+  window.iniciarEfectosTexto = function() {
+    const ids = [
+      '#LB4kzRntXlY6nwYW', '#LBdJDfSJjnp7dWHM', '#LBB76xmSRSB7S1R5',
+      '#LBy6vgh0HGnmJgTG', '#LBj5RbQT05n3zwQ2', '#LB8fc1jRXWTVxbWN', '#LBl3PJS5KzvVrxPR'
+    ];
+    
+    ids.forEach(selector => {
+      const el = document.querySelector(selector);
+      if (el) {
+        if (typeof el._animarLetras === 'function') el._animarLetras();
+        if (typeof el._animarPalabras === 'function') el._animarPalabras();
+      }
+    });
+  };
+
+  // 3. Lógica unificada para el resto de elementos
+  const excluidos = [
+    'LB4kzRntXlY6nwYW', 'LBdJDfSJjnp7dWHM', 'LBl3PJS5KzvVrxPR', 
+    'LBB76xmSRSB7S1R5', 'LBy6vgh0HGnmJgTG', 'LBj5RbQT05n3zwQ2', 'LB8fc1jRXWTVxbWN',
+    'hero-screen-overlay', 'btn-abrir-text-overlay', 'envelope-wrapper-overlay'
+  ];
+  
+  const candidatos = document.querySelectorAll('span, div, p, h1, h2, h3, h4, h5, h6');
+  const elementosUnicos = new Set();
+
+  candidatos.forEach(el => {
+    if (excluidos.some(id => el.id === id || el.closest('#' + id))) return;
+    const texto = el.innerText ? el.innerText.trim() : '';
+    if (texto.length > 0) {
+      const tieneHijosBloque = Array.from(el.children).some(child => 
+        ['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(child.tagName)
+      );
+      if (!tieneHijosBloque) elementosUnicos.add(el);
+    }
+  });
+
+  const listaElementos = Array.from(elementosUnicos);
+  if (listaElementos.length > 0) {
+    listaElementos.forEach(el => el.classList.add('canva-fade-element'));
+    const observer = new IntersectionObserver((entries, observerInstance) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('canva-fade-visible');
+          observerInstance.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    listaElementos.forEach(el => observer.observe(el));
+  }
+});
 
 // --- LIBRERÍA DE ANIMACIONES Y EFECTOS SCROLL-DRIVEN ---
 const ScrollDrivenAnimations = {
-	// Registro de efectos con sus keyframes y opciones base
 	efectos: {
 		'zoom-rebote': {
 			keyframes: [
@@ -87,7 +286,6 @@ const ScrollDrivenAnimations = {
 			],
 			opciones: { duration: 1000, easing: 'ease-out', fill: 'forwards' }
 		},
-		// --- NUEVO EFECTO HEARTBEAT ---
 		'latido-heartbeat': {
 			keyframes: [
 				{ transform: 'scale(0.8)', opacity: 0 },
@@ -98,9 +296,7 @@ const ScrollDrivenAnimations = {
 			],
 			opciones: { duration: 900, easing: 'ease-in-out', fill: 'forwards' }
 		},
-		'rompecabezas': {
-			esRompecabezas: true
-		}
+		'rompecabezas': { esRompecabezas: true }
 	},
 
 	mapaEfectos: {
@@ -116,23 +312,13 @@ const ScrollDrivenAnimations = {
 		'Desenfoque de Profundidad (Blur)': 'desenfoque',
 		'Latido de Corazón (Heartbeat)': 'latido-heartbeat',
 		'Rompecabezas': 'rompecabezas',
-
 	},
 
 	init: function(selectorId, nombreEfecto) {
 		const elemento = document.getElementById(selectorId);
-
-		if (!elemento) {
-			console.error(`[ScrollDrivenAnimations] Elemento con ID '${selectorId}' no encontrado.`);
-			return;
-		}
-
+		if (!elemento) return;
 		const claveEfecto = this.mapaEfectos[nombreEfecto];
-		if (!claveEfecto) {
-			console.error(`[ScrollDrivenAnimations] Efecto '${nombreEfecto}' no reconocido.`);
-			return;
-		}
-
+		if (!claveEfecto) return;
 		const config = this.efectos[claveEfecto];
 
 		if (config.esRompecabezas) {
@@ -141,7 +327,6 @@ const ScrollDrivenAnimations = {
 		}
 
 		elemento.style.opacity = '0';
-
 		const observer = new IntersectionObserver((entries, obs) => {
 			entries.forEach(entry => {
 				if (entry.isIntersecting) {
@@ -150,16 +335,12 @@ const ScrollDrivenAnimations = {
 				}
 			});
 		}, { threshold: 0.2 });
-
 		observer.observe(elemento);
 	},
 
 	iniciarRompecabezasScroll: function(targetEl) {
 		const padre = targetEl.parentElement;
-		if (getComputedStyle(padre).position === 'static') {
-			padre.style.position = 'relative';
-		}
-
+		if (getComputedStyle(padre).position === 'static') padre.style.position = 'relative';
 		const observer = new IntersectionObserver((entries, obs) => {
 			entries.forEach(entry => {
 				if (entry.isIntersecting) {
@@ -168,7 +349,6 @@ const ScrollDrivenAnimations = {
 				}
 			});
 		}, { threshold: 0.3 });
-
 		observer.observe(targetEl);
 	},
 
@@ -185,102 +365,24 @@ const ScrollDrivenAnimations = {
 		piezasContainer.style.zIndex = '100';
 		piezasContainer.style.overflow = 'hidden';
 		padre.appendChild(piezasContainer);
-
 		targetEl.style.visibility = 'hidden';
 
-		const cols = 8;
-		const rows = 16;
-		const anchoPieza = rect.width / cols;
-		const altoPieza = rect.height / rows;
-		const PORCENTAJE_DESCUBIERTO = 0.85;
-		
+		const cols = 8, rows = 16;
+		const anchoPieza = rect.width / cols, altoPieza = rect.height / rows;
 		let piezasRestantes = cols * rows;
 
 		const indicesDescubrirAutomaticamente = new Set();
-		while (indicesDescubrirAutomaticamente.size < Math.floor(piezasRestantes * PORCENTAJE_DESCUBIERTO)) {
+		while (indicesDescubrirAutomaticamente.size < Math.floor(piezasRestantes * 0.85)) {
 			indicesDescubrirAutomaticamente.add(Math.floor(Math.random() * piezasRestantes));
 		}
 
-		const estiloCss = document.createElement('style');
-		estiloCss.innerHTML = `
-			@font-face {
-				font-family: 'FuenteEsperamos';
-				src: url('assets/d14b5ffc49cff7b227fa97a90f871d2c.woff') format('woff');
-			}
-			@font-face {
-				font-family: 'FuenteConfirmar';
-				src: url('assets/f94697db11ec97f0a0e16cc96a3dc28d.woff') format('woff');
-			}
-			.pieza-tapa {
-				position: absolute;
-				background-color: #2c3e50;
-				border: 1px solid rgba(255, 255, 255, 0.15);
-				pointer-events: auto;
-				cursor: pointer;
-				z-index: 2;
-				box-sizing: border-box;
-				transition: background-color 0.15s ease;
-			}
-			.pieza-tapa:hover {
-				background-color: #34495e;
-			}
-			.mensaje-completado {
-				position: absolute;
-				top: 0; left: 0; width: 100%; height: 100%;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-				background-color: rgba(0, 0, 0, 0.75);
-				color: #ffffff;
-				text-align: center;
-				z-index: 10;
-				opacity: 0;
-				transition: opacity 0.8s ease-in-out;
-				pointer-events: none;
-				padding: 25px;
-				box-sizing: border-box;
-			}
-			.texto-esperamos {
-				font-family: 'FuenteEsperamos', sans-serif;
-				font-size: clamp(2.5rem, 5vw, 4rem);
-				margin: 0 0 20px 0;
-				text-shadow: 2px 2px 8px rgba(0,0,0,0.9);
-			}
-			.texto-asistencia {
-				font-family: 'FuenteConfirmar', sans-serif;
-				font-size: clamp(1.4rem, 3vw, 2.2rem);
-				margin: 0;
-				font-weight: normal;
-				text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
-			}
-		`;
-		document.head.appendChild(estiloCss);
-
 		const backgroundSource = targetEl.cloneNode(true);
 		backgroundSource.style.position = 'absolute';
-		backgroundSource.style.top = '0';
-		backgroundSource.style.left = '0';
-		backgroundSource.style.width = '100%';
-		backgroundSource.style.height = '100%';
+		backgroundSource.style.top = '0'; backgroundSource.style.left = '0';
+		backgroundSource.style.width = '100%'; backgroundSource.style.height = '100%';
 		backgroundSource.style.visibility = 'visible';
-		piezasContainer.appendChild(backgroundSource);
 		backgroundSource.style.zIndex = '1';
-
-		const verificarSiTermino = () => {
-			if (piezasRestantes === 0) {
-				const mensaje = document.createElement('div');
-				mensaje.className = 'mensaje-completado';
-				mensaje.innerHTML = `
-					<h2 class="texto-esperamos">¡ Te esperamos !</h2>
-					<p class="texto-asistencia">No olvides confirmar tu asistencia</p>
-				`;
-				piezasContainer.appendChild(mensaje);
-				
-				void mensaje.offsetWidth; 
-				mensaje.style.opacity = '1';
-			}
-		};
+		piezasContainer.appendChild(backgroundSource);
 
 		const elementosPieza = [];
 		for (let r = 0; r < rows; r++) {
@@ -292,7 +394,6 @@ const ScrollDrivenAnimations = {
 				piezaEl.style.height = altoPieza + 'px';
 				piezaEl.style.top = (r * altoPieza) + 'px';
 				piezaEl.style.left = (c * anchoPieza) + 'px';
-				piezaEl.title = 'Haz clic para descubrir esta pieza';
 
 				elementosPieza.push(piezaEl);
 				piezasContainer.appendChild(piezaEl);
@@ -301,42 +402,29 @@ const ScrollDrivenAnimations = {
 					if (indicesDescubrirAutomaticamente.has(i)) return;
 					this.remove();
 					piezasRestantes--;
-					verificarSiTermino();
 				});
 			}
 		}
 
 		let colaDescubrir = Array.from(indicesDescubrirAutomaticamente);
 		let indiceCola = 0;
-
 		const intervaloSecuencia = setInterval(() => {
 			if (indiceCola >= colaDescubrir.length) {
 				clearInterval(intervaloSecuencia);
 				return;
 			}
-
-			const indicePiezaActual = colaDescubrir[indiceCola];
-			const piezaDomActual = elementosPieza[indicePiezaActual];
-
+			const piezaDomActual = elementosPieza[colaDescubrir[indiceCola]];
 			if (piezaDomActual && piezaDomActual.parentNode) {
 				piezaDomActual.remove();
 				piezasRestantes--;
 			}
-
 			indiceCola++;
 		}, 45);
 	}
 };
 
-
-ScrollDrivenAnimations.init('PBMsQS5JVQq5RpcM', 'Zoom Dinámico con Rebote');
-ScrollDrivenAnimations.init('PBC20zynWVrp6FYd', 'Latido de Corazón (Heartbeat)');
-ScrollDrivenAnimations.init('PBGvSSgStKr6Mdgr', 'Desenfoque de Profundidad (Blur)');
-ScrollDrivenAnimations.init('PBnGcMT8VJhKK6Ws', 'Rotación 3D en Eje Y (Giro Completo)');
-ScrollDrivenAnimations.init('PBXCppFjl6pgk8ts', 'Caída Vertical con Inercia (Slide Down)');
-ScrollDrivenAnimations.init('PBj8Dt2jNV10k0zK', 'Desenfoque de Profundidad (Blur)');
-ScrollDrivenAnimations.init('PBbBzstPMYcqYShW', 'Desvanecimiento Suave (Fade In Clásico)');
+ScrollDrivenAnimations.init('PBxkPKzC9z7WNs5B', 'Desvanecimiento Suave (Fade In Clásico)');
+ScrollDrivenAnimations.init('PBV1cltrSlxxDfkR', 'Desenfoque de Profundidad (Blur)');
+ScrollDrivenAnimations.init('PBnGcMT8VJhKK6Ws', 'Desenfoque de Profundidad (Blur)');
 
 window.ScrollDrivenAnimations = ScrollDrivenAnimations;
-
-

@@ -387,7 +387,7 @@
         }, 2000);
       });
 
-      function abrirInvitacion() {
+	  function abrirInvitacion() {
         if (!envelopeWrapper.classList.contains('ready')) return;
 
         btnMusica.style.display = 'flex';
@@ -409,6 +409,12 @@
           heroScreen.remove();
           document.documentElement.classList.remove('overlay-active');
           window.scrollTo(0, 0);
+
+          // <--- AQUÍ ACTIVAS LAS ANIMACIONES DE TEXTO AL ABRIR EL SOBRE --->
+          if (typeof window.iniciarEfectosTexto === 'function') {
+            window.iniciarEfectosTexto();
+          }
+
         }, 1600);
       }
 
