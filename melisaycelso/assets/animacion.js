@@ -46,7 +46,7 @@ window.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
 
-  // Función palabra por palabra (inmediata)
+  // Función palabra por palabra
   function aplicarEfectoPalabras(selector, velocidadPalabra = 70) {
     const contenedor = document.querySelector(selector);
     if (!contenedor) return;
@@ -73,7 +73,6 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Guardamos la función de ejecución en el elemento
     contenedor._animarPalabras = function() {
       let index = 0;
       function mostrarSiguiente() {
@@ -87,7 +86,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Función letra por letra (inmediata)
+  // Función letra por letra
   function aplicarEfectoLetras(selector, velocidadLetra = 25) {
     const contenedor = document.querySelector(selector);
     if (!contenedor) return;
@@ -126,7 +125,6 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Guardamos la función de ejecución en el elemento
     contenedor._animarLetras = function() {
       let index = 0;
       function mostrarSiguienteLetra() {
@@ -141,22 +139,24 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // 1. PREPARAR EFECTOS
-  aplicarEfectoLetras('#LB4kzRntXlY6nwYW', 100);
-  aplicarEfectoLetras('#LBdJDfSJjnp7dWHM', 100);
-  aplicarEfectoLetras('#LBB76xmSRSB7S1R5', 130);
-  aplicarEfectoLetras('#LBy6vgh0HGnmJgTG', 50);
-  aplicarEfectoLetras('#LBj5RbQT05n3zwQ2', 130);
-  aplicarEfectoLetras('#LB8fc1jRXWTVxbWN', 50);
-  aplicarEfectoPalabras('#LBl3PJS5KzvVrxPR', 150);
+  aplicarEfectoLetras('#LB4kzRntXlY6nwYW',  100);
+  aplicarEfectoLetras('#LBdJDfSJjnp7dWHM',  100);
+  aplicarEfectoPalabras('#LBl3PJS5KzvVrxPR',200);
+  
+  aplicarEfectoLetras('#LBB76xmSRSB7S1R5', 200);
+  aplicarEfectoLetras('#LBy6vgh0HGnmJgTG', 100);
+  aplicarEfectoLetras('#LBj5RbQT05n3zwQ2', 200);
+  aplicarEfectoLetras('#LB8fc1jRXWTVxbWN', 100);
 
-  // 2. FUNCIÓN GLOBAL PARA DISPARAR SOLO LOS TEXTOS AL ABRIR LA INVITACIÓN
+  // 2. FUNCIÓN GLOBAL PARA DISPARAR SOLO LA PORTADA AL ABRIR EL SOBRE
   window.iniciarEfectosTexto = function() {
-    const ids = [
-      '#LB4kzRntXlY6nwYW', '#LBdJDfSJjnp7dWHM', '#LBB76xmSRSB7S1R5',
-      '#LBy6vgh0HGnmJgTG', '#LBj5RbQT05n3zwQ2', '#LB8fc1jRXWTVxbWN', '#LBl3PJS5KzvVrxPR'
+    const idsPortada = [
+      '#LB4kzRntXlY6nwYW', 
+      '#LBdJDfSJjnp7dWHM', 
+      '#LBl3PJS5KzvVrxPR'
     ];
     
-    ids.forEach(selector => {
+    idsPortada.forEach(selector => {
       const el = document.querySelector(selector);
       if (el) {
         if (typeof el._animarLetras === 'function') el._animarLetras();
@@ -165,7 +165,26 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // 3. Lógica unificada para el resto de elementos
+  // 3. OBSERVADOR DE SCROLL PARA LOS TEXTOS INFERIORES
+  const idsScroll = ['#LBB76xmSRSB7S1R5', '#LBy6vgh0HGnmJgTG', '#LBj5RbQT05n3zwQ2', '#LB8fc1jRXWTVxbWN'];
+  
+  const observerScrollTextos = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        if (typeof el._animarLetras === 'function') el._animarLetras();
+        if (typeof el._animarPalabras === 'function') el._animarPalabras();
+        obs.unobserve(el);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  idsScroll.forEach(selector => {
+    const el = document.querySelector(selector);
+    if (el) observerScrollTextos.observe(el);
+  });
+
+  // 4. Lógica unificada para el resto de elementos
   const excluidos = [
     'LB4kzRntXlY6nwYW', 'LBdJDfSJjnp7dWHM', 'LBl3PJS5KzvVrxPR', 
     'LBB76xmSRSB7S1R5', 'LBy6vgh0HGnmJgTG', 'LBj5RbQT05n3zwQ2', 'LB8fc1jRXWTVxbWN',
