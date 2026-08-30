@@ -56,7 +56,6 @@
       box-sizing: border-box !important;
       margin: 0 !important;
       padding: 10px 20px !important;
-      gap: 0px !important;
     }
 
     #hero-screen-overlay.fade-out {
@@ -83,7 +82,7 @@
       position: relative !important;
       z-index: 2 !important;
       text-align: center !important;
-      margin: -10% 0 0 0 !important;
+      margin-top: -60px !important;
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
@@ -98,7 +97,7 @@
 
     .main-title-overlay {
       font-family: 'WeddingCursiveOverlay', serif !important;
-      font-size: clamp(45px, 10vw, 60px) !important;
+      font-size: 52px !important;
       line-height: 0.95 !important;
       font-weight: 400 !important;
       color: #4a5042 !important;
@@ -113,15 +112,14 @@
       justify-content: center !important;
       align-items: center !important;
       width: 100% !important;
-      margin: 0 !important;
-      margin-top: 14px !important; 
+      margin-top: 10px !important;
     }
 
     .conjunction-y {
       font-family: 'WeddingSansOverlay', sans-serif !important;
       font-style: italic !important;
       font-weight: 900 !important;
-      font-size: clamp(25px, 5vw, 35px) !important;
+      font-size: 30px !important;
       color: #5a5d55 !important;
       line-height: 1 !important;
       text-align: center !important;
@@ -129,10 +127,10 @@
 
     .sub-date-overlay {
       font-family: 'WeddingSansOverlay', sans-serif !important;
-      font-size: clamp(20px, 4vw, 30px) !important;
+      font-size: 24px !important;
       letter-spacing: 0.25em !important;
       color: #5a5d55 !important;
-      margin-top: 30px !important;
+      margin-top: 25px !important;
       font-weight: 700 !important;
       line-height: 1 !important;
       text-align: center !important;
@@ -142,24 +140,11 @@
     .envelope-container-overlay {
       position: relative !important;
       z-index: 3 !important;
-      width: 104% !important;
-      max-width: 530px !important;
-      margin-top: -10% !important;
-      margin-bottom: 3% !important;
+      width: 100% !important;
+      max-width: 420px !important;
+      margin-top: -70px !important;
       cursor: not-allowed !important;
       pointer-events: none !important;
-    }
-
-    /* REGLAS ESPECIALES PARA PANTALLAS GRANDES (> 900px) */
-    @media (min-width: 900px) {
-      .header-top-overlay {
-        margin: 0 0 20px 0 !important;
-      }
-      .envelope-container-overlay {
-        margin-top: -100px !important;
-        margin-bottom: 20px !important;
-        max-width: 480px !important;
-      }
     }
 
     .envelope-container-overlay.ready {
@@ -208,15 +193,14 @@
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 6px !important;
-      margin: 0 !important;
+      margin-top: 20px !important;
       line-height: 1.2 !important;
     }
 
     .pass-title-overlay, 
     #pass-text-overlay {
       font-family: 'WeddingPassOverlay', sans-serif !important;
-      font-size: clamp(18px, 3.5vw, 28px) !important;
+      font-size: 20px !important;
       letter-spacing: 0.2em !important;
       color: #3b4035 !important;
       text-transform: uppercase !important;
@@ -311,7 +295,7 @@
       <p class="sub-date-overlay">09 . 01 . 27</p>
     </header>
 
-    <!-- Sobre superpuesto en % relativo -->
+    <!-- Sobre superpuesto -->
     <div id="envelope-container-overlay" class="envelope-container-overlay">
       <img id="envelope-img-overlay" src="assets/sobre.png" alt="Sobre invitación" class="envelope-image-overlay">
     </div>
@@ -333,6 +317,7 @@
 <script src="assets/responsive.js" defer></script>
 
   <script>
+
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       let numeroPase = urlParams.get('pase');
@@ -340,24 +325,26 @@
       const passElement = document.getElementById('pass-text-overlay');
 	  const passElement2 = document.getElementById('pass-text-overlay2');
 
+      function actualizarTextoPases(valor) {
+        const num = parseInt(valor, 10) || 1;
+        const palabraPase = num === 1 ? 'PASE' : 'PASES';
+        passElement.innerText = `( ${num} ) ${palabraPase} PARA TI`;
+		passElement2.innerText = `( ${num} ) ${palabraPase} PARA TI`;
+      }
+
       if (numeroPase) {
-        // Si viene en la URL, lo guardamos en localStorage y actualizamos
         localStorage.setItem('wedding_pass', numeroPase);
-        passElement.innerText = `( ${numeroPase} ) PASE PARA TI`;
-		passElement2.innerText = `( ${numeroPase} ) pase para ti`;
+        actualizarTextoPases(numeroPase);
       } else {
-        // Si no viene en la URL, intentamos recuperarlo de la memoria (caché)
         const paseGuardado = localStorage.getItem('wedding_pass');
         if (paseGuardado) {
-          passElement.innerText = `( ${paseGuardado} ) PASE PARA TI`;
-		  passElement2.innerText = `( ${paseGuardado} ) pase para ti`;
+          actualizarTextoPases(paseGuardado);
         } else {
-          // Valor por defecto si nunca se pasó un parámetro
-          passElement.innerText = `( 1 ) PASE PARA TI`;
-		  passElement2.innerText = `( 1 ) pase para ti`;
+          actualizarTextoPases('1');
         }
       }
 
+      // Resto de tu código de audio y animaciones...
       const musica = document.getElementById('musica-boda-overlay');
       const btnMusica = document.getElementById('btn-musica-overlay');
       const iconOn = document.getElementById('icon-sound-on-overlay');
