@@ -184,7 +184,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (el) observerScrollTextos.observe(el);
   });
 
-  // 4. Lógica unificada para el resto de elementos
+  // 4. Lógica unificada para el resto de elementos (Excluyendo el canvas y contenedores de alta escala)
   const excluidos = [
     'LB4kzRntXlY6nwYW', 'LBdJDfSJjnp7dWHM', 'LBl3PJS5KzvVrxPR', 
     'LBB76xmSRSB7S1R5', 'LBy6vgh0HGnmJgTG', 'LBj5RbQT05n3zwQ2', 'LB8fc1jRXWTVxbWN',
@@ -195,6 +195,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const elementosUnicos = new Set();
 
   candidatos.forEach(el => {
+    // Excluir elementos específicos, etiquetas canvas o si la pantalla está escalada (>= 1.5)
+    if (el.tagName === 'CANVAS' || el.closest('canvas')) return;
+    if (window.devicePixelRatio >= 1.5) return; 
+
     if (excluidos.some(id => el.id === id || el.closest('#' + id))) return;
     const texto = el.innerText ? el.innerText.trim() : '';
     if (texto.length > 0) {
@@ -434,6 +438,7 @@ const ScrollDrivenAnimations = {
 			}
 			const piezaDomActual = elementosPieza[colaDescubrir[indiceCola]];
 			if (piezaDomActual && piezaDomActual.parentNode) {
+				piezaOrdActual = null;
 				piezaDomActual.remove();
 				piezasRestantes--;
 			}
