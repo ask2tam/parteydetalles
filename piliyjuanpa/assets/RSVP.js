@@ -1,5 +1,5 @@
   (function() {
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzzSCNLr9wpej8qCJ4IDMBO0Qf0Dij_iyZXZQ0DZwdvEU3u1ey2Cg9pxce9Pn1fWXe0Pw/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxy8vmzRHbOLG3WMSFoqhblnDqqbX9xBDRo_1opKUS4OIllWwxJKvkeq6wh0y2AQ4dONQ/exec";
     
     const urlParams = new URLSearchParams(window.location.search);
     const invitado = urlParams.get('invitado');
