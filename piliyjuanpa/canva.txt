@@ -1,0 +1,299 @@
+
+const lienzo = document.querySelector('#root'); // O tu selector actual
+console.log(lienzo);
+
+430
+    const anchoOriginal = 415; 
+    const anchoMaximo = 650;
+
+<link rel="stylesheet" href="assets/canva.css">
+
+<script src="assets/animacion.js" defer></script>
+<script src="assets/responsive.js" defer></script>
+
+
+
+[PASO 1]
+
+
+(() => {
+  // 1. Sobrescribir estilos que ocultan contenido fuera de pantalla
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * { 
+      content-visibility: visible !important; 
+      animation: none !important; 
+      transition: none !important; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Simular un contenedor con scroll de altura completa
+  document.body.style.overflow = 'visible';
+  document.documentElement.style.overflow = 'visible';
+  // document.body.style.height = 'auto';
+
+  console.log('Fuerza bruta aplicada. Por favor, haz scroll manual hasta el final de la página.');
+})();
+
+
+[PASO 2]
+
+
+(async () => {
+  console.log('🔍 Analizando solo fuentes e imágenes ACTIVAS en pantalla...');
+
+  const downloads = [];
+  const deduplicacion = new Map();
+
+  const getExactFileName = (urlStr, contentType = '') => {
+    try {
+      const parsed = new URL(urlStr, document.baseURI);
+      let filename = parsed.pathname.split('/').pop().split('?')[0];
+      filename = decodeURIComponent(filename);
+      if (filename && filename.includes('.') && filename.length > 3) {
+        return filename;
+      }
+    } catch {}
+
+    let ext = 'asset';
+    if (contentType.includes('image/png')) ext = 'png';
+    else if (contentType.includes('image/jpeg')) ext = 'jpg';
+    else if (contentType.includes('image/webp')) ext = 'webp';
+    else if (contentType.includes('image/svg')) ext = 'svg';
+    else if (contentType.includes('video/mp4')) ext = 'mp4';
+    else if (contentType.includes('font/woff2')) ext = 'woff2';
+    else if (contentType.includes('font/woff')) ext = 'woff';
+
+    let hash = 0;
+    for (let i = 0; i < urlStr.length; i++) {
+      hash = (hash << 5) - hash + urlStr.charCodeAt(i);
+      hash |= 0;
+    }
+    return `file_${Math.abs(hash)}.${ext}`;
+  };
+
+  const fetchResource = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || '';
+      return { blob, contentType };
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Identificar familias de fuentes verdaderamente usadas en el DOM
+  const activeFontFamilies = new Set();
+  document.querySelectorAll('*').forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent.trim().length > 0) {
+      const fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim().toLowerCase();
+      if (fontFamily) activeFontFamilies.add(fontFamily);
+    }
+  });
+
+  console.log('✏️ Fuentes realmente usadas en el texto:', Array.from(activeFontFamilies));
+
+  // 2. Clonar el DOM y limpiar scripts/srcset
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
+  clone.querySelectorAll('img').forEach((img) => img.removeAttribute('srcset'));
+
+  // 3. Procesar imágenes <img> visibles
+  const liveImages = Array.from(document.querySelectorAll('img'));
+  for (const liveImg of liveImages) {
+    const style = window.getComputedStyle(liveImg);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+    const srcAttr = liveImg.getAttribute('src') || liveImg.src;
+    if (srcAttr && !srcAttr.startsWith('data:')) {
+      const absUrl = new URL(srcAttr, document.baseURI).href;
+
+      if (!deduplicacion.has(absUrl)) {
+        const data = await fetchResource(absUrl);
+        if (data) {
+          const fileName = getExactFileName(absUrl, data.contentType);
+          const localPath = `assets/${fileName}`;
+          deduplicacion.set(absUrl, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+      }
+
+      const matchingCloneImg = clone.querySelector(`img[src="${srcAttr}"]`) || clone.querySelectorAll('img')[liveImages.indexOf(liveImg)];
+      if (matchingCloneImg && deduplicacion.has(absUrl)) {
+        matchingCloneImg.src = deduplicacion.get(absUrl);
+      }
+    }
+  }
+
+  // 4. Procesar Vídeo activo
+  const liveVideo = document.querySelector('video');
+  if (liveVideo) {
+    let raw = liveVideo.src || liveVideo.querySelector('source')?.src || '';
+    if (raw) {
+      const parsedUrl = new URL(raw, document.baseURI);
+      let startTrim = 0;
+      let endTrim = null;
+      const hashMatch = parsedUrl.hash.match(/#t=([\d.]+),?([\d.]*)/);
+      if (hashMatch) {
+        startTrim = parseFloat(hashMatch[1]) || 0;
+        if (hashMatch[2]) endTrim = parseFloat(hashMatch[2]);
+      }
+
+      const data = await fetchResource(parsedUrl.href);
+      if (data) {
+        const fileName = getExactFileName(parsedUrl.href, data.contentType);
+        const localPath = `assets/${fileName}`;
+
+        if (!deduplicacion.has(parsedUrl.href)) {
+          deduplicacion.set(parsedUrl.href, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+
+        const videoClonado = clone.querySelector('video');
+        if (videoClonado) {
+          videoClonado.removeAttribute('controls');
+          videoClonado.setAttribute('playsinline', 'true');
+          videoClonado.setAttribute('autoplay', 'true');
+          videoClonado.setAttribute('muted', 'true');
+          videoClonado.setAttribute('data-start', startTrim);
+          if (endTrim !== null) videoClonado.setAttribute('data-end', endTrim);
+          videoClonado.innerHTML = '';
+          videoClonado.src = localPath;
+        }
+      }
+    }
+  }
+
+  // 5. Filtrar CSS: Mantener solo fuentes usadas (priorizando .woff2) y descartar redundancias
+  console.log('🎨 Filtrando reglas CSS y tipografías activas...');
+  let cssIncrustado = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      const sheetBase = sheet.href || document.baseURI;
+
+      for (const rule of Array.from(rules)) {
+        // Si es una regla @font-face, verificar si pertenece a una fuente activa
+        if (rule.type === CSSRule.FONT_FACE_RULE) {
+          const fontFamily = rule.style.fontFamily.replace(/['"]/g, '').trim().toLowerCase();
+          if (!activeFontFamilies.has(fontFamily)) {
+            continue; // Omitir fuentes que no se usan en ningún texto
+          }
+        }
+
+        let cssText = rule.cssText;
+        const matches = [...cssText.matchAll(/url\((['"]?)(?!data:)([^'"]+)\1\)/g)];
+
+        for (const match of matches) {
+          const rawUrl = match[2];
+          const absUrl = new URL(rawUrl, sheetBase).href;
+
+          // Filtrar formatos obsoletos de fuentes (.eot, .ttf si existe woff2)
+          if (absUrl.match(/\.(eot|ttf)(\?.*)?$/i) && !absUrl.includes('fontawesome')) {
+            continue; 
+          }
+
+          if (absUrl.match(/\.(woff2?|otf|png|jpe?g|svg|webp|gif)(\?.*)?$/i)) {
+            if (!deduplicacion.has(absUrl)) {
+              const data = await fetchResource(absUrl);
+              if (data) {
+                const fileName = getExactFileName(absUrl, data.contentType);
+                const localPath = `assets/${fileName}`;
+                deduplicacion.set(absUrl, localPath);
+                downloads.push({ fileName, blob: data.blob });
+              }
+            }
+
+            if (deduplicacion.has(absUrl)) {
+              cssText = cssText.replace(match[0], `url("${deduplicacion.get(absUrl)}")`);
+            }
+          }
+        }
+        cssIncrustado += cssText + '\n';
+      }
+    } catch {}
+  }
+
+  // 6. Controlador de vídeo
+  const customVideoControllerScript = `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.querySelector('video');
+      if (!video) return;
+
+      const start = parseFloat(video.getAttribute('data-start')) || 0;
+      const end = parseFloat(video.getAttribute('data-end'));
+
+      const applyStartTime = () => {
+        if (start > 0) video.currentTime = start;
+      };
+
+      if (video.readyState >= 1) {
+        applyStartTime();
+      } else {
+        video.addEventListener('loadedmetadata', applyStartTime, { once: true });
+      }
+
+      video.addEventListener('timeupdate', () => {
+        if (end && video.currentTime >= end) {
+          video.currentTime = start;
+        }
+      });
+
+      video.muted = true;
+      video.play().catch(() => {});
+
+      document.addEventListener('click', (e) => {
+        if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      });
+    });
+  </script>
+  `;
+
+  // 7. Generar HTML final
+  const htmlFinal = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${document.title}</title>
+  <style>
+${cssIncrustado}
+video { cursor: pointer; }
+  </style>
+</head>
+${clone.outerHTML}
+${customVideoControllerScript}
+</html>`;
+
+  // Descargar HTML
+  const htmlBlob = new Blob([htmlFinal], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'invitacion_optimizada.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Descargar conjunto limpio
+  console.log(`⬇️ Descargando exclusivamente ${downloads.length} archivos indispensables para assets/...`);
+  for (const item of downloads) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(item.blob);
+    link.download = item.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    await new Promise((r) => setTimeout(r, 300));
+    URL.revokeObjectURL(link.href);
+  }
+
+  console.log('✅ ¡Proceso completado! Archivos reducidos drásticamente.');
+})();
+
