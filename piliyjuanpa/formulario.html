@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Asistencia - Boda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+        <h1 class="text-2xl font-serif text-stone-800 mb-2">Confirma tu Asistencia</h1>
+        <div id="info-invitado" class="mb-6 text-stone-600">
+            <!-- Aquí se inyecta dinámicamente el saludo y los pases -->
+            <p class="animate-pulse">Cargando tu invitación...</p>
+        </div>
+
+        <!-- Formulario oculto hasta que verifique los datos -->
+        <form id="rsvp-form" class="space-y-4 hidden">
+            <div class="text-left">
+                <label class="block text-sm font-medium text-stone-700 mb-2">¿Nos acompañaras?</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="asistencia" value="Sí" required class="accent-stone-800"> Sí, ahí estaré
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="asistencia" value="No" required class="accent-stone-800"> No podré asistir
+                    </label>
+                </div>
+            </div>
+
+            <div class="text-left">
+                <label for="mensaje" class="block text-sm font-medium text-stone-700 mb-1">Dejanos un mensaje para los novios (opcional):</label>
+                <textarea id="mensaje" rows="3" class="w-full border border-stone-300 rounded-lg p-2 focus:ring-2 focus:ring-stone-800 focus:outline-none text-sm"></textarea>
+            </div>
+
+            <button type="submit" id="btn-enviar" class="w-full bg-stone-900 text-white py-2.5 rounded-lg hover:bg-stone-800 transition font-medium">
+                Enviar Respuesta
+            </button>
+        </form>
+
+        <div id="mensaje-exito" class="hidden mt-4 p-4 bg-emerald-50 text-emerald-800 rounded-lg text-sm">
+            ¡Gracias por confirmar! Tu respuesta ha sido guardada con éxito. Puedes volver a entrar a este enlace si deseas actualizarla.
+        </div>
+    </div>
+
+    <script>
+        // PEGA AQUÍ LA URL DE TU GOOGLE APPS SCRIPT
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxYTGSh8-eP9Zvbm1wb1OszsATwRr6j4rNmZjyvk9868zy94_sdFvPgJRF-kKEXa0iX/exec";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const invitado = urlParams.get('invitado');
+        const paseParam = urlParams.get('pase'); // Opcional por si quieres pasarlo por URL también
+
+        const infoDiv = document.getElementById('info-invitado');
+        const form = document.getElementById('rsvp-form');
+        const mensajeExito = document.getElementById('mensaje-exito');
+        const btnEnviar = document.getElementById('btn-enviar');
+
+        let nombreReal = invitado;
+        let pasesAsignados = paseParam || 1;
+
+        if (!invitado) {
+            infoDiv.innerHTML = `<p class="text-red-600">Enlace de invitación inválido. Falta el parámetro del invitado.</p>`;
+        } else {
+            // Consultar si ya existe información previa en el Sheet
+            fetch(`${WEB_APP_URL}?invitado=${encodeURIComponent(invitado)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.found) {
+                        nombreReal = data.nombre;
+                        pasesAsignados = data.pases;
+                        
+                        // Si ya había respondido antes, precargamos los valores
+                        if (data.asistencia) {
+                            const radio = document.querySelector(`input[name="asistencia"][value="${data.asistencia}"]`);
+                            if (radio) radio.checked = true;
+                        }
+                        if (data.mensaje) {
+                            document.getElementById('mensaje').value = data.mensaje;
+                        }
+
+                        infoDiv.innerHTML = `
+                            <p class="text-lg font-medium text-stone-900">¡Hola, ${nombreReal}!</p>
+                            <p class="text-sm mt-1">Tienes <span class="font-bold text-stone-900">${pasesAsignados}</span> ${pasesAsignados == 1 ? 'pase asignado' : 'pases asignados'}.</p>
+                            <p class="text-xs text-stone-400 mt-2">*(Puedes actualizar tu respuesta si lo deseas)*</p>
+                        `;
+                    } else {
+                        // Si no está registrado formalmente en la base pero viene en la URL
+                        infoDiv.innerHTML = `
+                            <p class="text-lg font-medium text-stone-900">¡Hola, ${invitado}!</p>
+                            <p class="text-sm mt-1">Tienes <span class="font-bold text-stone-900">${pasesAsignados}</span> ${pasesAsignados == 1 ? 'pase asignado' : 'pases asignados'}.</p>
+                        `;
+                    }
+                    form.classList.remove('hidden');
+                })
+                .catch(err => {
+                    console.error(err);
+                    infoDiv.innerHTML = `<p class="text-red-600">Hubo un error al cargar tu invitación. Intenta de nuevo más tarde.</p>`;
+                });
+        }
+
+        // Manejar el envío / actualización de datos
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            btnEnviar.disabled = true;
+            btnEnviar.textContent = "Guardando...";
+
+            const asistencia = document.querySelector('input[name="asistencia"]:checked').value;
+            const mensaje = document.getElementById('mensaje').value;
+
+            const payload = {
+                invitado: invitado,
+                pases: pasesAsignados,
+                asistencia: asistencia,
+                mensaje: mensaje
+            };
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    form.classList.add('hidden');
+                    mensajeExito.classList.remove('hidden');
+                } else {
+                    alert("Hubo un error al guardar. Inténtalo de nuevo.");
+                    btnEnviar.disabled = false;
+                    btnEnviar.textContent = "Enviar Respuesta";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de conexión.");
+                btnEnviar.disabled = false;
+                btnEnviar.textContent = "Enviar Respuesta";
+            });
+        });
+    </script>
+</body>
+</html>
