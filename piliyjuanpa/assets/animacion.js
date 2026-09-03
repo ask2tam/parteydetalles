@@ -73,13 +73,13 @@
   el.style.backfaceVisibility = "hidden";
   el.style.pointerEvents = "auto";
 
-  // 4. Círculo más pequeño (20x20) con un icono SVG proporcionado (16px)
+  // 4. Círculo más pequeño (30x30) con un icono SVG proporcionado (22px)
   let closeBtn = wrapper.querySelector(".canva-close-btn");
   if (!closeBtn) {
     closeBtn = document.createElement("button");
     closeBtn.className = "canva-close-btn";
     closeBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="#595144" style="display: block;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#595144" style="display: block;">
         <path d="M10 4L3 11L10 18V13C15 13 18.5 14.5 21 18C20 13 17 8 10 7V4Z"/>
       </svg>
     `;
@@ -87,8 +87,8 @@
       position: absolute;
       top: 10px;
       right: 12px;
-      width: 20px;
-      height: 20px;
+      width: 30px;
+      height: 30px;
       background: #d4ccbd;
       border: 1.2px solid #c2b8a7;
       border-radius: 50%;
