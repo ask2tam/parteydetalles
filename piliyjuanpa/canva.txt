@@ -14,7 +14,7 @@ console.log(lienzo);
 
 https://script.google.com/macros/s/AKfycbypGQ60_GGUYqKSxLgrTwy_pVmVPC_jl7dPyx3_YRvoJxbKTTrsasmJJ6HWjiNYqSA2dA/exec
 https://docs.google.com/spreadsheets/d/1cqL9YG9YQdiJEqhJDXodxYJz4hFHtuxzYiYIAnY7aJI/edit?usp=sharing
-
+https://bodas.parteydetalles.com/piliyjuanpa?to=iyci
 
 
 [PASO 1]
