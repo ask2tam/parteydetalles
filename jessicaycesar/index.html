@@ -80,38 +80,40 @@
     // Y un respaldo por si ya cargó
     setTimeout(actualizarPases, 500);
   }
-
+</script>
+<script>
   const musica = document.getElementById('musica-boda');
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
   
-  // Seleccionamos el enlace interno del elemento de Canva que compartiste
   const enlaceInvitacion = document.querySelector('a._3zDNwA');
 
   if (enlaceInvitacion) {
     enlaceInvitacion.addEventListener('click', function(e) {
-      // Mostramos y activamos el botón flotante de música
+      // Mostramos el botón flotante
       btnMusica.style.display = 'flex';
       
-      // Intentamos reproducir el audio
-      musica.play().then(() => {
-        actualizarIconos(false);
-      }).catch((error) => {
-        console.log("La reproducción automática requirió interacción:", error);
-        actualizarIconos(true);
-      });
+      // En iOS, es vital forzar la carga inicial en el primer toque si no se ha hecho
+      musica.load();
       
-      // Nota: Como el elemento ya tiene href y target="_blank", 
-      // se abrirá la página automáticamente. No necesitamos usar window.open().
+      // Reproducimos con manejo de promesas para evitar bloqueos
+      const reproduccion = musica.play();
+      if (reproduccion !== undefined) {
+        reproduccion.then(() => {
+          actualizarIconos(false);
+        }).catch((error) => {
+          console.log("Restricción de iOS en reproducción automática:", error);
+          actualizarIconos(true);
+        });
+      }
     });
   }
 
-  // Control manual del botón flotante de música
+  // Control manual desde el botón flotante
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
-      musica.play(); 
-      actualizarIconos(false); 
+      musica.play().then(() => actualizarIconos(false)); 
     } else { 
       musica.pause(); 
       actualizarIconos(true); 
