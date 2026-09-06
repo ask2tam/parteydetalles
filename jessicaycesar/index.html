@@ -86,43 +86,50 @@
   const btnMusica = document.getElementById('btn-musica');
   const iconOn = document.getElementById('icon-sound-on');
   const iconOff = document.getElementById('icon-sound-off');
-  
-  const enlaceInvitacion = document.querySelector('a._3zDNwA');
 
-  if (enlaceInvitacion) {
-    enlaceInvitacion.addEventListener('click', function(e) {
-      // 1. Prevenimos temporalmente la acción predeterminada para asegurar que iOS procese el audio
-      e.preventDefault();
-      const urlDestino = this.href;
+  // Función para buscar el elemento de Canva de manera dinámica por si tarda en renderizar
+  function inicializarBotonCanva() {
+    const enlaceInvitacion = document.querySelector('a._3zDNwA');
 
-      // Mostramos el botón flotante visualmente
-      btnMusica.style.display = 'flex';
+    if (enlaceInvitacion && !enlaceInvitacion.dataset.activado) {
+      enlaceInvitacion.dataset.activado = "true"; // Evita duplicar eventos
 
-      // 2. Forzamos la carga y reproducción inmediata requerida por iOS
-      musica.load();
-      const promesaReproduccion = musica.play();
+      enlaceInvitacion.addEventListener('click', function(e) {
+        // Prevenimos la apertura instantánea para darle tiempo a iOS de autorizar el audio
+        e.preventDefault();
+        const urlDestino = this.href;
 
-      if (promesaReproduccion !== undefined) {
-        promesaReproduccion.then(() => {
+        // Mostramos el botón flotante de música
+        btnMusica.style.display = 'flex';
+
+        // Forzamos la reproducción requerida por las políticas estrictas de iPhone
+        musica.play().then(() => {
           actualizarIconos(false);
         }).catch((error) => {
-          console.log("iOS bloqueó el autoplay directo:", error);
+          console.log("Restricción de audio en iOS:", error);
           actualizarIconos(true);
         });
-      }
 
-      // 3. Abrimos la URL en la nueva pestaña un instante después (150ms) 
-      // para darle tiempo al iPhone de iniciar el flujo de audio sin romper la navegación.
-      setTimeout(function() {
-        window.open(urlDestino, '_blank');
-      }, 150);
-    });
+        // Abrimos el enlace de destino un instante después de disparar el audio
+        setTimeout(function() {
+          window.open(urlDestino, '_blank');
+        }, 120);
+      });
+    } else {
+      // Si Canva aún está cargando el DOM, reintentamos en 200ms
+      setTimeout(inicializarBotonCanva, 200);
+    }
   }
 
-  // Control manual desde el botón flotante de música
+  // Ejecutamos la búsqueda al cargar la página
+  window.addEventListener('DOMContentLoaded', inicializarBotonCanva);
+  setTimeout(inicializarBotonCanva, 500);
+
+  // Control manual del botón flotante de música
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
-      musica.play().then(() => actualizarIconos(false)); 
+      musica.play(); 
+      actualizarIconos(false); 
     } else { 
       musica.pause(); 
       actualizarIconos(true); 
