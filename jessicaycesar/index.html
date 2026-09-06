@@ -91,26 +91,35 @@
 
   if (enlaceInvitacion) {
     enlaceInvitacion.addEventListener('click', function(e) {
-      // Mostramos el botón flotante
+      // 1. Prevenimos temporalmente la acción predeterminada para asegurar que iOS procese el audio
+      e.preventDefault();
+      const urlDestino = this.href;
+
+      // Mostramos el botón flotante visualmente
       btnMusica.style.display = 'flex';
-      
-      // En iOS, es vital forzar la carga inicial en el primer toque si no se ha hecho
+
+      // 2. Forzamos la carga y reproducción inmediata requerida por iOS
       musica.load();
-      
-      // Reproducimos con manejo de promesas para evitar bloqueos
-      const reproduccion = musica.play();
-      if (reproduccion !== undefined) {
-        reproduccion.then(() => {
+      const promesaReproduccion = musica.play();
+
+      if (promesaReproduccion !== undefined) {
+        promesaReproduccion.then(() => {
           actualizarIconos(false);
         }).catch((error) => {
-          console.log("Restricción de iOS en reproducción automática:", error);
+          console.log("iOS bloqueó el autoplay directo:", error);
           actualizarIconos(true);
         });
       }
+
+      // 3. Abrimos la URL en la nueva pestaña un instante después (150ms) 
+      // para darle tiempo al iPhone de iniciar el flujo de audio sin romper la navegación.
+      setTimeout(function() {
+        window.open(urlDestino, '_blank');
+      }, 150);
     });
   }
 
-  // Control manual desde el botón flotante
+  // Control manual desde el botón flotante de música
   btnMusica.addEventListener('click', function() {
     if (musica.paused) { 
       musica.play().then(() => actualizarIconos(false)); 
