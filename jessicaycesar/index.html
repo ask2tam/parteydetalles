@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jéssica & César</title>
+<meta property="og:title" content="Jéssica &amp; César · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 28 de Noviembre." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/jessicaycesar/miniatura.jpg" />
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+
+  <!-- ========================================================================== -->
+  <!-- 1. ESTILOS AISLADOS DE LA PORTADA / OVERLAY                               -->
+  <!-- ========================================================================== -->
+  <style>
+
+    /* Fuentes locales requeridas */
+    @font-face {
+      font-family: 'JessicaCesarNames';
+      src: url('assets/2a0b5f90f195029a3b22e69462e34243.woff') format('woff');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'JessicaCesarText';
+      src: url('assets/da541b9a7876626e3c7d764830c895cc.woff2') format('woff2');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+
+    /* Bloqueo estricto del scroll hasta abrir el sobre */
+    html.overlay-active, 
+    html.overlay-active body {
+      overflow: hidden !important;
+      height: 100vh !important;
+      position: fixed !important;
+      width: 100vw !important;
+    }
+
+    /* Capa flotante principal (Composición alineada a la parte superior) */
+    #hero-screen-overlay {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-start !important;
+      align-items: center !important;
+      background-color: #f7f5f0 !important;
+      background-image: url('assets/fondo.jpg') !important;
+      background-repeat: no-repeat !important;
+      background-size: cover !important;
+      background-position: center !important;
+      transition: opacity 1.2s ease-in-out, filter 1.2s ease-in-out !important;
+      font-family: 'JessicaCesarText', sans-serif !important;
+      color: rgb(173, 165, 155) !important;
+      box-sizing: border-box !important;
+      margin: 0 !important;
+      padding: calc(45px + env(safe-area-inset-top)) 0 0 0 !important;
+    }
+
+    @media (min-width: 601px) {
+      #hero-screen-overlay {
+        background-size: cover !important;
+        background-position: center !important;
+        padding-top: 60px !important;
+      }
+    }
+
+    /* Capa de oscurecimiento eliminada */
+    .hero-overlay-bg {
+      display: none !important;
+    }
+
+    #hero-screen-overlay.fade-out {
+      opacity: 0 !important;
+      filter: blur(4px) !important;
+      pointer-events: none !important;
+    }
+
+    /* Elementos visibles en la carga inicial */
+    .header-content-overlay,
+    .envelope-wrapper-overlay {
+      opacity: 0 !important;
+      transition: opacity 1.2s ease-in-out !important;
+    }
+
+    #hero-screen-overlay.loaded .header-content-overlay,
+    #hero-screen-overlay.loaded .envelope-wrapper-overlay {
+      opacity: 1 !important;
+    }
+
+    /* Tipografía de la Portada */
+    .header-content-overlay {
+      position: relative !important;
+      z-index: 2 !important;
+      text-align: center !important;
+      color: rgb(173, 165, 155) !important;
+      text-transform: uppercase !important;
+      padding: 0 10px !important;
+      margin-bottom: 80px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      width: 100% !important;
+      max-width: 500px !important;
+    }
+
+    /* ========================================================================== */
+    /* EFECTO DE BRILLO NATURAL PARA EL LOGO (Flujo Diagonal Orgánico)           */
+    /* ========================================================================== */
+    @keyframes flujoNaturalLogo {
+      0% { 
+        background-position: -150% -150%; 
+        opacity: 0; 
+      }
+      30% { 
+        opacity: 0.8; 
+      }
+      50% { 
+        opacity: 1; 
+      }
+      70% { 
+        opacity: 0.8; 
+      }
+      100% { 
+        background-position: 250% 250%; 
+        opacity: 0; 
+      }
+    }
+
+    .logo-shimmer-container {
+      position: relative !important;
+      display: inline-block !important;
+      margin-bottom: 80px !important;
+      margin-top: 80px !important;
+    }
+
+    .logo-shimmer-container::after {
+      content: '' !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background-image: linear-gradient(135deg, transparent 20%, rgba(255,255,255,0.3) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.3) 60%, transparent 80%) !important;
+      background-size: 300% 300% !important;
+      background-repeat: no-repeat !important;
+      -webkit-mask-image: url('assets/25da6e32e3e9cc248e8ef6c30790937d.png') !important;
+      mask-image: url('assets/25da6e32e3e9cc248e8ef6c30790937d.png') !important;
+      -webkit-mask-size: contain !important;
+      mask-size: contain !important;
+      -webkit-mask-repeat: no-repeat !important;
+      mask-repeat: no-repeat !important;
+      -webkit-mask-position: center !important;
+      mask-position: center !important;
+      animation: flujoNaturalLogo 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+      pointer-events: none !important;
+      mix-blend-mode: overlay !important;
+    }
+
+    .logo-escudo-overlay {
+      display: block !important;
+      width: 150px !important;
+      height: auto !important;
+      opacity: 0.9 !important;
+      filter: brightness(0) saturate(100%) invert(71%) sepia(8%) saturate(395%) hue-rotate(354deg) brightness(92%) contrast(87%) drop-shadow(0 2px 4px rgba(0,0,0,0.06)) !important;
+    }
+
+    .main-title-overlay {
+      font-family: 'JessicaCesarNames', serif !important;
+      font-size: 50px !important;
+      line-height: 1.1 !important;
+      font-weight: 400 !important;
+      letter-spacing: 0.02em !important;
+      color: rgb(173, 165, 155) !important;
+      margin: 0 0 20px 0 !important;
+      text-transform: none !important;
+    }
+
+    .sub-title-overlay {
+      font-family: 'JessicaCesarText', serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3em !important;
+      font-weight: 400 !important;
+      margin: 0 !important;
+      opacity: 0.95 !important;
+      color: rgb(173, 165, 155) !important;
+    }
+
+    /* ========================================================================== */
+    /* EFECTO DE LUZ RELUCIENTE PARA "HEMOS RESERVADO..." (Técnica de Máscara)   */
+    /* ========================================================================== */
+    @keyframes sweepTextMask {
+      0% { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+
+    .envelope-card .efecto-luz-reluciente {
+      position: relative !important;
+      display: inline-block !important;
+      color: #8c867b !important;
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      -webkit-text-fill-color: initial !important;
+    }
+
+    .envelope-card .efecto-luz-reluciente::after {
+      content: attr(data-text) !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      color: #ffffff !important;
+      background-image: linear-gradient(90deg, transparent 0%, transparent 35%, #ffffff 50%, transparent 65%, transparent 100%) !important;
+      background-size: 200% auto !important;
+      -webkit-background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+      animation: sweepTextMask 2.5s linear infinite !important;
+      pointer-events: none !important;
+    }
+
+    /* ========================================================================== */
+    /* CONTENEDOR DEL SOBRE Y ANIMACIÓN DE APERTURA                               */
+    /* ========================================================================== */
+    .envelope-wrapper-overlay {
+      position: relative !important;
+      z-index: 3 !important;
+      width: 85% !important;
+      max-width: 370px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      margin: 0 !important;
+      aspect-ratio: 1.38 / 1 !important;
+      overflow: visible !important;
+    }
+
+    @media (min-width: 601px) {
+      .envelope-wrapper-overlay {
+        width: 80% !important;
+        max-width: 410px !important;
+      }
+    }
+
+    .envelope-wrapper-overlay.ready {
+      cursor: pointer !important;
+      pointer-events: auto !important;
+    }
+
+    .envelope-layer {
+      position: absolute !important;
+      top: -66% !important;
+      left: 0% !important;
+      width: 100% !important;
+      height: 166% !important;
+      background-size: 100% 100% !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+    }
+
+    .envelope-back-interior {
+      position: absolute !important;
+      top: -66% !important;
+      left: 0% !important;
+      width: 100% !important;
+      height: 166% !important;
+      background-image: url('assets/sobre_fondo.png') !important;
+      background-size: 100% 100% !important;
+      background-repeat: no-repeat !important;
+      background-position: bottom center !important;
+      z-index: 1 !important;
+    }
+
+    .envelope-card {
+      position: absolute !important;
+      width: 90% !important;
+      left: 5% !important;
+      top: 22% !important;
+      height: 72% !important;
+      background-image: url('assets/tarjeta.png') !important;
+      background-size: 100% 100% !important;
+      background-repeat: no-repeat !important;
+      z-index: 3 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      color: #635f56 !important;
+      font-family: 'JessicaCesarText', sans-serif !important;
+      transform: translateY(0) !important;
+      opacity: 1 !important;
+      transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1) 1.8s !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .envelope-card {
+      transform: translateY(-72%) !important;
+    }
+
+    .card-reserved-title {
+      font-family: 'JessicaCesarText', sans-serif !important;
+      font-size: 13px !important;
+      letter-spacing: 0.22em !important;
+      text-transform: uppercase !important;
+      color: #8c867b !important;
+      margin-bottom: 8px !important;
+    }
+
+    .card-reserved-name {
+      font-family: 'JessicaCesarText', sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #524e46 !important;
+      margin-bottom: 10px !important;
+      line-height: 1.3 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+    }
+
+    .btn-ver-invitacion-card {
+      background: rgb(173, 165, 155) !important;
+      color: #ffffff !important;
+      border: none !important;
+      padding: 8px 20px !important;
+      border-radius: 20px !important;
+      font-family: 'JessicaCesarText', sans-serif !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      letter-spacing: 2.5px !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15) !important;
+      transition: background 0.2s ease, transform 0.2s ease !important;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .btn-ver-invitacion-card {
+      pointer-events: auto !important;
+      opacity: 1 !important;
+      transition: opacity 0.3s ease 3.0s, background 0.2s ease !important;
+    }
+
+    .btn-ver-invitacion-card:hover {
+      background: #736f68 !important;
+      transform: scale(1.03) !important;
+    }
+
+    .envelope-front-body {
+      background-image: url('assets/sobre_adelante.png') !important;
+      z-index: 4 !important;
+    }
+
+    .envelope-flap {
+      position: absolute !important;
+      top: -55% !important;
+      left: 0% !important;
+      width: 100% !important;
+      height: 55% !important;
+      background-image: url('assets/solapa_frontal.png') !important;
+      background-size: 100% 100% !important;
+      background-repeat: no-repeat !important;
+      background-position: top center !important;
+      transform-origin: 50% 100% !important;
+      z-index: 5 !important;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15)) !important;
+      transform: rotateX(180deg) !important;
+      opacity: 1 !important;
+      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s ease 0.85s !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .envelope-flap {
+      transform: rotateX(90deg) !important;
+      opacity: 0 !important;
+    }
+
+    .envelope-flap-back {
+      position: absolute !important;
+      top: -55% !important;
+      left: 0% !important;
+      width: 100% !important;
+      height: 55% !important;
+      background-image: url('assets/solapa_reverso.png') !important;
+      background-size: 100% 100% !important;
+      background-repeat: no-repeat !important;
+      background-position: top center !important;
+      transform-origin: 50% 100% !important;
+      z-index: 2 !important;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15)) !important;
+      transform: rotateX(90deg) !important;
+      opacity: 0 !important;
+      transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.9s, opacity 0.1s ease 0.9s !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .envelope-flap-back {
+      opacity: 1 !important;
+      transform: rotateX(0deg) !important;
+    }
+
+    /* ========================================================================== */
+    /* SECCIÓN DEL SELLO AISLADO (Contenedor + Imagen)                             */
+    /* ========================================================================== */
+    .envelope-sello-container {
+      position: absolute !important;
+      bottom: 27% !important;
+      left: 65% !important;
+      transform: translateX(-50%) !important;
+      width: 50% !important;
+      height: auto !important;
+      z-index: 6 !important;
+      pointer-events: none !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .envelope-sello-container {
+      animation: romperSelloContainer 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+    }
+
+    .envelope-sello {
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.18)) !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence .envelope-sello {
+      animation: romperSelloRotacion 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+    }
+
+    @keyframes romperSelloContainer {
+      0% {
+        bottom: 27% !important;
+        transform: translateX(-50%) !important;
+        opacity: 1;
+      }
+      40% {
+        bottom: calc(27% + 17px) !important;
+        transform: translateX(-50%) !important;
+        opacity: 0.9;
+      }
+      100% {
+        bottom: calc(27% + 17px) !important;
+        transform: translateX(-70%) !important;
+        opacity: 0;
+      }
+    }
+
+    @keyframes romperSelloRotacion {
+      0% {
+        transform: scale(1) rotate(0deg);
+        filter: drop-shadow(0 3px 6px rgba(0,0,0,0.18));
+      }
+      40% {
+        transform: scale(1.2) rotate(-8deg);
+      }
+      100% {
+        transform: scale(0.6) rotate(35deg);
+        filter: drop-shadow(0 15px 15px rgba(0,0,0,0.4));
+      }
+    }
+
+    @keyframes heartbeatOverlay {
+      0% { transform: scale(1); }
+      15% { transform: scale(1.02); }
+      30% { transform: scale(1); }
+      45% { transform: scale(1.02); }
+      60% { transform: scale(1); }
+      100% { transform: scale(1); }
+    }
+
+    .envelope-wrapper-overlay.ready {
+      animation: heartbeatOverlay 2.5s infinite ease-in-out !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence {
+      animation: none !important;
+    }
+
+    .btn-abrir-status-overlay {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      opacity: 1 !important;
+      z-index: 10 !important;
+      padding: 12px 28px !important;
+      border-radius: 28px !important;
+      background: rgb(173, 165, 155) !important;
+      color: #ffffff !important;
+      font-family: 'JessicaCesarText', sans-serif !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: 2.5px !important;
+      text-transform: uppercase !important;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      display: inline-block !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      will-change: top, opacity !important;
+      cursor: default !important;
+    }
+
+    .btn-abrir-status-overlay.animating {
+      transition: top 1.3s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease !important;
+    }
+
+    .envelope-wrapper-overlay.ready ~ .btn-abrir-status-overlay,
+    .btn-abrir-status-overlay.ready-btn {
+      cursor: pointer !important;
+    }
+
+    .envelope-wrapper-overlay.ready ~ .btn-abrir-status-overlay:hover,
+    .btn-abrir-status-overlay.ready-btn:hover {
+      background: #736f68 !important;
+    }
+
+    .envelope-wrapper-overlay.opening-sequence ~ .btn-abrir-status-overlay {
+      opacity: 0 !important;
+      transition: opacity 0.4s ease !important;
+      pointer-events: none !important;
+    }
+
+    #btn-musica-overlay {
+      position: fixed !important;
+      bottom: 20px !important;
+      right: 20px !important;
+      z-index: 2147483647 !important;
+      width: 44px !important;
+      height: 44px !important;
+      border-radius: 50% !important;
+      background-color: rgb(173, 165, 155) !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      color: white !important;
+      display: none;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2) !important;
+      transition: transform 0.2s ease, background-color 0.2s ease !important;
+    }
+  </style>
+
+  <script>document.documentElement.classList.add('overlay-active');</script>
+</head>
+<body>
+
+  <!-- AUDIO -->
+  <audio id="musica-boda-overlay" src="assets/musica.mp3" preload="auto" loop></audio>
+
+  <!-- BOTÓN FLOTANTE MÚSICA -->
+  <button id="btn-musica-overlay" aria-label="Silenciar música">
+    <svg id="icon-sound-on-overlay" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+    <svg id="icon-sound-off-overlay" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
+  </button>
+
+  <!-- PORTADA OVERLAY -->
+  <div id="hero-screen-overlay">
+    <div class="hero-overlay-bg"></div>
+
+    <header class="header-content-overlay">
+      <div class="logo-shimmer-container">
+        <img src="assets/25da6e32e3e9cc248e8ef6c30790937d.png" alt="Escudo J&C" class="logo-escudo-overlay">
+      </div>
+      <h1 class="main-title-overlay">Jéssica & César</h1>
+      <p class="sub-title-overlay">¡ NOS CASAMOS !</p>
+    </header>
+
+    <!-- COMPONENTES DE APERTURA DEL SOBRE -->
+    <div id="envelope-wrapper-overlay" class="envelope-wrapper-overlay">
+      <div class="envelope-back-interior"></div>
+      <div class="envelope-card">
+        <span class="card-reserved-title efecto-luz-reluciente" id="card-seats-target" data-text="HEMOS RESERVADO ( 1 ) PASE">HEMOS RESERVADO ( 1 ) PASE</span>
+        <span class="card-reserved-title efecto-luz-reluciente" id="card-seats-target-2" data-text="PARA USTEDES">PARA USTED</span>
+        <button id="btn-ver-invitacion-final" class="btn-ver-invitacion-card">Ver invitación</button>
+      </div>
+      <div class="envelope-layer envelope-front-body"></div>
+      <div class="envelope-flap"></div>
+      <div class="envelope-flap-back"></div>
+      <div class="envelope-sello-container">
+        <img src="assets/sello.png" alt="Sello y flores" class="envelope-sello">
+      </div>
+    </div>
+
+    <!-- Botón inicial de apertura -->
+    <span id="btn-abrir-text-overlay" class="btn-abrir-status-overlay">Cargando...</span>
+  </div>
+
+  <!-- PEGA AQUÍ TODO EL CONTENIDO ORIGINAL QUE VIENE DE CANVA -->
+<link rel="stylesheet" href="assets/canva.css">
+</head>
+<body style="overflow: visible;"><div id="root"><div class="yIDCqA"><main class="_8OlyIw"><div class="_4KoDHA"><div class="ZRRuDw"><div style="height: 100%; width: 100%;"><div class="KYQZFA"><section id="PB6Wnh8rgXgs0ZtB" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(248, 247, 239);"><div><div class="_8jGYJw" style="width: 415px; height: 1179.67px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 415px; height: 1179.67px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 1179.67px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 1179.67px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(248, 247, 239);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 883.681px; height: 1179.67px; transform: translate(-234.34px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/fd7f8913128a9f789fb8a2a217eaa68d.jpg"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 1096.67px;"></div><div id="LBn5jb9Zv0h5GBZf" class="DF_utQ _0xkaeQ" style="width: 1111.33px; height: 1179.67px; transform: translate(-348.166px, 0px); opacity: 0.22;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 1179.67px; width: 1111.33px; transform: scale(1);"><div class="hWv4NA" style="width: 1111.33px; height: 1179.67px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id1"><path d="M0,0L256,0L256,271.7423133235724L0,271.7423133235724Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id1&quot;); background: rgb(0, 0, 0); width: 256px; height: 271.742px; transform: scale(4.34114, 4.34114); transform-origin: 0px 0px;"></div></div></div></div><div id="LBg2Sz7y58w59hxw" class="DF_utQ _0xkaeQ" style="width: 246.492px; height: 216.186px; transform: translate(84.26px, 128.225px); opacity: 1;"><div style="width: 246.492px; height: 216.186px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LB6MzTvdZzVL3CyM" class="DF_utQ _0xkaeQ" style="width: 161.448px; height: 182.613px; transform: translate(42.5158px, 2.84217e-14px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 161.448px; height: 182.613px; transform: translate(0px, -1.42109e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/25da6e32e3e9cc248e8ef6c30790937d.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 182.613px; width: 161.448px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB7kq6fmzbNjDK7S" class="DF_utQ _0xkaeQ" style="width: 246.492px; height: 30.3448px; transform: translate(1.42109e-14px, 185.842px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 305.427px; height: 37.6px; transform: scale(0.807041, 0.807041); transform-origin: 0px 0px;"><div style="transform: translate(0px, -3.2px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 32px; color: rgb(250, 250, 250); line-height: 44px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(250, 250, 250); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">28 . 11 . 26</span></p></div></div></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 1179.67px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBlt0F5MTcbGRY6H" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 255);"><div><div class="_8jGYJw" style="width: 415px; height: 2354.94px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 415px; height: 2354.94px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 2354.94px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 2354.94px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 1764.06px; height: 2560.51px; transform: translate(-674.53px, 0px) rotate(0deg); opacity: 0.2;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/4e763f448762fa91a7c88e42f3ca1b6d.png"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 2271.94px;"></div><div id="LBCfT70QglXVBT51" class="DF_utQ _0xkaeQ" style="width: 366.788px; height: 308.357px; transform: translate(24.0692px, 148.73px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 761.205px; height: 456.723px; transform: translate(-388.111px, -148.366px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/552d64ed614830f621a99f0b15682eba.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 308.357px; width: 366.788px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB2VP600jl0nGmfD" class="DF_utQ _0xkaeQ" style="width: 366.788px; height: 519.21px; transform: translate(24.0692px, 272.293px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 366.788px; height: 519.931px; transform: translate(0px, -0.360553px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/d012960ec3ca7d9ae1feb35b583598d6.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 519.21px; width: 366.788px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBQGYg0d3K6BBH2y" class="DF_utQ _0xkaeQ" style="width: 75.522px; height: 84.3719px; transform: translate(169.702px, 243.951px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 101.586px; height: 101.586px; transform: translate(-13.9969px, -6.87092px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/f8fbaf16e40b67cb8763c814d706deb4.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 84.3719px; width: 75.522px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBwx2Qb56l6Zxf7Z" class="DF_utQ _0xkaeQ" style="width: 188.422px; height: 47.1056px; transform: translate(114.37px, 85.024px);"><div style="width: 600px; height: 150px; transform: scale(0.314037, 0.314037); transform-origin: 0px 0px;"><div class="S3wQqg _8YzbFQ"><div class="uqhtBg"><iframe src="https://canva-embed.com/api/iframe?url=https%3A%2F%2Fwww.tickcounter.com%2Fcountdown%2F11416024%2Fmy-countdown&amp;key=1ba5ba1d761083229628cd3cd0c0bd36" style="width:100%;height:100%;border:0" allowfullscreen="allowfullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" title="Contenido integrado"></iframe></div></div></div></div><div id="LBfddWrdD2fjfK3Q" class="DF_utQ _0xkaeQ" style="width: 112.043px; height: 103.324px; transform: translate(254.072px, 242.258px) rotate(137.256deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 120.243px; height: 120.243px; transform: translate(-5.73827px, -1.27898e-13px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/41ff0f92374b8981fdfefc2a6cf989d5.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 103.324px; width: 112.043px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBKQZVsbXTt2CPcG" class="DF_utQ _0xkaeQ" style="width: 137.225px; height: 28.2165px; transform: translate(139.455px, 1874.43px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 28.2165px; width: 137.225px; transform: scale(1);"><div class="hWv4NA" style="width: 137.225px; height: 28.2165px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id26"><path d="M128.0000001420591,0L1117.0038639662523,0C1187.6963118142291,0 1245.0038641083113,57.3075522940822 1245.0038641083113,128.0000001420591C1245.0038641083113,198.692447990036 1187.6963118142291,256.0000002841182 1117.0038639662523,256.0000002841182L128.0000001420591,256.0000002841182C57.3075522940822,256.0000002841182 0,198.692447990036 0,128.0000001420591C0,57.3075522940822 57.3075522940822,0 128.0000001420591,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id26&quot;); background: rgb(173, 165, 155); width: 1245px; height: 256px; transform: scale(0.110221, 0.110221); transform-origin: 0px 0px;"></div></div></div></div><div id="LBvnznfFR5tTHf8z" class="DF_utQ _0xkaeQ" style="width: 137.225px; height: 28.2165px; transform: translate(139.455px, 2257.89px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 28.2165px; width: 137.225px; transform: scale(1);"><div class="hWv4NA" style="width: 137.225px; height: 28.2165px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id28"><path d="M128.0000001420591,0L1117.0038639662523,0C1187.6963118142291,0 1245.0038641083113,57.3075522940822 1245.0038641083113,128.0000001420591C1245.0038641083113,198.692447990036 1187.6963118142291,256.0000002841182 1117.0038639662523,256.0000002841182L128.0000001420591,256.0000002841182C57.3075522940822,256.0000002841182 0,198.692447990036 0,128.0000001420591C0,57.3075522940822 57.3075522940822,0 128.0000001420591,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id28&quot;); background: rgb(173, 165, 155); width: 1245px; height: 256px; transform: scale(0.110221, 0.110221); transform-origin: 0px 0px;"></div></div></div></div><div id="LBfmGdc4g7RSgcNc" class="DF_utQ _0xkaeQ" style="width: 219.877px; height: 122.822px; transform: translate(98.3518px, 2011.77px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 219.877px; height: 146.585px; transform: translate(0px, -11.6987px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/e828747d616cfe825b3b1929d8b8d7aa.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 122.822px; width: 219.877px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 122.822 L 219.877 122.822 L 219.877 0 L 0 0&quot;);"></div></div></div></div><div id="LBt9507VqRGF5198" class="DF_utQ _0xkaeQ" style="width: 188.745px; height: 235.847px; transform: translate(113.723px, 1531.75px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 188.745px; height: 235.847px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/0fb9db9472debd448f9329d62cd84fd4.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 235.847px; width: 188.745px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBPL7nGLv7X11dlm" class="DF_utQ _0xkaeQ" style="width: 303.687px; height: 371.982px; transform: translate(63.8774px, 753.314px); opacity: 1;"><div style="width: 303.687px; height: 371.982px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBSRQ0LydKKMqKNz" class="DF_utQ _0xkaeQ" style="width: 271.656px; height: 315.586px; transform: translate(16.0152px, 42.8423px) rotate(6.10665deg);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 315.586px; width: 271.656px; transform: scale(1);"><div class="hWv4NA" style="width: 271.656px; height: 315.586px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id39"><path d="M427.2948420074349,0L1.5020910780669143,0C0.7009758364312267,0 0,0.7009758364312267 0,1.6022304832713754L0,499.0947955390335C0,499.89591078066917 0.7009758364312267,500.5968866171004 1.5020910780669143,500.5968866171004L427.2948420074349,500.5968866171004C428.09595724907064,500.5968866171004 428.79693308550185,499.89591078066917 428.79693308550185,499.0947955390335L428.79693308550185,1.6022304832713754C428.8970724907063,0.7009758364312269 428.19609665427504,0 427.2948420074349,0ZM405.0638940520446,24.834572490706318L405.0638940520446,391.94563197026025C405.0638940520446,392.7467472118959 404.3629182156134,393.44772304832713 403.5618029739777,393.44772304832713L21.029275092936803,393.44772304832713C20.228159851301115,393.44772304832713 19.52718401486989,392.7467472118959 19.52718401486989,391.94563197026025L19.52718401486989,24.834572490706318C19.52718401486989,24.03345724907063 20.228159851301115,23.332481412639407 21.029275092936803,23.332481412639407L403.5618029739777,23.332481412639407C404.4630576208178,23.232342007434944 405.0638940520446,23.933317843866174 405.0638940520446,24.834572490706318Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id39&quot;); background: rgb(242, 241, 235); width: 431px; height: 500.697px; transform: scale(0.630293, 0.630293); transform-origin: 0px 0px;"></div><svg class="_7KaXww"><defs><clipPath id="__id40"><path d="M403.5618029739777,23.232342007434944L21.029275092936803,23.232342007434944C20.228159851301115,23.232342007434944 19.52718401486989,23.93331784386617 19.52718401486989,24.734433085501855L19.52718401486989,391.84549256505574C19.52718401486989,392.74674721189587 20.228159851301115,393.3475836431227 21.029275092936803,393.3475836431227L403.5618029739777,393.3475836431227C404.3629182156134,393.3475836431227 405.0638940520446,392.64660780669146 405.0638940520446,391.84549256505574L405.0638940520446,24.834572490706318C405.0638940520446,23.933317843866174 404.4630576208178,23.232342007434944 403.5618029739777,23.232342007434944Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id40&quot;); transform: scale(0.630293, 0.630293); transform-origin: 0px 0px; width: 431px; height: 500.697px;"><div class="_4c2rDg GxUsfw" style="transform-origin: 212.296px 208.29px;"><div class="qhHTGg" style="width: 385.537px; height: 514.673px; transform: translate(19.5272px, -49.0464px) translate(192.768px, 257.336px) rotate(0deg) translate(-192.768px, -257.336px); transform-origin: 0px 0px;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/1389cac448dcf1459b902e0cbed8c9ff.jpg"></div></div></div><svg class="_7KaXww"><defs><clipPath id="__id41"><path d="M405.1640334572491,24.333875464684013C405.1640334572491,24.333875464684013 404.86361524163567,23.43262081784387 403.7620817843866,23.332481412639407L19.72746282527881,23.332481412639407C19.026486988847584,23.332481412639407 18.125232342007433,23.63289962825279 18.125232342007433,24.434014869888475L18.425650557620816,25.1349907063197C18.7260687732342,24.73443308550186 19.226765799256505,24.534154275092934 19.72746282527881,24.534154275092934L404.0625,24.534154275092934L404.0625,392.14591078066917C404.0625,392.64660780669146 403.8622211895911,393.14730483271376 403.4616635687732,393.44772304832713L403.862221189591,393.44772304832713C404.56319702602224,393.44772304832713 405.16403345724905,392.8468866171004 405.16403345724905,392.14591078066917L405.16403345724905,24.333875464684013ZM428.8970724907063,499.1949349442379L1.7023698884758363,499.1949349442379L1.7023698884758363,1.5020910780669143L0.6008364312267658,0.5006970260223048L0.5006970260223048,0.5006970260223048C0.3004182156133829,0.8011152416356877 0.10013940520446094,1.1015334572490707 0.10013940520446094,1.5020910780669143L0.10013940520446094,499.09479553903344C0.10013940520446094,499.9960501858735 0.8011152416356876,500.5968866171003 1.6022304832713754,500.5968866171003L429.3977695167286,500.5968866171003C429.79832713754644,500.5968866171003 430.0987453531598,500.49674721189587 430.39916356877325,500.1963289962825L428.8970724907063,499.1949349442379Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id41&quot;); background: rgb(242, 241, 235); width: 431px; height: 500.697px; transform: scale(0.630293, 0.630293); transform-origin: 0px 0px;"></div><svg class="_7KaXww"><defs><clipPath id="__id42"><path d="M404.7634758364312,393.2474442379182C404.4630576208178,393.648001858736 404.0625,393.84828066914497 403.5618029739777,393.84828066914497L19.827602230483272,393.84828066914497C19.326905204460967,393.84828066914497 18.826208178438662,393.64800185873605 18.52578996282528,393.14730483271376C18.125232342007436,392.8468866171004 17.92495353159851,392.44632899628255 17.92495353159851,391.94563197026025L17.92495353159851,24.834572490706318C17.92495353159851,24.434014869888475 18.125232342007433,24.03345724907063 18.425650557620816,23.73303903345725L19.52718401486989,24.534154275092934L19.52718401486989,392.3461895910781L403.5618029739777,392.3461895910781C403.76208178438657,392.3461895910781 403.9623605947955,392.24605018587357 404.0625,392.24605018587357L404.7634758364312,393.2474442379182ZM431,1.5020910780669143L431,499.1949349442379C431,499.59549256505574 430.799721189591,499.99605018587357 430.3991635687732,500.296468401487L428.69679368029733,499.0947955390335L428.69679368029733,1.6022304832713754L1.7023698884758363,1.6022304832713754L0.6008364312267658,0.6008364312267658C0.9012546468401487,0.20027881040892193 1.3018122676579926,0 1.8025092936802973,0L429.4979089219331,0C430.2990241635688,0 431,0.7009758364312267 431,1.5020910780669143ZM430.799721189591,2.403345724907063C430.59944237918216,2.1029275092936803 430.39916356877325,1.9026486988847582 430.0987453531598,1.7023698884758363L430.799721189591,2.403345724907063Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id42&quot;); background: rgb(255, 255, 255); width: 431px; height: 500.697px; transform: scale(0.630293, 0.630293); transform-origin: 0px 0px;"></div></div><div class="Pr6LEA"></div></div></div><div id="LBlvkptK1SJJVR7q" class="DF_utQ _0xkaeQ" style="width: 74.1433px; height: 123.916px; transform: translate(174.464px, -9.10343px) rotate(-73.8359deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 480.98px; height: 320.654px; transform: translate(-339.202px, -89.4473px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/bfe51f06f491b51903d3690c08345664.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 123.916px; width: 74.1433px; pointer-events: none; transform: scale(1);"></div></div></div></div></div><div id="LBP0z9j0QlsQK7Fb" class="DF_utQ _0xkaeQ" style="width: 97.5819px; height: 97.5819px; transform: translate(286.075px, 753.314px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 97.5819px; height: 97.5819px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/6f4a535138ca831d0c521a696849287f.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 97.5819px; width: 97.5819px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBGRPhqt1Zl7l0d3" class="DF_utQ _0xkaeQ" style="width: 266.925px; height: 41.878px; transform: translate(73.0694px, 43.146px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 322.094px; height: 50.5333px; transform: scale(0.82872, 0.82872); transform-origin: 0px 0px;"><div style="transform: translate(0px, 4.26667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 42.6667px; color: rgb(173, 165, 155); line-height: 42px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">El gran día se acerca</span></p></div></div></div></div></div></div><div id="LBlT3L4FJKsdcGTP" class="DF_utQ _0xkaeQ" style="width: 346.537px; height: 12.8001px; transform: translate(34.1948px, 362.379px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 425.948px; height: 15.7333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -0.133334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 16px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Con la bendición de Dios y nuestros padres</span></p></div></div></div></div></div></div><div id="LBNXsDcqb0nNHkfb" class="DF_utQ _0xkaeQ" style="width: 303.455px; height: 59.6615px; transform: translate(55.7357px, 666.113px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 372.994px; height: 73.3333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.33334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Dios, en su infinito amor,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">unió nuestros caminos con un propósito eterno.</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Porque Él nos amó primero, hoy elegimos</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">amarnos y caminar juntos para toda la vida.</span></p></div></div></div></div></div></div><div id="LBQHf6nKY7F8dP0t" class="DF_utQ _0xkaeQ" style="width: 277.561px; height: 45.5962px; transform: translate(68.6827px, 389.823px);"><div style="width: 277.561px; height: 45.5962px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBvlp0t4LtYNnWB6" class="DF_utQ _0xkaeQ" style="width: 128.56px; height: 28.746px; transform: translate(2.84217e-14px, 16.8502px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 158.02px; height: 35.3333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.33334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Irma Díaz Grández</span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Jaime E. Rurush Celestino</span></p></div></div></div></div></div></div><div id="LByp1Zp7GQP2ZP0R" class="DF_utQ _0xkaeQ" style="width: 128.56px; height: 13.2882px; transform: translate(2.84217e-14px, -2.04281e-14px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 158.02px; height: 16.3333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.33334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Padres de la novia:</span></p></div></div></div></div></div></div><div id="LBHzcWDnhRVgPNXl" class="DF_utQ _0xkaeQ" style="width: 119.627px; height: 28.746px; transform: translate(157.934px, 16.8502px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 147.04px; height: 35.3333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.33334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Luz E. Angeles Ynga</span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Roberto Peña Mendives</span></p></div></div></div></div></div></div><div id="LBGj2fkw5Xzcwssb" class="DF_utQ _0xkaeQ" style="width: 117.481px; height: 13.2882px; transform: translate(159.007px, 1.11563px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 144.402px; height: 16.3333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.33334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Padres del novio:</span></p></div></div></div></div></div></div></div></div><div id="LBPdKM9hTgDJYjd6" class="DF_utQ _0xkaeQ" style="width: 47.9147px; height: 61.9937px; transform: translate(183.506px, 518.047px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 58.8946px; height: 76.2px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -6.4px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 64px; color: rgb(173, 165, 155); line-height: 89px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">&amp;</span></p></div></div></div></div></div></div><div id="LBvqdRgMTMbl69FV" class="DF_utQ _0xkaeQ" style="width: 303.455px; height: 61.8636px; transform: translate(55.7357px, 566.849px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 372.994px; height: 76.04px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(-0.928px, 3.52px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 64px; color: rgb(173, 165, 155); line-height: 69px; letter-spacing: -0.029em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">César</span></p></div></div></div></div></div></div><div id="LBgp8Y7g1FLvC2MR" class="DF_utQ _0xkaeQ" style="width: 303.455px; height: 61.8636px; transform: translate(55.7357px, 478.162px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 372.994px; height: 76.04px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(-0.928px, 3.52px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 64px; color: rgb(173, 165, 155); line-height: 69px; letter-spacing: -0.029em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Jéssica</span></p></div></div></div></div></div></div><div id="LBv9QD7xF8klrhS3" class="DF_utQ _0xkaeQ" style="width: 162.234px; height: 12.8001px; transform: translate(126.346px, 451.5px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 199.411px; height: 15.7333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -0.133334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 16px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">¡NOS CASAMOS!</span></p></div></div></div></div></div></div><div id="LBZSbM6GGBM4dkM1" class="DF_utQ _0xkaeQ" style="width: 162.234px; height: 12.8001px; transform: translate(126.346px, 640.296px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 199.411px; height: 15.7333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -0.133334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 13.3334px; color: rgb(173, 165, 155); line-height: 16px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">28 de noviembre de 2026</span></p></div></div></div></div></div></div><div id="LBZNG1Nhm26rjF8t" class="DF_utQ _0xkaeQ" style="width: 132.236px; height: 19.5256px; transform: translate(141.95px, 1878.33px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 162.538px; height: 24px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 20px; color: rgb(255, 255, 255); line-height: 28px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><a href="https://maps.app.goo.gl/aARsDDKZC6FfAS749" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ver ubicación</a></p></div></div></div></div></div></div><div id="LB8rwRY1MHKtqrc8" class="DF_utQ _0xkaeQ" style="width: 224.311px; height: 54.6716px; transform: translate(97.6006px, 1481.96px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 275.713px; height: 67.2px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, 5.6px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 56px; color: rgb(173, 165, 155); line-height: 56px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ceremonia</span></p></div></div></div></div></div></div><div id="LBKnnS80PDzcPNXG" class="DF_utQ _0xkaeQ" style="width: 306.825px; height: 18.1154px; transform: translate(54.1007px, 1765.96px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 377.136px; height: 22.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h1 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Iglesia San José</span></h1></div></div></div></div></div></div><div id="LBcyZ3MkpZwJWxvp" class="DF_utQ _0xkaeQ" style="width: 131.4px; height: 18.1154px; transform: translate(142.494px, 1844.11px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 161.512px; height: 22.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">6:30 p.m.</span></p></div></div></div></div></div></div><div id="LB2324N33Mg8T696" class="DF_utQ _0xkaeQ" style="width: 224.054px; height: 39.2681px; transform: translate(95.907px, 1794.27px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 275.398px; height: 48.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Av. República Dominicana 458,<br>Jesús María 15072</span></p></div></div></div></div></div></div><div id="LBXRNJkW6qydLpsQ" class="DF_utQ _0xkaeQ" style="width: 132.236px; height: 19.5256px; transform: translate(141.95px, 2261.8px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 162.538px; height: 24px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 20px; color: rgb(255, 255, 255); line-height: 28px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><a href="https://maps.app.goo.gl/PZWWCveJbfmYB28f6" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ver ubicación</a></p></div></div></div></div></div></div><div id="LBvtsZ3Y2HR3j1X4" class="DF_utQ _0xkaeQ" style="width: 370.792px; height: 18.1154px; transform: translate(22.4495px, 2141.92px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 455.761px; height: 22.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h1 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Club de Leones de Miraflores</span></h1></div></div></div></div></div></div><div id="LBH7qTzXjHPKBGG0" class="DF_utQ _0xkaeQ" style="width: 131.4px; height: 18.1154px; transform: translate(142.474px, 2224.81px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 161.512px; height: 22.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">09:00 p.m.</span></p></div></div></div></div></div></div><div id="LBZbQsHmcNRnbggB" class="DF_utQ _0xkaeQ" style="width: 162.716px; height: 39.2681px; transform: translate(126.734px, 2173.86px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 200.004px; height: 48.2667px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Av. Arequipa 4701,<br>Miraflores 15046</span></p></div></div></div></div></div></div><div id="LBnmzmKdbys7KCXS" class="DF_utQ _0xkaeQ" style="width: 224.311px; height: 54.6716px; transform: translate(95.8294px, 1945.06px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 275.713px; height: 67.2px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, 5.6px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 56px; color: rgb(173, 165, 155); line-height: 56px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Recepción</span></p></div></div></div></div></div></div><div id="LBg0qbNtPzC6gVLT" class="DF_utQ _0xkaeQ" style="width: 316.546px; height: 454.814px; transform: translate(51.018px, 1006.6px);"><div style="width: 316.546px; height: 454.814px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBYzd8Kf3qDylL6p" class="DF_utQ _0xkaeQ" style="width: 113.855px; height: 197.546px; transform: translate(72.1101px, -5.03779px) rotate(-64.6499deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 738.594px; height: 492.396px; transform: translate(-520.878px, -130.095px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/bfe51f06f491b51903d3690c08345664.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 197.546px; width: 113.855px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB3TnNms65ThYVHH" class="DF_utQ _0xkaeQ" style="width: 278.273px; height: 323.272px; transform: translate(19.3386px, 115.399px) rotate(-7.19012deg); opacity: 0.997475;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 323.272px; width: 278.273px; transform: scale(1);"><div class="hWv4NA" style="width: 278.273px; height: 323.272px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id80"><path d="M427.2948420074349,0L1.5020910780669143,0C0.7009758364312267,0 0,0.7009758364312267 0,1.6022304832713754L0,499.0947955390335C0,499.89591078066917 0.7009758364312267,500.5968866171004 1.5020910780669143,500.5968866171004L427.2948420074349,500.5968866171004C428.09595724907064,500.5968866171004 428.79693308550185,499.89591078066917 428.79693308550185,499.0947955390335L428.79693308550185,1.6022304832713754C428.8970724907063,0.7009758364312269 428.19609665427504,0 427.2948420074349,0ZM405.0638940520446,24.834572490706318L405.0638940520446,391.94563197026025C405.0638940520446,392.7467472118959 404.3629182156134,393.44772304832713 403.5618029739777,393.44772304832713L21.029275092936803,393.44772304832713C20.228159851301115,393.44772304832713 19.52718401486989,392.7467472118959 19.52718401486989,391.94563197026025L19.52718401486989,24.834572490706318C19.52718401486989,24.03345724907063 20.228159851301115,23.332481412639407 21.029275092936803,23.332481412639407L403.5618029739777,23.332481412639407C404.4630576208178,23.232342007434944 405.0638940520446,23.933317843866174 405.0638940520446,24.834572490706318Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id80&quot;); background: rgb(242, 241, 235); width: 431px; height: 500.697px; transform: scale(0.645645, 0.645645); transform-origin: 0px 0px;"></div><svg class="_7KaXww"><defs><clipPath id="__id81"><path d="M403.5618029739777,23.232342007434944L21.029275092936803,23.232342007434944C20.228159851301115,23.232342007434944 19.52718401486989,23.93331784386617 19.52718401486989,24.734433085501855L19.52718401486989,391.84549256505574C19.52718401486989,392.74674721189587 20.228159851301115,393.3475836431227 21.029275092936803,393.3475836431227L403.5618029739777,393.3475836431227C404.3629182156134,393.3475836431227 405.0638940520446,392.64660780669146 405.0638940520446,391.84549256505574L405.0638940520446,24.834572490706318C405.0638940520446,23.933317843866174 404.4630576208178,23.232342007434944 403.5618029739777,23.232342007434944Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id81&quot;); transform: scale(0.645645, 0.645645); transform-origin: 0px 0px; width: 431px; height: 500.697px;"><div class="_4c2rDg GxUsfw" style="transform-origin: 212.296px 208.29px;"><div class="qhHTGg" style="width: 385.537px; height: 514.673px; transform: translate(19.5272px, -49.0464px) translate(192.768px, 257.336px) rotate(0deg) translate(-192.768px, -257.336px); transform-origin: 0px 0px;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/bbbaf75caeeab1731c9854f610176a95.jpg"></div></div></div><svg class="_7KaXww"><defs><clipPath id="__id82"><path d="M405.1640334572491,24.333875464684013C405.1640334572491,24.333875464684013 404.86361524163567,23.43262081784387 403.7620817843866,23.332481412639407L19.72746282527881,23.332481412639407C19.026486988847584,23.332481412639407 18.125232342007433,23.63289962825279 18.125232342007433,24.434014869888475L18.425650557620816,25.1349907063197C18.7260687732342,24.73443308550186 19.226765799256505,24.534154275092934 19.72746282527881,24.534154275092934L404.0625,24.534154275092934L404.0625,392.14591078066917C404.0625,392.64660780669146 403.8622211895911,393.14730483271376 403.4616635687732,393.44772304832713L403.862221189591,393.44772304832713C404.56319702602224,393.44772304832713 405.16403345724905,392.8468866171004 405.16403345724905,392.14591078066917L405.16403345724905,24.333875464684013ZM428.8970724907063,499.1949349442379L1.7023698884758363,499.1949349442379L1.7023698884758363,1.5020910780669143L0.6008364312267658,0.5006970260223048L0.5006970260223048,0.5006970260223048C0.3004182156133829,0.8011152416356877 0.10013940520446094,1.1015334572490707 0.10013940520446094,1.5020910780669143L0.10013940520446094,499.09479553903344C0.10013940520446094,499.9960501858735 0.8011152416356876,500.5968866171003 1.6022304832713754,500.5968866171003L429.3977695167286,500.5968866171003C429.79832713754644,500.5968866171003 430.0987453531598,500.49674721189587 430.39916356877325,500.1963289962825L428.8970724907063,499.1949349442379Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id82&quot;); background: rgb(242, 241, 235); width: 431px; height: 500.697px; transform: scale(0.645645, 0.645645); transform-origin: 0px 0px;"></div><svg class="_7KaXww"><defs><clipPath id="__id83"><path d="M404.7634758364312,393.2474442379182C404.4630576208178,393.648001858736 404.0625,393.84828066914497 403.5618029739777,393.84828066914497L19.827602230483272,393.84828066914497C19.326905204460967,393.84828066914497 18.826208178438662,393.64800185873605 18.52578996282528,393.14730483271376C18.125232342007436,392.8468866171004 17.92495353159851,392.44632899628255 17.92495353159851,391.94563197026025L17.92495353159851,24.834572490706318C17.92495353159851,24.434014869888475 18.125232342007433,24.03345724907063 18.425650557620816,23.73303903345725L19.52718401486989,24.534154275092934L19.52718401486989,392.3461895910781L403.5618029739777,392.3461895910781C403.76208178438657,392.3461895910781 403.9623605947955,392.24605018587357 404.0625,392.24605018587357L404.7634758364312,393.2474442379182ZM431,1.5020910780669143L431,499.1949349442379C431,499.59549256505574 430.799721189591,499.99605018587357 430.3991635687732,500.296468401487L428.69679368029733,499.0947955390335L428.69679368029733,1.6022304832713754L1.7023698884758363,1.6022304832713754L0.6008364312267658,0.6008364312267658C0.9012546468401487,0.20027881040892193 1.3018122676579926,0 1.8025092936802973,0L429.4979089219331,0C430.2990241635688,0 431,0.7009758364312267 431,1.5020910780669143ZM430.799721189591,2.403345724907063C430.59944237918216,2.1029275092936803 430.39916356877325,1.9026486988847582 430.0987453531598,1.7023698884758363L430.799721189591,2.403345724907063Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id83&quot;); background: rgb(255, 255, 255); width: 431px; height: 500.697px; transform: scale(0.645645, 0.645645); transform-origin: 0px 0px;"></div></div><div class="Pr6LEA"></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 2354.94px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBBS0090LHxrd6DV" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 255);"><div><div class="onhyOQ" style="width: 415px; height: 379.455px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 379.455px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 379.455px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 415px; height: 553.641px; transform: translate(-2.84217e-14px, -87.0931px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/414ca3729560c9cec8834551347891cb.jpg"></div></div></div></div></div></div><div style="position: absolute; top: 37.9455px; left: 37.9455px; width: 339.109px; height: 303.564px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 379.455px; margin: 0px;"></div></div></div></div></section><section id="PBPlrgYvtbWhbHLt" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 255);"><div><div class="onhyOQ" style="width: 415px; height: 830.651px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 830.651px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 830.651px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 595.085px; height: 863.76px; transform: translate(-90.0426px, -33.1087px) rotate(0deg); opacity: 0.3;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/4e763f448762fa91a7c88e42f3ca1b6d.png"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 747.651px;"></div><div id="LBDcnZCyKDvv897M" class="DF_utQ _0xkaeQ" style="width: 368.123px; height: 736.246px; transform: translate(23.4385px, 55.6075px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 368.123px; height: 736.246px; transform: translate(5.68434e-14px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/4d08b292ef8297f89c3fd8b32026af0d.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 736.246px; width: 368.123px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBHkkvzTR5j5NyT1" class="DF_utQ" style="width: 536.526px; height: 2px; transform: translate(-60.763px, 462.262px) rotate(90deg);"><div class="V7MmMA" style="transform: scale(1);"><svg class="Fe_H_Q" style="stroke: rgb(173, 165, 155); fill: rgb(173, 165, 155);"><path d="M6.5,1L530.0259269950116,1" stroke-linecap="butt" stroke-width="2" fill="none" pointer-events="auto" opacity="0" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path><g><path d="M6.5,1L530.0259269950116,1" stroke-linecap="butt" stroke-width="2" fill="none" pointer-events="none"></path><path fill="inherit" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" d="M1,1L4,-2L7,1L4,4Z" pointer-events="auto" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path><path fill="inherit" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" d="M535.5259269950116,1L532.5259269950116,-2L529.5259269950116,1L532.5259269950116,4Z" pointer-events="auto" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path></g></svg></div></div><div id="LBXYkGDs4CmL6yWC" class="DF_utQ _0xkaeQ" style="width: 33.4543px; height: 2.50907px; transform: translate(190.706px, 272.395px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 33.4543px; height: 2.50907px; transform: translate(0px, 4.44089e-16px) rotate(0deg);"><img class="Dt3KRw" width="800" height="62" draggable="false" data-spritesheet-image="" src="assets/file_790202634.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2.50907px; width: 33.4543px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBHyd9zBhFjbS376" class="DF_utQ _0xkaeQ" style="width: 33.4543px; height: 2.50907px; transform: translate(191.651px, 366.371px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 33.4543px; height: 2.50907px; transform: translate(0px, 4.44089e-16px) rotate(0deg);"><img class="Dt3KRw" width="800" height="62" draggable="false" data-spritesheet-image="" src="assets/file_790202634.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2.50907px; width: 33.4543px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBLgg0f9gGZg6qVl" class="DF_utQ _0xkaeQ" style="width: 33.4543px; height: 2.50907px; transform: translate(190.706px, 462.007px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 33.4543px; height: 2.50907px; transform: translate(0px, 4.44089e-16px) rotate(0deg);"><img class="Dt3KRw" width="800" height="62" draggable="false" data-spritesheet-image="" src="assets/file_790202634.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2.50907px; width: 33.4543px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBxfKJH58BXG58fr" class="DF_utQ _0xkaeQ" style="width: 33.4543px; height: 2.50907px; transform: translate(190.706px, 555.251px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 33.4543px; height: 2.50907px; transform: translate(0px, 4.44089e-16px) rotate(0deg);"><img class="Dt3KRw" width="800" height="62" draggable="false" data-spritesheet-image="" src="assets/file_790202634.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2.50907px; width: 33.4543px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBF45v7Lst5nM7V8" class="DF_utQ _0xkaeQ" style="width: 33.4543px; height: 2.50907px; transform: translate(190.706px, 651.901px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 33.4543px; height: 2.50907px; transform: translate(0px, 4.44089e-16px) rotate(0deg);"><img class="Dt3KRw" width="800" height="62" draggable="false" data-spritesheet-image="" src="assets/file_790202634.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2.50907px; width: 33.4543px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBZrFYfx6KKT6D03" class="DF_utQ _0xkaeQ" style="width: 81.9674px; height: 86.738px; transform: translate(246.632px, 521.389px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 81.9674px; height: 86.738px; transform: translate(-1.42109e-14px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/1310f921c565df6ac42fc71e85c0d6ad.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 86.738px; width: 81.9674px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 86.738 L 81.9674 86.738 L 81.9674 0 L 0 0&quot;);"></div></div></div></div><div id="LBjvfrd2R13PBW9B" class="DF_utQ _0xkaeQ" style="width: 79.2929px; height: 76.1212px; transform: translate(247.203px, 326.765px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 79.2929px; height: 76.1212px; transform: translate(0px, 0px) rotate(0deg);"><img class="dMHlHA" crossorigin="anonymous" draggable="false" src="assets/file_1056091541.svg"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 76.1212px; width: 79.2929px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 76.1212 L 79.2929 76.1212 L 79.2929 0 L 0 0&quot;);"></div></div></div></div><div id="LBc4MDYnKRnHbbb7" class="DF_utQ _0xkaeQ" style="width: 69.5223px; height: 88.5634px; transform: translate(97.7895px, 615.455px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 69.5223px; height: 88.5634px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/c59e97f1485c5410b3f68ebbb6266677.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 88.5634px; width: 69.5223px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 88.5634 L 69.5223 88.5634 L 69.5223 0 L 0 0&quot;);"></div></div></div></div><div id="LB4xH31bV05FwPDd" class="DF_utQ _0xkaeQ" style="width: 65.6697px; height: 95.8681px; transform: translate(105.587px, 422.634px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 65.6697px; height: 95.8681px; transform: translate(0px, 0px) rotate(0deg);"><img class="Dt3KRw" width="546" height="800" draggable="false" data-spritesheet-image="" src="assets/file_221647176.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 95.8681px; width: 65.6697px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBh3NWClJ8gzCvW5" class="DF_utQ _0xkaeQ" style="width: 213.216px; height: 86.8854px; transform: translate(113.28px, 29.8481px) rotate(3.55271e-15deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 592.469px; height: 394.979px; transform: translate(-191.29px, -7.17614px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/bfe51f06f491b51903d3690c08345664.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 86.8854px; width: 213.216px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBSwrys8glNCNjgG" class="DF_utQ _0xkaeQ" style="width: 79.0355px; height: 73.8982px; transform: translate(95.6862px, 238.146px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 79.0355px; height: 73.8982px; transform: translate(0px, -1.42109e-14px) rotate(0deg);"><img class="Dt3KRw" width="800" height="748" draggable="false" data-spritesheet-image="" src="assets/file_1546595924.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 73.8982px; width: 79.0355px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBZ92LxGNcqp2ZzD" class="DF_utQ _0xkaeQ" style="width: 97.7239px; height: 31.2595px; transform: translate(78.5225px, 351.996px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 129.717px; height: 41.4933px; transform: scale(0.753361, 0.753361); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.746668px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">RECEPCIÓN</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">9:00 pm</span></p></div></div></div></div></div></div><div id="LB6chP0zspQynhzs" class="DF_utQ _0xkaeQ" style="width: 97.7239px; height: 31.2595px; transform: translate(238.754px, 637.526px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 129.717px; height: 41.4933px; transform: scale(0.753361, 0.753361); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.746668px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">fiesta</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">10:30 pm</span></p></div></div></div></div></div></div><div id="LBbq13swmrNsZycB" class="DF_utQ _0xkaeQ" style="width: 97.564px; height: 31.2595px; transform: translate(238.834px, 447.632px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 129.505px; height: 41.4933px; transform: scale(0.753361, 0.753361); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.746668px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">brindis</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">9:30 pm</span></p></div></div></div></div></div></div><div id="LBppLG3wSCFkWChy" class="DF_utQ _0xkaeQ" style="width: 97.564px; height: 31.2595px; transform: translate(238.834px, 254.723px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 129.505px; height: 41.4933px; transform: scale(0.753361, 0.753361); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.746668px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ceremonia</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">6:30 pm</span></p></div></div></div></div></div></div><div id="LBB29H75C5CKy5pX" class="DF_utQ _0xkaeQ" style="width: 97.564px; height: 31.2595px; transform: translate(78.6024px, 540.876px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 129.505px; height: 41.4933px; transform: scale(0.753361, 0.753361); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.746668px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">cena</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 18.6667px; color: rgb(173, 165, 155); line-height: 20px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">10:00 pm</span></p></div></div></div></div></div></div><div id="LBmnzxW1ctyZyFjQ" class="DF_utQ _0xkaeQ" style="width: 184.355px; height: 54.6716px; transform: translate(116.201px, 125.683px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 226.601px; height: 67.2px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, 5.6px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 56px; color: rgb(173, 165, 155); line-height: 56px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Timing</span></p></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 830.651px; margin: 0px;"></div></div></div></div></section><section id="PBBm1nMDPg4d8cgP" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(248, 247, 239);"><div><div class="onhyOQ" style="width: 415px; height: 620.07px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 620.07px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 620.07px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(248, 247, 239);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 465.451px; height: 621.355px; transform: translate(-25.2256px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/e7ebafd112b053dbecfc9a4199984bb4.jpg"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 537.07px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 620.07px; margin: 0px;"></div></div></div></div></section><section id="PBbpHH2kPKsYx2cx" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 255);"><div><div class="_8jGYJw" style="width: 415px; height: 1129.29px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 415px; height: 1129.29px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 1129.29px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 1129.29px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 831.718px; height: 1207.23px; transform: translate(-208.359px, -77.9355px) rotate(0deg); opacity: 0.3;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/4e763f448762fa91a7c88e42f3ca1b6d.png"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 1046.29px;"></div><div id="LBXB07GW9sB07ww1" class="DF_utQ _0xkaeQ" style="width: 322.019px; height: 503.155px; transform: translate(39.1406px, 554.51px);"><div style="width: 322.019px; height: 503.155px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBmQFkqwd6l4fPhV" class="DF_utQ _0xkaeQ" style="width: 137.309px; height: 111.907px; transform: translate(91.5927px, 150.204px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 137.309px; height: 111.907px; transform: translate(0px, 7.10543e-15px) rotate(0deg);"><img class="dMHlHA" crossorigin="anonymous" draggable="false" src="assets/file_873547579.svg"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 111.907px; width: 137.309px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 111.907 L 137.309 111.907 L 137.309 0 L 0 0&quot;);"></div></div></div></div><div id="LBthG4vjxTfGbrMS" class="DF_utQ _0xkaeQ" style="width: 305.616px; height: 72.7027px; transform: translate(7.43908px, 355.406px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 388.962px; height: 92.5297px; transform: scale(0.785723, 0.785723); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.73514px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">CTA BCP :</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">19216416345065</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">CCI:</span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">00219211641634506536</span></p></div></div></div></div></div></div><div id="LBnM3SYMjVn494CV" class="DF_utQ _0xkaeQ" style="width: 239.981px; height: 52.4863px; transform: translate(40.2566px, 75.6713px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 305.427px; height: 66.8px; transform: scale(0.785723, 0.785723); transform-origin: 0px 0px;"><div style="transform: translate(0px, -5.6px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA SglrXg _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 56px; color: rgb(173, 165, 155); line-height: 78px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 49.784px; top: 0px; left: 0px; --q1eooA: 1;">R</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 18.648px; top: 0px; left: 0px; --q1eooA: 1;">e</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 24.864px; top: 0px; left: 0px; --q1eooA: 1;">g</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 24.864px; top: 0px; left: 0px; --q1eooA: 1;">a</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 12.432px; top: 0px; left: 0px; --q1eooA: 1;">l</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 24.864px; top: 0px; left: 0px; --q1eooA: 1;">o</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 18.648px; top: 0px; left: 0px; --q1eooA: 1;">s</span></p></div></div></div></div></div></div><div id="LBmX0VPkfP42hjSl" class="DF_utQ _0xkaeQ" style="width: 318.106px; height: 72.7027px; transform: translate(1.19386px, 274.591px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 404.858px; height: 92.5297px; transform: scale(0.785723, 0.785723); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.73514px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Tu presencia será nuestro</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">mejor regalo, pero si deseas tener un</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">detalle con nosotros, puedes hacerlo</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">de la siguiente manera:</span></p></div></div></div></div></div></div><div id="LBDR7r44QJsPfXlt" class="DF_utQ _0xkaeQ" style="width: 322.019px; height: 503.155px; transform: translate(-2.84217e-14px, 5.68434e-14px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 322.019px; height: 503.155px; transform: translate(0px, -8.52651e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/548fea17d7635d4feb6ce011bcd21098.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 503.155px; width: 322.019px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 503.155 L 322.019 503.155 L 322.019 0 L 0 0&quot;);"></div></div></div></div></div></div><div id="LBVWdYcYLBdhg6gM" class="DF_utQ _0xkaeQ" style="width: 342.609px; height: 83.0777px; transform: translate(36.5906px, 994.608px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 715.833px; height: 477.222px; transform: translate(-181.246px, -306.449px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/5c6e12e662013401788cdd8603994f15.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 83.0777px; width: 342.609px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBsg7Mn65rHKSDYx" class="DF_utQ _0xkaeQ" style="width: 323.954px; height: 458.576px; transform: translate(36.5906px, 66.3962px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 323.954px; height: 458.576px; transform: translate(0px, -5.68434e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/e5fabdcb2a39fedaeb2da9d00d18c8b5.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 458.576px; width: 323.954px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBqP0sDLVrjk4gnx" class="DF_utQ _0xkaeQ" style="width: 72.9997px; height: 144.554px; transform: translate(130.074px, 237.191px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 72.9997px; height: 144.554px; transform: translate(0px, 0px) rotate(0deg);"><img class="Dt3KRw" width="403" height="800" draggable="false" data-spritesheet-image="" src="assets/file_1582650696.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 144.554px; width: 72.9997px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBSPRMjx7PMTDHBP" class="DF_utQ _0xkaeQ" style="width: 50.4145px; height: 146.129px; transform: translate(216.647px, 228.927px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 50.4145px; height: 146.129px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/21fa76c2745a00d9bfcf739db088d578.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 146.129px; width: 50.4145px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 146.129 L 50.4145 146.129 L 50.4145 0 L 0 0&quot;);"></div></div></div></div><div id="LBzRZ90zDfL1ZRBq" class="DF_utQ _0xkaeQ" style="width: 104.148px; height: 17.4294px; transform: translate(146.494px, 196.853px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 155.759px; height: 26.0667px; transform: scale(0.668648, 0.668648); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.13333px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 21.3333px; color: rgb(173, 165, 155); line-height: 29px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Elegante</span></p></div></div></div></div></div></div><div id="LBLx0ZHdmw9V45Qt" class="DF_utQ _0xkaeQ" style="width: 277.579px; height: 62.8795px; transform: translate(59.7776px, 142.431px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 296.652px; height: 67.2px; transform: scale(0.935707, 0.935707); transform-origin: 0px 0px;"><div style="transform: translate(0px, 5.6px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 56px; color: rgb(173, 165, 155); line-height: 56px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Dress code</span></p></div></div></div></div></div></div><div id="LBklnmC1MLHzfB0K" class="DF_utQ _0xkaeQ" style="width: 255.715px; height: 74.5831px; transform: translate(70.7097px, 396.646px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 377.419px; height: 110.08px; transform: scale(0.677536, 0.677536); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.04px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3333px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Mujeres: vestido largo</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3333px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">(no usar blanco, perla, Ivory, verde olivo, rojo ni</span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"><br></span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">negro).</span></p><div class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3333px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><br></div><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3333px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Hombres: Traje, corbata y zapatos de vestir</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3333px; color: rgb(173, 165, 155); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">(no usar traje azul navy).</span></p></div></div></div></div></div></div><div id="LBlZ0CCrHhwbrBPV" class="DF_utQ _0xkaeQ" style="width: 58.5333px; height: 105.464px; transform: translate(253.093px, 8.75218px) rotate(-58.9994deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 449.634px; height: 299.756px; transform: translate(-317.095px, -83.6179px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/bfe51f06f491b51903d3690c08345664.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 105.464px; width: 58.5333px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBLJ8TMW4YJyWQr1" class="DF_utQ _0xkaeQ" style="width: 96.7257px; height: 107.02px; transform: translate(270.596px, 28.2364px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 107.02px; height: 107.02px; transform: translate(4.26326e-14px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/af6194361d2ea22749c44a8424b6e0d5.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 107.02px; width: 96.7257px; pointer-events: none; transform: scale(1);"></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 1129.29px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PB04FXdQ0rSQpsBp" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(248, 247, 239);"><div><div class="onhyOQ" style="width: 415px; height: 711.515px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 711.515px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 711.515px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(248, 247, 239);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 545.507px; height: 728.225px; transform: translate(-90.9751px, -5.68434e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/3213fcd1b7e1cb5879045fa01072eaa9.jpg"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 628.515px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 711.515px; margin: 0px;"></div></div></div></div></section><section id="PBPWFn97VRBTHgvR" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 255);"><div><div class="onhyOQ" style="width: 415px; height: 590.762px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 590.762px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 590.762px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(255, 255, 255);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 415px; height: 602.368px; transform: translate(0px, -5.80291px) rotate(0deg); opacity: 0.3;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/fd085e3b3195dee826e9e7f14fe739a8.png"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 507.762px;"></div><div id="LBzCfWsnCs5pzWrM" class="DF_utQ _0xkaeQ" style="width: 308.871px; height: 218.197px; transform: translate(38.512px, 330.187px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 218.197px; height: 309.3px; transform: translate(45.337px, -45.5515px) rotate(90deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/d012960ec3ca7d9ae1feb35b583598d6.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 218.197px; width: 308.871px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB825ZYCkLRsS5by" class="DF_utQ _0xkaeQ" style="width: 160.435px; height: 27.8314px; transform: translate(113.47px, 475.73px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 27.8314px; width: 160.435px; transform: scale(1);"><div class="hWv4NA" style="width: 160.435px; height: 27.8314px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id186"><path d="M74.83389743043213,0L1400.891567338902,0C1442.2211877079071,0 1475.725464769334,33.50427706142683 1475.725464769334,74.83389743043213L1475.725464769334,181.16610263100057C1475.725464769334,222.49572300000588 1442.2211877079071,256.00000006143273 1400.891567338902,256.00000006143273L74.83389743043213,256.00000006143273C33.50427706142683,256.00000006143273 0,222.49572300000588 0,181.16610263100057L0,74.83389743043213C0,33.50427706142683 33.50427706142683,0 74.83389743043213,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id186&quot;); background: rgb(173, 165, 155); width: 1475.73px; height: 256px; transform: scale(0.108716, 0.108716); transform-origin: 0px 0px;"></div></div></div></div><div id="LB9mcdqXZyysrZzB" class="DF_utQ _0xkaeQ" style="width: 85.1774px; height: 102.623px; transform: translate(165.361px, 38.9663px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 85.1774px; height: 102.623px; transform: translate(-1.42109e-14px, 7.10543e-15px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/b07de5ecd625becd19b3ac13daf5422f.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 102.623px; width: 85.1774px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 102.623 L 85.1774 102.623 L 85.1774 0 L 0 0&quot;);"></div></div></div></div><div id="LB4NtnFkTTBtwgzN" class="DF_utQ _0xkaeQ" style="width: 268.075px; height: 36.2308px; transform: translate(59.6504px, 430.694px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 329.506px; height: 44.5333px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.73334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3334px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Agradecemos que confirmes</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3334px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">tu asistencia a nuestra boda.</span></p></div></div></div></div></div></div><div id="LBd7ndhDbJvR07ZP" class="DF_utQ _0xkaeQ" style="width: 290.984px; height: 65.8229px; transform: translate(47.4555px, 364.871px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 357.665px; height: 80.9067px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, 10.4533px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 42.6667px; color: rgb(173, 165, 155); line-height: 30px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Confirmación de</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 42.6667px; color: rgb(173, 165, 155); line-height: 30px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">asistencia</span></p></div></div></div></div></div></div><div id="LBPKc9qJ20lJYnQg" class="DF_utQ _0xkaeQ" style="width: 81.7532px; height: 136.255px; transform: translate(275.394px, 284.51px) rotate(-20.2144deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 532.987px; height: 355.325px; transform: translate(-378.692px, -95.6762px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/f75c9cf4534946578f3a94ef241342f0.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 136.255px; width: 81.7532px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBCZcN0lxlcKkk6R" class="DF_utQ _0xkaeQ" style="width: 316.446px; height: 55.7534px; transform: translate(49.3812px, 201.631px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 388.962px; height: 68.5297px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.73514px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Amamos a los niños, pero en esta ocasión</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">hemos decidido reservar la fiesta</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA AfeL7g XN6uKA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 17.3514px; color: rgb(173, 165, 155); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(173, 165, 155); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">solo para adultos.</span></p></div></div></div></div></div></div><div id="LBrt4zF2RM4VFNc8" class="DF_utQ _0xkaeQ" style="width: 187.351px; height: 19.5256px; transform: translate(100.012px, 479.642px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 230.284px; height: 24px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m0Ym3NU_1, auto; --H97cbQ: 20px; color: rgb(255, 255, 255); line-height: 28px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Confirma aquí</span></p></div></div></div></div></div></div><div id="LBF9YXGzpG0R5qm5" class="DF_utQ _0xkaeQ" style="width: 248.485px; height: 46.6987px; transform: translate(83.6002px, 152.437px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 305.427px; height: 57.4px; transform: scale(0.813566, 0.813566); transform-origin: 0px 0px;"><div style="transform: translate(0px, -4.8px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 48px; color: rgb(173, 165, 155); line-height: 67px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(173, 165, 155); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Solo adultos</span></p></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 590.762px; margin: 0px;"></div></div></div></div></section><section id="PBcdyLgzlsxDHH4B" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(248, 247, 239);"><div><div class="onhyOQ" style="width: 415px; height: 703.92px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 703.92px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 703.92px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(248, 247, 239);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 1057.8px; height: 703.92px; transform: translate(-321.402px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/fab737efb6b8dd6774b3f13e10151b38.jpg"></div></div></div></div></div></div><div style="position: absolute; top: 41.5px; left: 41.5px; width: 332px; height: 620.92px;"></div><div id="LBSYWNH1fPcxkn0d" class="DF_utQ _0xkaeQ" style="width: 415px; height: 703.92px; transform: translate(0px, -1.13687e-13px); opacity: 0.04;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 703.92px; width: 415px; transform: scale(1);"><div class="hWv4NA" style="width: 415px; height: 703.92px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id201"><path d="M0,0L256,0L256,434.22547584187396L0,434.22547584187396Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id201&quot;); background: rgb(0, 0, 0); width: 256px; height: 434.225px; transform: scale(1.62109, 1.62109); transform-origin: 0px 0px;"></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 703.92px; margin: 0px;"></div></div></div></div></section><section id="PBMR1zsKQdFDg3ff" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(242, 241, 235);"><div><div class="_8jGYJw" style="width: 415px; height: 80.543px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 415px; height: 80.543px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 415px; height: 80.543px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 415px; height: 80.543px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(242, 241, 235);"></div></div></div><div style="position: absolute; top: 8.0543px; left: 8.0543px; width: 398.891px; height: 64.4344px;"></div><div id="LBr72Hb0JSCPS7tR" class="DF_utQ _0xkaeQ" style="width: 261.161px; height: 45.8494px; transform: translate(76.9244px, 17.3468px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 360.752px; height: 63.3334px; transform: scale(0.723936, 0.723936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -5.33329px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA SglrXg _4N4NA" style="font-family: YAFcf-RMpoo_0, auto; --H97cbQ: 53.3329px; color: rgb(172, 165, 157); line-height: 74px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0; --zPlnxA: none; list-style-type: none;"><span class="xtSH_A"><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">¡</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 41.4907px; top: 0px; left: 0px; --q1eooA: 1;">T</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">e</span></span><span class="a_GcMg zV8YKg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 13.3325px; top: 0px; left: 0px; --q1eooA: 1;"> </span><span class="xtSH_A"><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">e</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">s</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 23.6785px; top: 0px; left: 0px; --q1eooA: 1;">p</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">e</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">r</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 23.6785px; top: 0px; left: 0px; --q1eooA: 1;">a</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 35.5711px; top: 0px; left: 0px; --q1eooA: 1;">m</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 23.6785px; top: 0px; left: 0px; --q1eooA: 1;">o</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">s</span><span class="a_GcMg jfNO9A" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(172, 165, 157); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; width: 17.7589px; top: 0px; left: 0px; --q1eooA: 1;">!</span></span></p></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 415px; height: 80.543px; margin: 0px;"></div></div></div></div></div></div></div></section></div><div></div></div></div><div class="_C1wYA"></div></div></main></div></div><div class="_3jkTAA"></div><div class="Bymw5Q"></div><div class="BghEng"><div></div><div></div></div></body>
+
+<script src="assets/animacion.js" defer></script>
+<script src="assets/responsive.js" defer></script>
+
+  <script>
+    // --- SCRIPT 1: OCULTAR INMEDIATAMENTE AL CARGAR EL DOM ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('LBg2Sz7y58w59hxw');
+      el.getAnimations().forEach(anim => anim.cancel());
+      el.style.opacity = '0';
+      el.style.transform = 'translate(84.26px, 188.225px) scale(1, 1)';
+    });
+
+    // --- SCRIPT 2: LÓGICA DE APERTURA, AUDIO Y ANIMACIÓN ---
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const musica = document.getElementById('musica-boda-overlay');
+      const btnMusica = document.getElementById('btn-musica-overlay');
+      const iconOn = document.getElementById('icon-sound-on-overlay');
+      const iconOff = document.getElementById('icon-sound-off-overlay');
+      const envelopeWrapper = document.getElementById('envelope-wrapper-overlay');
+      const btnAbrirText = document.getElementById('btn-abrir-text-overlay');
+      const btnVerInvitacionFinal = document.getElementById('btn-ver-invitacion-final');
+      const heroScreen = document.getElementById('hero-screen-overlay');
+
+      function precargarImagen(url) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(url);
+          img.onerror = () => resolve(url);
+          img.src = url;
+        });
+      }
+
+      function precargarAudio(audioElement) {
+        return new Promise((resolve) => {
+          if (audioElement.readyState >= 1) {
+            resolve();
+          } else {
+            audioElement.addEventListener('loadedmetadata', resolve, { once: true });
+            setTimeout(resolve, 2500);
+          }
+        });
+      }
+
+      function obtenerPosicionBoton() {
+        const rect = envelopeWrapper.getBoundingClientRect();
+        return `${rect.top + (rect.height * 0.80)}px`;
+      }
+	  
+      function pintarDatosEnTarjeta() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const numeroPases = urlParams.get('pase');
+        const parsedPases = numeroPases !== null && numeroPases !== '' ? parseInt(numeroPases, 10) : 1;
+        const esUnPase = isNaN(parsedPases) || parsedPases === 1;
+
+        const textoDinamicoPases = `HEMOS RESERVADO ( ${isNaN(parsedPases) ? 1 : parsedPases} ) ${esUnPase ? "PASE" : "PASES"}`;
+        const textoDestinatario = esUnPase ? "PARA USTED" : "PARA USTEDES";
+
+        const seatsTarget = document.getElementById('card-seats-target');
+        const seatsTarget2 = document.getElementById('card-seats-target-2');
+        if (seatsTarget) {
+          seatsTarget.innerText = textoDinamicoPases;
+          seatsTarget.setAttribute('data-text', textoDinamicoPases);
+        }
+        if (seatsTarget2) {
+          seatsTarget2.innerText = textoDestinatario;
+          seatsTarget2.setAttribute('data-text', textoDestinatario);
+        }
+      }
+
+      Promise.all([
+        precargarImagen('assets/fondo.jpg'),
+        precargarImagen('assets/sobre_adelante.png'),
+        precargarImagen('assets/sobre_fondo.png'),
+        precargarImagen('assets/solapa_frontal.png'),
+        precargarImagen('assets/solapa_reverso.png'),
+        precargarImagen('assets/25da6e32e3e9cc248e8ef6c30790937d.png'),
+        precargarImagen('assets/sello.png'),
+        precargarAudio(musica),
+        document.fonts ? document.fonts.ready : Promise.resolve(),
+      ]).then(() => {
+	    pintarDatosEnTarjeta();
+        heroScreen.classList.add('loaded');
+        setTimeout(() => {
+          btnAbrirText.classList.add('animating');
+          void btnAbrirText.offsetHeight; 
+          btnAbrirText.style.setProperty('top', obtenerPosicionBoton(), 'important');
+          setTimeout(() => {
+            btnAbrirText.innerText = "Abrir invitación";
+            envelopeWrapper.classList.add('ready');
+            btnAbrirText.classList.add('ready-btn');
+          }, 650);
+        }, 2000);
+      });
+	  
+      window.addEventListener('resize', () => {
+        if (envelopeWrapper.classList.contains('ready')) {
+          btnAbrirText.style.setProperty('top', obtenerPosicionBoton(), 'important');
+        }
+      });
+
+      function abrirSobre(e) {
+        if (!envelopeWrapper.classList.contains('ready')) return;
+        if (e) e.stopPropagation();
+        
+        envelopeWrapper.classList.remove('ready');
+        btnMusica.style.display = 'flex';
+        musica.play().then(() => {
+          actualizarIconos(false);
+        }).catch((error) => {
+          console.log("Autoplay prevenido:", error);
+          actualizarIconos(true);
+        });
+
+        envelopeWrapper.classList.add('opening-sequence');
+      }
+
+	  function desplegarCanva(e) {
+        if (e) e.stopPropagation();
+        
+        if (typeof reajustarLienzo === 'function') {
+          reajustarLienzo();
+        }
+
+        setTimeout(() => {
+          heroScreen.classList.add('fade-out');
+          
+          setTimeout(() => {
+            heroScreen.remove();
+            document.documentElement.classList.remove('overlay-active');
+            window.scrollTo(0, 0);
+
+			// Animación
+			const el = document.getElementById('LBg2Sz7y58w59hxw');
+			el.getAnimations().forEach(anim => anim.cancel());
+			el.animate([
+				{ opacity: 0, transform: 'translate(84.26px, 188.225px) scale(1, 1)' },
+				{ opacity: 1, transform: 'translate(84.26px, 128.225px) scale(1, 1)' }
+			], {
+				duration: 4800,
+				easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+				fill: 'forwards'
+			});
+			console.log("✨ Slide-up activado por scroll en #LBg2Sz7y58w59hxw");
+
+          }, 1200);
+          
+        }, 400);
+      }
+
+      envelopeWrapper.addEventListener('click', abrirSobre);
+      btnAbrirText.addEventListener('click', abrirSobre);
+      btnVerInvitacionFinal.addEventListener('click', desplegarCanva);
+
+      btnMusica.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (musica.paused) { 
+          musica.play(); 
+          actualizarIconos(false); 
+        } else { 
+          musica.pause(); 
+          actualizarIconos(true); 
+        }
+      });
+
+      function actualizarIconos(estaPausado) {
+        if (estaPausado) {
+          iconOn.style.display = 'none';
+          iconOff.style.display = 'block';
+        } else {
+          iconOn.style.display = 'block';
+          iconOff.style.display = 'none';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
