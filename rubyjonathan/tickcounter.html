@@ -1,0 +1,144 @@
+<style>
+  :root {
+    --comet-color: #c4baae;
+    --comet-base-border: rgba(196, 186, 174, 0.4);
+  }
+
+  .custom-countdown {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px; /* <--- CAMBIA ESTO para separar o acercar los bloques (números y dos puntos) horizontalmente */
+    font-family: inherit;
+    color: #c4baae;
+  }
+
+  .countdown-separator {
+    font-size: 7rem; /* Tamaño de los dos puntos */
+    color: #c4baae;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 40px; /* <--- CAMBIA ESTO para mover los dos puntos verticalmente (más positivo los sube, menos los baja) */
+    opacity: 0.9;
+  }
+  
+  .countdown-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .comet-wrapper {
+    position: relative;
+    border-radius: 12px;
+    padding: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    box-sizing: border-box;
+  }
+
+  .countdown-number {
+    position: relative;
+    z-index: 2;
+    font-size: 6rem; /* <--- CAMBIA ESTO (Ej: 4rem, 6rem) para el tamaño de los números */
+    line-height: 1;
+    background: rgba(196, 186, 174, 0.15);
+    padding: 12px 10px; /* <--- Espacio interno dentro de la caja del número */
+    border-radius: 10px;
+    box-sizing: border-box;
+    display: inline-block;
+    text-align: center;
+    color: #c4baae;
+    border: 1px solid var(--comet-base-border);
+    min-width: 100px; /* <--- Ancho mínimo para que los dígitos gemelos no bailen */
+  }
+
+  .countdown-label {
+    font-size: 2rem; /* <--- CAMBIA ESTO para hacer las letras más grandes o chicas (Ej: 0.9rem, 1.3rem) */
+    text-transform: uppercase;
+    margin-top: 10px; /* <--- Espacio entre el número y la palabra */
+    letter-spacing: 0.15em; /* <--- Espaciado entre las letras de la palabra */
+    opacity: 0.95;
+    color: #c4baae;
+    text-align: center;
+    width: 100%;
+    white-space: nowrap;
+  }
+</style>
+
+<div class="custom-countdown">
+  <!-- DÍAS -->
+  <div class="countdown-item">
+    <div class="comet-wrapper">
+      <span class="countdown-number" id="cd-days">00</span>
+    </div>
+    <span class="countdown-label">Días</span>
+  </div>
+
+  <div class="countdown-separator">:</div>
+
+  <!-- HORAS -->
+  <div class="countdown-item">
+    <div class="comet-wrapper">
+      <span class="countdown-number" id="cd-hours">00</span>
+    </div>
+    <span class="countdown-label">Horas</span>
+  </div>
+
+  <div class="countdown-separator">:</div>
+
+  <!-- MINUTOS -->
+  <div class="countdown-item">
+    <div class="comet-wrapper">
+      <span class="countdown-number" id="cd-minutes">00</span>
+    </div>
+    <span class="countdown-label">Minutos</span>
+  </div>
+
+  <div class="countdown-separator">:</div>
+
+  <!-- SEGUNDOS -->
+  <div class="countdown-item">
+    <div class="comet-wrapper">
+      <span class="countdown-number" id="cd-seconds">00</span>
+    </div>
+    <span class="countdown-label">Segundos</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const targetDate = new Date("2026-11-28T18:30:00-05:00").getTime();
+
+    function updateCountdown() {
+      const now = new Date().getTime();
+      const difference = targetDate - now;
+
+      if (difference <= 0) {
+        if (document.getElementById("cd-days")) document.getElementById("cd-days").textContent = "00";
+        if (document.getElementById("cd-hours")) document.getElementById("cd-hours").textContent = "00";
+        if (document.getElementById("cd-minutes")) document.getElementById("cd-minutes").textContent = "00";
+        if (document.getElementById("cd-seconds")) document.getElementById("cd-seconds").textContent = "00";
+
+        return;
+      }
+
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      if (document.getElementById("cd-days")) document.getElementById("cd-days").textContent = String(days).padStart(2, '0');
+      if (document.getElementById("cd-hours")) document.getElementById("cd-hours").textContent = String(hours).padStart(2, '0');
+      if (document.getElementById("cd-minutes")) document.getElementById("cd-minutes").textContent = String(minutes).padStart(2, '0');
+      if (document.getElementById("cd-seconds")) document.getElementById("cd-seconds").textContent = String(seconds).padStart(2, '0');
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  })();
+</script>
