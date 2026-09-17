@@ -600,14 +600,11 @@
 
   <!-- PEGA AQUÍ TODO EL CONTENIDO ORIGINAL QUE VIENE DE CANVA -->
 
-
   <script>
   
 	window.datosInvitadoGlobal = {
 	  nombre: "Invitado Especial",
-	  pases: 1,
-	  asistencia: "",
-	  mensaje: "",
+	  pases: 0,
 	  encontrado: false
 	};
 
@@ -625,31 +622,48 @@
 		resolve();
 		return;
 	  }
-	  const urlFinal = `${WEB_APP_URL}?to=${encodeURIComponent(codigoInvitado)}`;
-	  fetch(urlFinal)
-		.then(res => {
-		  console.log("[RSVP] Respuesta recibida del servidor. Status:", res.status);
-		  return res.json();
-		})
-		.then(data => {
-		  console.log("[RSVP] Datos JSON procesados con éxito:", data);
-		  if (data.found) {
-			window.datosInvitadoGlobal = {
-			  nombre: data.nombre,
-			  pases: data.pases || 1,
-			  encontrado: true
-			};
-		  } else {
-			console.log("[RSVP] El servidor respondió pero el invitado no fue encontrado.");
-		  }
-		  googleFetchFinished = true;
-		  resolve();
-		})
-		.catch(err => {
-		  console.error("[RSVP] ❌ Error crítico en el fetch o parseo JSON:", err);
-		  googleFetchFinished = true;
-		  resolve(); 
-		});
+
+	  const codigoLimpio = codigoInvitado.trim();
+	  const urlFinal = `${WEB_APP_URL}?to=${encodeURIComponent(codigoLimpio)}`;
+	  
+	  const intentarFetch = (intentosRestantes) => {
+		fetch(urlFinal)
+		  .then(async res => {
+			if (!res.ok) {
+			  // Si es HTML (como el error 404 de Google), evitamos volcar todo el código en el log
+			  throw new Error(`Error HTTP ${res.status} (Posible retraso o cold start de Google)`);
+			}
+			return res.json();
+		  })
+		  .then(data => {
+			console.log("[RSVP] Datos JSON procesados con éxito:", data);
+			if (data && data.found) {
+			  window.datosInvitadoGlobal = {
+				nombre: data.nombre,
+				pases: data.pases || 0,
+				encontrado: true
+			  };
+			} else {
+			  console.log("[RSVP] El servidor respondió pero el invitado no fue encontrado.");
+			}
+			googleFetchFinished = true;
+			resolve();
+		  })
+		  .catch(err => {
+			console.warn(`[RSVP] ⚠️ Falló la petición. Intentos restantes: ${intentosRestantes}. Motivo:`, err.message);
+			
+			if (intentosRestantes > 0) {
+			  setTimeout(() => {
+				intentarFetch(intentosRestantes - 1);
+			  }, 2000);
+			} else {
+			  console.error("[RSVP] ❌ Se agotaron los reintentos. Usando valores por defecto.");
+			  googleFetchFinished = true;
+			  resolve(); 
+			}
+		  });
+	  };
+	  intentarFetch(4);
 	});
 
 	// Promesa estricta SOLO para los elementos obligatorios de la tarjeta de portada
@@ -699,6 +713,16 @@
       const btnVerInvitacionFinal = document.getElementById('btn-ver-invitacion-final');
       const heroScreen = document.getElementById('hero-screen-overlay');
 
+      // Cargando
+      let dotCount = 1;
+      const loadingInterval = setInterval(() => {
+        const dots = '.'.repeat(dotCount);
+        if (btnAbrirText) {
+          btnAbrirText.innerText = `Cargando${dots}`;
+        }
+        dotCount = (dotCount % 5) + 1;
+      }, 400);
+	  
       function precargarImagen(url) {
         return new Promise((resolve) => {
           const img = new Image();
@@ -733,9 +757,14 @@
           cardTarget.innerText = nombreFinal;
           cardTarget.setAttribute('data-text', nombreFinal);
         }
-        
-        const pasesFinal = parseInt(window.datosInvitadoGlobal.pases, 10) || 1;
-        const textoPases = pasesFinal > 1 ? `Pase para ( ${pasesFinal} ) persona` : `Pase para ( 1 ) persona`;
+		
+        const encontrado = window.datosInvitadoGlobal.encontrado;
+        const pasesFinal = parseInt(window.datosInvitadoGlobal.pases, 10) || 0;
+		
+		let textoPases = "";
+        if (encontrado && pasesFinal > 0) {
+          textoPases = pasesFinal > 1 ? `Pase para ( ${pasesFinal} ) persona` : `Pase para ( 1 ) persona`;
+        }
         if (seatsTarget) seatsTarget.innerText = textoPases;
       }
 
@@ -752,6 +781,7 @@
 		promesaDatosGoogle,
 		promesaElementosCriticos					   
       ]).then(() => {
+		clearInterval(loadingInterval);
 	    pintarDatosEnTarjeta();								   
         heroScreen.classList.add('loaded');
         setTimeout(() => {

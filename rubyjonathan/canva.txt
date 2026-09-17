@@ -14,22 +14,16 @@ console.log(lienzo);
 
 https://invitaciones.parteydetalles.com/dahu6zyqa7w
 https://invitaciones.parteydetalles.com/ruby-jonathan
+
 https://docs.google.com/spreadsheets/d/14qjz50ppAE1PP9zNU6DWso6VQutTHa6m-Kv8tv7AJ8Q/edit?usp=sharing
-https://script.google.com/macros/s/AKfycbzNrAL9syDtl5KpRGpT9Q8LMJk5Wyp0ExfpSZ7djviDY0ex0F5fNtLq6jOuJA8GhY7OAA/exec
+
+https://script.google.com/macros/s/AKfycbxiEUwDCrZ75-lAraVsAkq5nv28bXUpvupxJctsr_I9k8ZiXE6DJEye0qp0mYmssTdLkA/exec
+https://bodas.parteydetalles.com/rubyjonathan?to=6c8x
 
 
-Invitado = Nombre del invitado
-Pases = Pases asignados
-Código = Codigo de busqueda basado en HASHSHORT()
-Link Invitación = Link para que los novios compartan
-Vistas = Numero de veces que se ha consultado el link
-Primera vista = Fecha de la primera vez que el invitado consultó el link
-Última vista = Fecha de la última vez que el invitado consultó el link
-
-
-
-<iframe src="https://canva-embed.com/api/iframe?url=https%3A%2F%2Fwww.tickcounter.com%2Fcountdown%2F11416024%2Fmy-countdown&amp;key=1ba5ba1d761083229628cd3cd0c0bd36" style="width:100%;height:100%;border:0" allowfullscreen="allowfullscreen" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" title="Contenido integrado"></iframe>
-
+El programador me comentó que cuando la red está lenta puede pasar que no encuentra el invitado, ya lo corrigió agregando reintentos.
+Para el pase 1 de Andrea, agregó al final de la lista el link adicional
+El link para no especificar numero de pases y pasarlo de manera genérica es: https://bodas.parteydetalles.com/rubyjonathan
 
 
 
