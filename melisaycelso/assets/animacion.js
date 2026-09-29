@@ -19,7 +19,9 @@ window.addEventListener('DOMContentLoaded', () => {
     #LBB76xmSRSB7S1R5, #LBB76xmSRSB7S1R5 p,
     #LBy6vgh0HGnmJgTG, #LBy6vgh0HGnmJgTG p,
     #LBj5RbQT05n3zwQ2, #LBj5RbQT05n3zwQ2 p,
-    #LB8fc1jRXWTVxbWN, #LB8fc1jRXWTVxbWN p {
+    #LB8fc1jRXWTVxbWN, #LB8fc1jRXWTVxbWN p,
+    #LBJBqhVkLxV55fGD, #LBJBqhVkLxV55fGD p,
+    #LBr1Q47r1vgdcqcy, #LBr1Q47r1vgdcqcy p	{
       visibility: visible !important;
       white-space: pre-wrap !important;
     }
@@ -147,6 +149,8 @@ window.addEventListener('DOMContentLoaded', () => {
   aplicarEfectoLetras('#LBy6vgh0HGnmJgTG', 100);
   aplicarEfectoLetras('#LBj5RbQT05n3zwQ2', 200);
   aplicarEfectoLetras('#LB8fc1jRXWTVxbWN', 100);
+  aplicarEfectoLetras('#LBJBqhVkLxV55fGD', 200);
+  aplicarEfectoLetras('#LBr1Q47r1vgdcqcy', 100);
 
   // 2. FUNCIÓN GLOBAL PARA DISPARAR SOLO LA PORTADA AL ABRIR EL SOBRE
   window.iniciarEfectosTexto = function() {
@@ -166,7 +170,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // 3. OBSERVADOR DE SCROLL PARA LOS TEXTOS INFERIORES
-  const idsScroll = ['#LBB76xmSRSB7S1R5', '#LBy6vgh0HGnmJgTG', '#LBj5RbQT05n3zwQ2', '#LB8fc1jRXWTVxbWN'];
+  const idsScroll = ['#LBB76xmSRSB7S1R5', '#LBy6vgh0HGnmJgTG', '#LBj5RbQT05n3zwQ2', '#LB8fc1jRXWTVxbWN', '#LBJBqhVkLxV55fGD', '#LBr1Q47r1vgdcqcy'];
   
   const observerScrollTextos = new IntersectionObserver((entries, obs) => {
     entries.forEach(entry => {
@@ -187,7 +191,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // 4. Lógica unificada para el resto de elementos (Excluyendo el canvas y contenedores de alta escala)
   const excluidos = [
     'LB4kzRntXlY6nwYW', 'LBdJDfSJjnp7dWHM', 'LBl3PJS5KzvVrxPR', 
-    'LBB76xmSRSB7S1R5', 'LBy6vgh0HGnmJgTG', 'LBj5RbQT05n3zwQ2', 'LB8fc1jRXWTVxbWN',
+    'LBB76xmSRSB7S1R5', 'LBy6vgh0HGnmJgTG', 'LBj5RbQT05n3zwQ2', 'LB8fc1jRXWTVxbWN', '#LBJBqhVkLxV55fGD', '#LBr1Q47r1vgdcqcy',
     'hero-screen-overlay', 'btn-abrir-text-overlay', 'envelope-wrapper-overlay'
   ];
   
