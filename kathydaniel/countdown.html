@@ -1,0 +1,74 @@
+<link rel="stylesheet" href="assets/flip.min.css" />
+        <style>
+            .tick {
+                padding-bottom: 1em;
+                font-size: 1rem;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+                    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            }
+
+            .tick-label {
+                font-size: 0.375em;
+                text-align: center;
+            }
+
+            .tick-group {
+                margin: 0 0.25em;
+                text-align: center;
+            }
+        </style>
+
+        <div class="tick" data-did-init="handleTickInit">
+            <div
+                data-repeat="true"
+                data-layout="horizontal center fit"
+                data-transform="preset(d, h, m, s) -> delay"
+            >
+                <div class="tick-group">
+                    <div
+                        data-key="value"
+                        data-repeat="true"
+                        data-transform="pad(00) -> split -> delay"
+                    >
+                        <span data-view="flip"></span>
+                    </div>
+
+                    <span data-key="label" data-view="text" class="tick-label"></span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function handleTickInit(tick) {
+                // Traducción de etiquetas al español
+                var locale = {
+                    YEAR_PLURAL: 'Años',
+                    YEAR_SINGULAR: 'Año',
+                    MONTH_PLURAL: 'Meses',
+                    MONTH_SINGULAR: 'Mes',
+                    WEEK_PLURAL: 'Semanas',
+                    WEEK_SINGULAR: 'Semana',
+                    DAY_PLURAL: 'Días',
+                    DAY_SINGULAR: 'Día',
+                    HOUR_PLURAL: 'Horas',
+                    HOUR_SINGULAR: 'Hora',
+                    MINUTE_PLURAL: 'Minutos',
+                    MINUTE_SINGULAR: 'Minuto',
+                    SECOND_PLURAL: 'Segundos',
+                    SECOND_SINGULAR: 'Segundo',
+                    MILLISECOND_PLURAL: 'Milisegundos',
+                    MILLISECOND_SINGULAR: 'Milisegundo'
+                };
+
+                for (var key in locale) {
+                    if (!locale.hasOwnProperty(key)) { continue; }
+                    tick.setConstant(key, locale[key]);
+                }
+
+                // Configurado para el 20 de marzo de 2027 a las 16:00 (4:00 PM)
+                Tick.count.down('2027-03-20T16:00:00').onupdate = function (value) {
+                    tick.value = value;
+                };
+            }
+        </script>
+        <script src="assets/flip.min.js"></script>
