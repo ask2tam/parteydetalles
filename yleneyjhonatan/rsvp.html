@@ -1,0 +1,271 @@
+
+<!-- =====================================================================================
+     RSVP INTEGRADO DENTRO DE LA SECCION "Solo adultos / Confirmacion" (PBDxxKkVdqZFX4Tc)
+     Pegar EN LUGAR del texto "RSVP" (justo despues del </section> de esa seccion).
+     Al cargar, el script MUEVE el formulario dentro de la seccion, la alarga lo necesario y
+     estira el fondo propio de Canva, asi el fondo es continuo (no hay corte entre bloques).
+     Cada vez que el formulario cambia de alto (mensaje abierto, ayudas, respuesta de los novios...)
+     la seccion se reajusta sola y responsive.js recalcula el lienzo.
+     Shadow DOM: canva.css no entra al formulario y los estilos del formulario no salen.
+     Requiere el assets/rsvp.js de la version anterior (sin cambios).
+     ===================================================================================== -->
+<div id="rsvp" class="rsvp-fondo" style="display:block;position:relative;box-sizing:border-box;width:385px;min-width:385px;max-width:none;height:auto;margin:0;padding:0;border:0;float:none;transform:none;overflow:visible;background:transparent;pointer-events:auto;">
+<template id="rsvp-plantilla">
+<style>
+  /* ---- Raiz: corta TODA herencia del lienzo Canva (fuente, color, line-height, letter-spacing...) ---- */
+  .rsvp-raiz {
+    all: initial;
+    display: block; box-sizing: border-box; width: 100%;
+    /* ===== CONFIGURACION VISUAL ===== */
+    --rsvp-fondo-bloque: transparent;      /* transparente: se ve el fondo de la seccion de Canva */
+    --rsvp-relleno: 0 22px 40px;            /* espacio arriba / lados / abajo del formulario */
+    --rsvp-sombra: 0 10px 32px rgba(0,0,0,.16);
+    --fondo-campo: #f9f5f2; --boton: #b9966f; --boton-osc: #a3825c;
+    --texto: #1c1c1c; --suave: #7a7066; --error: #b3402f; --ok: #4d7a4a;
+
+    /* ================================ */
+    position: relative;
+    padding: var(--rsvp-relleno); background-color: var(--rsvp-fondo-bloque);
+    font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 16px; line-height: 1.4; color: var(--texto); text-align: left;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    -webkit-user-select: text; user-select: text; -webkit-tap-highlight-color: transparent;
+  }
+  .rsvp-raiz *, .rsvp-raiz *::before, .rsvp-raiz *::after { box-sizing: border-box; }
+  .rsvp-raiz [hidden] { display: none !important; }
+
+  .rsvp-raiz .caja { position: relative; z-index: 1; zoom: 0.85; }
+
+  /* Recuadro blanco */
+  .rsvp-raiz .caja { width: 100%; max-width: 400px; margin: 0 auto; background: #fff; border-radius: 6px;
+                     padding: 26px 24px 30px; box-shadow: var(--rsvp-sombra); }
+  .rsvp-raiz .saludo { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid #efe8e1; text-align: center; }
+  .rsvp-raiz .saludo .nombres { font: 400 30px/1.1 'Titulo Boda', 'Snell Roundhand', 'Brush Script MT', cursive; margin: 0; }
+  .rsvp-raiz .saludo .linea { margin: 6px 0 0; font-size: 12px; letter-spacing: .06em; color: var(--suave); }
+  .rsvp-raiz form { margin: 0; padding: 0; }
+  .rsvp-raiz label, .rsvp-raiz .lbl { display: block; margin: 0 0 9px; font-weight: 700; font-size: 16px; line-height: 1.25; }
+  .rsvp-raiz .campo { margin-bottom: 24px; }
+
+  /* 16px en los campos: evita el zoom automatico de iPhone al tocar un campo */
+  .rsvp-raiz input[type=text], .rsvp-raiz select, .rsvp-raiz textarea {
+    display: block; width: 100%; margin: 0; border: 1px solid transparent; border-radius: 14px; background-color: var(--fondo-campo);
+    font: 500 16px/1.3 'Montserrat', system-ui, sans-serif; color: var(--texto); padding: 0 14px; height: 42px;
+    outline: none; box-shadow: none; transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  }
+  .rsvp-raiz select {
+    padding-right: 38px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%237a7066' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 15px center;
+  }
+  .rsvp-raiz textarea { height: 96px; padding: 12px 14px; resize: vertical; }
+  .rsvp-raiz input:focus, .rsvp-raiz select:focus, .rsvp-raiz textarea:focus { border-color: var(--boton); box-shadow: 0 0 0 3px rgba(185,150,111,.22); }
+  .rsvp-raiz input[readonly] { color: #6b6258; cursor: not-allowed; background-color: #f1ebe6; }
+  .rsvp-raiz .invalido { border-color: var(--error) !important; }
+
+  /* Mensaje desplegable */
+  .rsvp-raiz details.mensaje { display: block; margin: 0 0 24px; }
+  .rsvp-raiz details.mensaje > summary {
+    list-style: none; cursor: pointer; font-weight: 700; font-size: 16px; line-height: 1.25;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .rsvp-raiz details.mensaje > summary::-webkit-details-marker { display: none; }
+  .rsvp-raiz details.mensaje > summary::marker { content: ''; }
+  .rsvp-raiz details.mensaje > summary .opc { font-weight: 500; font-size: 12px; color: var(--suave); }
+  .rsvp-raiz details.mensaje > summary::after {
+    content: ''; width: 9px; height: 9px; border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave);
+    transform: rotate(45deg); transition: transform .2s; margin: -4px 4px 0 auto; flex: none;
+  }
+  .rsvp-raiz details.mensaje[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+  .rsvp-raiz details.mensaje > summary:focus-visible { outline: 2px solid var(--boton); outline-offset: 3px; border-radius: 4px; }
+  .rsvp-raiz .contador { margin-top: 5px; text-align: right; font-size: 11px; color: var(--suave); }
+
+  .rsvp-raiz .ayuda { margin: 8px 2px 0; font-size: 12.5px; line-height: 1.45; color: var(--suave); }
+  .rsvp-raiz .ayuda.error { color: var(--error); }
+  .rsvp-raiz .acciones-nombre { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .rsvp-raiz .enlace { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; font: 600 12.5px/1.4 'Montserrat', sans-serif;
+                       color: var(--boton-osc); text-decoration: underline; text-underline-offset: 3px; }
+  .rsvp-raiz .candidatos { margin-top: 8px; display: grid; gap: 6px; }
+  .rsvp-raiz .candidatos button { display: block; width: 100%; margin: 0; text-align: left; border: 1px solid #eadfd5; background: #fff;
+                                  border-radius: 12px; padding: 9px 12px; color: var(--texto);
+                                  font: 500 13px/1.3 'Montserrat', sans-serif; cursor: pointer; }
+  .rsvp-raiz .candidatos button:hover { background: var(--fondo-campo); }
+
+  /* Respuesta de los novios */
+  .rsvp-raiz .resp-novios { display: block; margin: 0 0 24px; padding: 14px 16px; border-radius: 14px; background: #fbf6ea; border: 1px solid #efe3c6; }
+  .rsvp-raiz .resp-novios .t { margin: 0 0 6px; font-weight: 700; font-size: 13px; letter-spacing: .04em; color: var(--boton-osc); }
+  .rsvp-raiz .resp-novios .c { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+
+  .rsvp-raiz .enviar-fila { display: flex; justify-content: center; }
+  .rsvp-raiz .btn-enviar {
+    width: 216px; height: 32px; margin: 0; padding: 0; border: 0; border-radius: 999px; background: var(--boton); color: #fff; cursor: pointer;
+    font: 500 14.5px/1 'Montserrat', system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    transition: background .2s, transform .15s, opacity .2s; -webkit-appearance: none; appearance: none;
+  }
+  .rsvp-raiz .btn-enviar:hover { background: var(--boton-osc); }
+  .rsvp-raiz .btn-enviar:active { transform: scale(.98); }
+  .rsvp-raiz .btn-enviar:disabled { opacity: .6; cursor: wait; }
+  .rsvp-raiz .btn-enviar:focus-visible { outline: 2px solid var(--boton-osc); outline-offset: 3px; }
+  .rsvp-raiz .estado { margin: 16px 0 0; min-height: 1.4em; text-align: center; font-size: 13px; line-height: 1.45; }
+  .rsvp-raiz .estado.ok { color: var(--ok); font-weight: 600; }
+  .rsvp-raiz .estado.error { color: var(--error); }
+  .rsvp-raiz .meta { margin: 14px 0 0; text-align: center; font-size: 11.5px; line-height: 1.6; color: var(--suave); }
+  .rsvp-raiz .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+<div class="rsvp-raiz">
+  <div class="caja">
+    <header class="saludo" id="saludo" hidden>
+      <p class="nombres" id="saludo-nombre"></p>
+      <p class="linea" id="saludo-linea"></p>
+    </header>
+    <form id="form" novalidate autocomplete="off">
+      <div class="campo">
+        <label for="nombre">*Nombre completo:</label>
+        <input type="text" id="nombre" name="nombre" maxlength="80" autocomplete="name" required>
+        <p class="ayuda" id="ayuda-nombre" hidden></p>
+        <div class="candidatos" id="candidatos" hidden></div>
+        <div class="acciones-nombre">
+          <button type="button" class="enlace" id="btn-buscar" hidden>Buscar mi registro</button>
+          <button type="button" class="enlace" id="btn-cambiar" hidden>No soy yo / cambiar nombre</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label for="asistencia">*&iquest;Asistir&aacute;s a nuestra boda?</label>
+        <select id="asistencia" name="asistencia" required>
+          <option value="">Selecciona una opci&oacute;n</option>
+          <option value="S&iacute;, asistir&eacute;">S&iacute;, asistir&eacute;</option>
+          <option value="No podr&eacute; asistir">No podr&eacute; asistir</option>
+        </select>
+      </div>
+      <details class="mensaje" id="det-mensaje">
+        <summary>D&eacute;janos un mensajito <span class="opc">(opcional)</span></summary>
+        <textarea id="mensaje" name="mensaje" maxlength="1000" aria-label="Mensaje para los novios"></textarea>
+        <div class="contador"><span id="contador">0</span>/1000</div>
+      </details>
+      <section class="resp-novios" id="resp-novios" hidden>
+        <p class="t">&#128140; Respuesta de los novios</p>
+        <p class="c" id="resp-novios-txt"></p>
+      </section>
+      <div class="trampa" aria-hidden="true"><label>No llenar <input type="text" id="web" tabindex="-1" autocomplete="off"></label></div>
+      <div class="enviar-fila">
+        <button type="submit" class="btn-enviar" id="btn-enviar">Enviar</button>
+      </div>
+      <p class="estado" id="estado" role="status" aria-live="polite"></p>
+      <p class="meta" id="meta" hidden></p>
+    </form>
+  </div>
+</div>
+</template>
+</div>
+<script>
+(function () {
+  /* ======================= CONFIGURACION ======================= */
+  var CFG = {
+    seccion: 'PBDxxKkVdqZFX4Tc',   // id de la seccion de Canva que recibe el formulario
+    contenedor: '.onhyOQ',          // capa de la seccion donde se inserta (por encima de las capas de Canva)
+    arriba: 425,                    // px (unidades Canva, ancho 385) desde el borde superior de la seccion hasta el formulario
+    abajo: 0,                       // px extra bajo el formulario (el formulario ya trae 40px de relleno inferior)
+    fondoModo: 'escalar',           // 'escalar' = agranda el fondo de Canva (mismo aspecto) hasta cubrir la seccion
+                                    // 'original' = no toca el fondo (lo que sobre queda con el color de la seccion)
+    fondoAncla: 'top',              // al escalar, que parte de la imagen se respeta: 'top' | 'center' | 'bottom'
+    parallax: 0,                    // 0 = sin parallax | 0.15 suave | 0.3 medio | 0.5 marcado | negativo = inverso
+    parallaxExtra: 80               // px de imagen sobrante arriba/abajo para el parallax (subir si ves bordes vacios)
+  };
+  /* ============================================================= */
+  var host = document.getElementById('rsvp'), tpl = document.getElementById('rsvp-plantilla');
+  if (!host || !tpl || host.shadowRoot) return;
+
+  /* Fuentes en el documento principal (Chrome ignora @font-face dentro de un Shadow DOM) */
+  var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
+  if (!document.getElementById('rsvp-fuentes')) {
+    var l = document.createElement('link');
+    l.id = 'rsvp-fuentes'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap';
+    head.appendChild(l);
+    var f = document.createElement('style');
+    f.textContent = "@font-face{font-family:'Titulo Boda';src:url('assets/cbeb3d4cd3a6ee4d766a02539f1808d8.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}";
+    head.appendChild(f);
+  }
+  var contenido = tpl.content ? tpl.content.cloneNode(true) : null;
+  if (contenido && host.attachShadow) host.attachShadow({ mode: 'open' }).appendChild(contenido);
+  else if (contenido) host.appendChild(contenido);
+  else host.innerHTML = tpl.innerHTML;
+  if (tpl.parentNode) tpl.parentNode.removeChild(tpl);
+
+  /* ---------- Mover el formulario DENTRO de la seccion ---------- */
+  var sec = document.getElementById(CFG.seccion);
+  var capa = sec && sec.querySelector(CFG.contenedor);
+  if (!sec || !capa) {   // respaldo: si no existe la seccion, el formulario queda donde se pego (en flujo normal)
+    console.warn('[RSVP] No se encontro la seccion "' + CFG.seccion + '" o "' + CFG.contenedor + '". El formulario queda fuera de la seccion.');
+    return;
+  }
+  capa.appendChild(host);
+  if (getComputedStyle(capa).position === 'static') capa.style.position = 'relative';
+  host.style.position = 'absolute'; host.style.left = '0'; host.style.top = CFG.arriba + 'px'; host.style.zIndex = '50';
+
+  /* Alto original de la seccion (Canva lo fija en varios div con style="height: ...px") */
+  var primero = sec.querySelector('[style*="height"]');          // contenedor externo de la pagina Canva
+  var H0 = primero ? parseFloat(primero.style.height) || 0 : 0;
+  var fijos = [];   // div cuyo alto es el alto de la seccion: se alargan todos juntos
+  sec.querySelectorAll('[style*="height"]').forEach(function (e) {
+    if (e === host || host.contains(e)) return;
+    var h = parseFloat(e.style.height);
+    if (Math.abs(h - H0) < 0.6) fijos.push(e);
+  });
+
+  /* Fondo de Canva de la seccion: primera imagen dentro de .Izwocg con opacidad (capa de fondo) */
+  var fondo = null, F = null;
+  var cand = sec.querySelector('.PcHy7w .Izwocg');
+  if (cand) {
+    var m = /translate\(\s*(-?[\d.e-]+)px\s*,\s*(-?[\d.e-]+)px/.exec(cand.style.transform || '');
+    F = { w: parseFloat(cand.style.width), h: parseFloat(cand.style.height),
+          tx: m ? parseFloat(m[1]) : 0, ty: m ? parseFloat(m[2]) : 0, extra: '' };
+    var resto = (cand.style.transform || '').replace(/translate\([^)]*\)/, '').trim();
+    F.extra = resto;   // conserva rotate(...)
+    fondo = cand;
+  }
+
+  var Hactual = H0, pendiente = false;
+  function escalaLienzo() { return host.offsetWidth ? host.getBoundingClientRect().width / host.offsetWidth : 1; }
+
+  function pintarFondo(H) {
+    if (!fondo || !F || CFG.fondoModo !== 'escalar') return;
+    var extra = CFG.parallax ? Math.abs(CFG.parallaxExtra) : 0;
+    var s = Math.max(1, (H + 2 * extra - Math.min(0, F.ty)) / F.h);
+    var w = F.w * s, h = F.h * s;
+    var cx = F.tx + F.w / 2;                       // conserva el centrado horizontal de Canva
+    var tx = cx - w / 2;
+    var ty = CFG.fondoAncla === 'bottom' ? (H + extra - h) : CFG.fondoAncla === 'center' ? (H - h) / 2 : (F.ty * s - extra);
+    var py = 0;
+    if (CFG.parallax) {
+      var r = sec.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+      var desplazo = ((r.top + r.height / 2) - vh / 2) / escalaLienzo();
+      py = Math.max(-extra, Math.min(extra, -desplazo * CFG.parallax));
+    }
+    fondo.style.width = w.toFixed(2) + 'px'; fondo.style.height = h.toFixed(2) + 'px';
+    fondo.style.transform = 'translate(' + tx.toFixed(2) + 'px, ' + (ty + py).toFixed(2) + 'px) ' + F.extra;
+  }
+
+  function ajustar() {
+    pendiente = false;
+    var H = Math.max(H0, Math.ceil(CFG.arriba + host.offsetHeight + CFG.abajo));
+    if (Math.abs(H - Hactual) > 0.5) {
+      Hactual = H;
+      fijos.forEach(function (e) { e.style.height = H + 'px'; });
+      window.dispatchEvent(new Event('resize'));   // responsive.js recalcula el lienzo
+    }
+    pintarFondo(Hactual);
+  }
+  function pedir() { if (!pendiente) { pendiente = true; requestAnimationFrame(ajustar); } }
+
+  /* Reconoce el cambio de alto del formulario */
+  if (window.ResizeObserver) new ResizeObserver(ajustar).observe(host);
+  else setInterval(ajustar, 400);
+  if (CFG.parallax) window.addEventListener('scroll', pedir, { passive: true });
+  window.addEventListener('load', pedir);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedir);
+  ajustar();
+})();
+</script>
+<!-- ===================================== FIN RSVP ===================================== -->

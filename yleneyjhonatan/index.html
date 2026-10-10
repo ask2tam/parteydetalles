@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ylene & Jhonatan</title>
+<meta property="og:title" content="Ylene &amp; Jhonatan · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 14 de noviembre." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/yleneyjhonatan/miniatura.jpg" />
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<script src="assets/boda-api.js"></script>   <!-- red UNICA (URL de Apps Script + reintentos) para portada y RSVP -->
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+<style>
+  /* ==========================================================================
+     SOLO LO QUE DEBE VIVIR EN EL DOCUMENTO PRINCIPAL.
+     El resto de estilos de la portada esta AISLADO en un Shadow DOM (ver <template id="gate-plantilla">):
+     canva.css no puede tocar la portada ni el boton de musica, y la portada no toca a Canva.
+     ========================================================================== */
+  /* Fuentes: Chrome ignora @font-face declarados dentro de un Shadow DOM, por eso van aqui */
+  @font-face { font-family: 'Titulo Boda'; src: url('assets/cbeb3d4cd3a6ee4d766a02539f1808d8.woff') format('woff');
+               font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Subtitulo Boda'; src: url('assets/f8379cdb66878cb9f02f8bacbc3fdb36.woff') format('woff');
+               font-weight: 400; font-style: normal; font-display: swap; }
+  /* Bloqueo del scroll hasta abrir la invitacion (!important: gana a canva.css y a responsive.js) */
+  html.overlay-active, html.overlay-active body {
+    overflow: hidden !important; height: 100vh !important; position: fixed !important; width: 100vw !important;
+  }
+  /* Mientras la portada esta encima, Canva se maqueta (responsive.js puede medir) pero NO se pinta:
+     el navegador no gasta tiempo dibujando 7000 px de Canva y video, y las animaciones del sobre van fluidas.
+     Al quitar overlay-active, la invitacion aparece mientras la portada se desvanece. */
+  html.overlay-active #root, html.overlay-active #canva-responsive-wrapper { visibility: hidden !important; }
+</style>
+<script>document.documentElement.classList.add('overlay-active');</script>
+</head>
+<body>
+  <!-- AUDIO (sin estilos: no le afecta canva.css) -->
+  <audio id="musica" src="assets/musica.mp3" preload="auto" loop></audio>
+
+  <!-- ====================================================================== -->
+  <!-- PORTADA AISLADA. El id "gate" se conserva: animacion.js lo espera.     -->
+  <!-- Los estilos del host van en linea con !important (nada externo los pisa) -->
+  <!-- ====================================================================== -->
+  <div id="gate" style="position:fixed !important; inset:0 !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:auto !important; height:auto !important; margin:0 !important; padding:0 !important; border:0 !important; z-index:2147483000 !important; display:block !important; overflow:hidden !important; background:#000 !important; opacity:1 !important; visibility:visible !important; transform:none !important; filter:none !important; transition:opacity 1.2s ease-in-out, filter 1.2s ease-in-out !important; animation:none !important; contain:strict;">
+  <template id="gate-plantilla">
+  <style>
+    /* ---- Raiz: corta toda herencia externa ---- */
+    .gate-raiz {
+      all: initial; display: block; position: absolute; inset: 0; overflow: hidden; background: #000;
+      /* ===== CONFIGURACION (antes en :root) ===== */
+      /* Ancho del sobre: todo el conjunto (titulos, sobre, tarjeta) se escala con esta medida. */
+      --u: min(78vw, 42.1vh);
+      --f-titulo: 'Titulo Boda', 'Snell Roundhand', 'Brush Script MT', cursive;
+      --f-sub: 'Subtitulo Boda', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --k-nombres: .128;              /* tamano de "Ylene & Jhonatan" respecto al ancho del sobre */
+      --k-fecha: .034;                /* tamano de la fecha */
+      --tarjeta-w: 0.85;              /* ancho de la tarjeta respecto al sobre */
+      --k-tarjeta: 0.95;              /* tamano del contenido de la tarjeta */
+      --sobre-baja: 1.7s;             /* duracion de la bajada del sobre */
+      --tarjeta-sube: 4.0s;           /* duracion de la subida de la tarjeta */
+      --tarjeta-top: 0.15;            /* altura final de la tarjeta: 0 = borde superior de la invitacion, 1 = inferior
+                                         (AHORA SIN %: 15% -> 0.15) */
+      --dorado: #d9c08a; --dorado-osc: #8a7040; --tinta: #5a5143;
+      /* ========================================== */
+      font-family: var(--f-sub); color: #fff; font-synthesis: none;
+      -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+    }
+    @supports (height: 1dvh) { .gate-raiz { --u: min(78vw, 42.1dvh); } }
+    .gate-raiz *, .gate-raiz *::before, .gate-raiz *::after { box-sizing: border-box; }
+    .gate-raiz h1, .gate-raiz p { margin: 0; }
+
+    /* ---------- PANTALLA NEGRA + ANILLO ---------- */
+    #cargador {
+      position: absolute; inset: 0; z-index: 30; background: #000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+      transition: opacity .9s ease, visibility 0s linear .9s;
+    }
+    #cargador.fuera { opacity: 0; visibility: hidden; pointer-events: none; }
+    .anillo { position: relative; width: 104px; height: 104px; }
+    .anillo svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+    .anillo circle { fill: none; stroke-width: 3; }
+    .anillo .riel { stroke: rgba(255,255,255,.14); }
+    .anillo .avance { stroke: var(--dorado); stroke-linecap: round; }
+    .anillo .pct { position: absolute; inset: 0; display: grid; place-items: center; color: #efe6d2;
+                   font: 500 18px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .04em; }
+    .cargador-txt { color: rgba(255,255,255,.55); font: 400 11px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+                    letter-spacing: .3em; text-transform: uppercase; }
+
+    /* ---------- PORTADA ---------- */
+    .portada {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding-bottom: 2.4vh;
+      background-color: #1b1b1b; background-image: url('assets/fondo.png'); background-repeat: no-repeat;
+      background-size: max(100vw, 198vh) auto;
+      background-position: 54.4% 31.4%;
+    }
+    @supports (height: 1dvh) { .portada { background-size: max(100vw, 198dvh) auto; } }
+    .titulo { position: relative; z-index: 5; text-align: center; color: #fff;
+              margin-bottom: calc(var(--u) * -0.028); text-shadow: 0 2px 14px rgba(0,0,0,.35); }
+    .nombres { margin: 0; font: 400 calc(var(--u) * var(--k-nombres))/1.15 var(--f-titulo); white-space: nowrap; }
+    .fecha { margin: calc(var(--u) * .07) 0 0;   /* SEPARACION nombres-fecha (antes .033): sube/baja este factor */ font: 400 calc(var(--u) * var(--k-fecha))/1.2 var(--f-sub);
+             letter-spacing: .03em; text-transform: uppercase; position: relative; top: calc(var(--u) * .02);}
+    /* Entrada suave (solo opacity + transform: van por GPU, no recalculan el layout) */
+    .portada .titulo, .portada .escena { opacity: 0; transform: translate3d(0, 14px, 0);
+          transition: opacity 1.3s ease, transform 1.3s cubic-bezier(.2,.7,.2,1); will-change: opacity, transform; }
+    .portada .escena { transition-delay: .25s; }
+    .portada.entra .titulo, .portada.entra .escena { opacity: 1; transform: none; }
+
+    /* ---------- ESCENA ---------- */
+    .escena { position: relative; flex: none; width: var(--u); aspect-ratio: 568 / 800; }
+    .invitacion, .sobre { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block;
+                          -webkit-user-select: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+    .invitacion { z-index: 1; }
+    /* El sobre y el sello bajan juntos (recorrido = 50 % de su alto) */
+    .grupo-sobre { position: absolute; inset: 0; z-index: 3; cursor: pointer; will-change: transform;
+                   transform: translate3d(0, 0, 0);
+                   transition: transform var(--sobre-baja) cubic-bezier(.65, 0, .25, 1) .15s; }
+    .portada.abierto .grupo-sobre { transform: translate3d(0, 50%, 0); cursor: default; }
+    .sobre { z-index: 1; filter: drop-shadow(0 10px 18px rgba(0,0,0,.28)); }
+
+    /* ---------- SELLO ---------- */
+    .sello { position: absolute; z-index: 2; left: 51.2%; top: 48.5%; width: 28.2%; aspect-ratio: 1;
+             margin: -14.1% 0 0 -14.1%; padding: 0; border: 0; background: none; cursor: pointer;
+             -webkit-appearance: none; appearance: none; border-radius: 50%; }
+    .sello img { width: 100%; height: 100%; max-width: none; display: block; pointer-events: none; -webkit-user-select: none; user-select: none;
+                 filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+    .sello::after { content: ""; position: absolute; inset: 14%; border-radius: 50%; border: 2px solid rgba(217,192,138,.85);
+                    opacity: 0; pointer-events: none; }
+    .sello:focus-visible { outline: 2px solid var(--dorado); outline-offset: 4px; }
+    .portada:not(.listo) .sello, .portada.abierto .sello { pointer-events: none; }
+    @keyframes latido {
+      0%   { transform: scale(1); }
+      12%  { transform: scale(1.14); }
+      24%  { transform: scale(1); }
+      36%  { transform: scale(1.14); }
+      52%, 100% { transform: scale(1); }
+    }
+    @keyframes onda {
+      0%, 8%  { opacity: .85; transform: scale(1); }
+      70%, 100% { opacity: 0; transform: scale(1.9); }
+    }
+    .portada.listo:not(.abierto) .sello { animation: latido 1.9s ease-in-out infinite; }
+    .portada.listo:not(.abierto) .sello::after { animation: onda 1.9s ease-out infinite; }
+    .portada.abierto .sello { transform: scale(.94); transition: transform .35s ease; }
+
+    .pista { position: absolute; left: -20%; right: -20%; top: calc(100% + 2.6vh); text-align: center; z-index: 4;
+             font: 400 11px/1.4 var(--f-sub); letter-spacing: .3em; text-transform: uppercase; color: #fff;
+             text-shadow: 0 1px 8px rgba(0,0,0,.7); opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+    .portada.listo:not(.abierto) .pista { opacity: .9; }
+
+    /* ---------- TARJETA ----------
+       Antes subia animando "top" (recalcula el layout en cada cuadro: se traba con Canva cargado).
+       Ahora queda fija en su posicion final y sube con transform (GPU): mismo recorrido, movimiento fluido.
+       Recorrido = alto de la escena (u * 800/568) x (0.5 - tarjeta-top). */
+    .tarjeta { position: absolute; z-index: 2; left: 50%; top: calc(var(--tarjeta-top) * 100%);
+               width: calc(var(--u) * var(--tarjeta-w)); aspect-ratio: 611 / 450;
+               background: url('assets/tarjeta.png') center / 100% 100% no-repeat;
+               filter: drop-shadow(0 10px 16px rgba(0,0,0,.3));
+               container-type: inline-size;
+               display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center;
+               padding: 5.5% 8% 0; color: var(--tinta);
+               opacity: .5; visibility: hidden; will-change: transform, opacity;
+               transform: translate3d(-50%, calc(var(--u) * 800 / 568 * (0.5 - var(--tarjeta-top))), 0); }
+    .portada.abierto .tarjeta { opacity: 1; visibility: visible; transform: translate3d(-50%, 0, 0);
+               transition: transform var(--tarjeta-sube) cubic-bezier(.3,.55,.25,1) .9s,
+                           opacity var(--tarjeta-sube) ease .9s, visibility 0s; }
+    .t-etiqueta { font-size: 10px; font-size: calc(3.6cqw * var(--k-tarjeta)); letter-spacing: .24em; text-transform: uppercase; color: #8c8272; }
+    .t-trat { margin-top: 6.4cqw; font-size: 16px; font-size: calc(5.8cqw * var(--k-tarjeta)); letter-spacing: .2em; text-transform: uppercase; color: #6a6153; }
+    .t-trat:empty { display: none; }
+    .t-nombre { max-width: 100%; margin: 4cqw 0 4cqw; overflow: visible; white-space: nowrap;
+                font: 400 31px/1.3 var(--f-titulo); font-size: calc(11cqw * var(--k-tarjeta)); color: #4a4236; }
+    .t-nombre.multilinea { white-space: normal; overflow: visible; line-height: 1.05; }
+    .t-linea { display: block; width: 34%; height: 1px; margin: 2cqw 0 1.8cqw; background: rgba(90,81,67,.4); }
+    .t-pases { font-size: 11px; font-size: calc(3.9cqw * var(--k-tarjeta)); letter-spacing: .2em; text-transform: uppercase; color: #6a6153; }
+    .btn-ver { margin-top: 3.2cqw; padding: .95em 2.1em; border: 0; border-radius: 999px; cursor: pointer;
+               -webkit-appearance: none; appearance: none;
+               background: var(--dorado-osc); color: #fff; font: 400 10px/1 var(--f-sub); font-size: calc(3.4cqw * var(--k-tarjeta));
+               letter-spacing: .2em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.25);
+               opacity: 0; pointer-events: none; transition: opacity .6s ease, background .2s ease, transform .2s ease; }
+    .portada.tarjeta-lista .btn-ver { opacity: 1; pointer-events: auto; }
+    .btn-ver:hover { background: #75602f; transform: scale(1.03); }
+    .btn-ver:focus-visible { outline: 2px solid var(--dorado-osc); outline-offset: 3px; }
+
+  </style>
+  <div class="gate-raiz">
+    <div id="cargador" role="status" aria-live="polite">
+      <div class="anillo">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="riel" cx="50" cy="50" r="46"></circle>
+          <circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"></circle>
+        </svg>
+        <div class="pct" id="anillo-pct">0%</div>
+      </div>
+      <div class="cargador-txt">Preparando tu invitaci&oacute;n</div>
+    </div>
+    <div class="portada" id="portada">
+      <header class="titulo">
+        <h1 class="nombres">Ylene &amp; Jhonatan</h1>
+        <p class="fecha">14 de noviembre</p>
+      </header>
+      <div class="escena" id="escena">
+        <img class="invitacion" src="assets/invitacion.png" alt="" draggable="false">
+        <div class="grupo-sobre" id="grupo-sobre">
+          <img class="sobre" src="assets/sobre.png" alt="" draggable="false">
+          <button class="sello" id="sello" type="button" aria-label="Abrir la invitaci&oacute;n">
+            <img src="assets/68c70494d7e7ecf6d03ed8eb19410614.png" alt="" draggable="false">
+          </button>
+        </div>
+        <p class="pista" id="pista">Toca el sello para abrir</p>
+        <div class="tarjeta" id="tarjeta">
+          <span class="t-etiqueta">Reservado para</span>
+          <span class="t-trat" id="t-trat"></span>
+          <span class="t-nombre" id="t-nombre">Invitado especial</span>
+          <span class="t-linea"></span>
+          <span class="t-pases" id="t-pases">1 pase reservado</span>
+          <button class="btn-ver" id="btn-ver" type="button">Ver invitaci&oacute;n</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </template>
+  </div>
+
+  <!-- BOTON DE MUSICA AISLADO (sobrevive a la portada) -->
+  <div id="musica-ui" style="position:fixed !important; right:20px !important; bottom:calc(20px + env(safe-area-inset-bottom)) !important; left:auto !important; top:auto !important; width:44px !important; height:44px !important; margin:0 !important; padding:0 !important; z-index:2147483647 !important; display:block !important; transform:none !important; opacity:1 !important; visibility:visible !important;">
+  <template id="musica-plantilla">
+  <style>
+    #btn-musica { all: initial; box-sizing: border-box; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3);
+                  background: #8a7040; color: #fff; display: none; align-items: center; justify-content: center;
+                  cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.35); -webkit-tap-highlight-color: transparent; }
+    #btn-musica:focus-visible { outline: 2px solid #d9c08a; outline-offset: 3px; }
+    #btn-musica svg { display: block; }
+  </style>
+  <button id="btn-musica" type="button" aria-label="Silenciar m&uacute;sica">
+    <svg id="ico-on" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+    <svg id="ico-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
+  </button>
+  </template>
+  </div>
+
+  <script>
+  /* Monta la portada y el boton en sus Shadow DOM DE INMEDIATO (antes de que se lea Canva):
+     la pantalla negra aparece al instante y ningun estilo externo puede alcanzarlas. */
+  (function () {
+    function montar(hostId, tplId) {
+      var host = document.getElementById(hostId), tpl = document.getElementById(tplId);
+      if (!host || !tpl || host.shadowRoot) return;
+      var c = tpl.content ? tpl.content.cloneNode(true) : null;
+      if (c && host.attachShadow) host.attachShadow({ mode: 'open' }).appendChild(c);
+      else if (c) host.appendChild(c);
+      else host.innerHTML = tpl.innerHTML;
+      if (tpl.parentNode) tpl.parentNode.removeChild(tpl);
+    }
+    montar('gate', 'gate-plantilla');
+    montar('musica-ui', 'musica-plantilla');
+  })();
+  </script>
+
+  <!-- ====================================================================== -->
+  <!-- PEGA AQUI TODO EL CONTENIDO ORIGINAL QUE VIENE DE CANVA                 -->
+  <!-- (desde <link rel="stylesheet" href="assets/canva.css"> hasta los        -->
+  <!--  <script src=...> del final; las lineas <!DOCTYPE>, <body> y </body>    -->
+  <!--  pueden quedarse o borrarse, el navegador las ignora)                   -->
+  <!-- ====================================================================== -->
+<!DOCTYPE html>
+
+
+<link rel="stylesheet" href="assets/canva.css">
+<body style="overflow: visible;"><div id="root"><div class="yIDCqA"><main class="_8OlyIw"><div class="_4KoDHA"><div class="ZRRuDw"><div style="height: 100%; width: 100%;"><div class="KYQZFA"><section id="PBz2FxvRsYZVtX9B" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 255, 240);"><div><div class="onhyOQ" style="width: 385px; height: 588.21px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 588.21px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 588.21px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(255, 255, 240);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 439.104px; height: 660.306px; transform: translate(-54.1035px, -72.0959px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/61d6f19c2dbea3b2fc779d47638a9854.jpg"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 511.21px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 588.21px; margin: 0px;"></div></div></div></div></section><section id="PBCBNVKmmTMdswry" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 827.623px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 827.623px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 827.623px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 827.623px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 660.764px; height: 857.613px; transform: translate(-137.882px, 5.68434e-14px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/ebc1ceafe2440d4102ee396cca03b17c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 750.623px;"></div><div id="LB52R7tHFJwbl8W1" class="DF_utQ _0xkaeQ" style="width: 344.206px; height: 487.903px; transform: translate(20.416px, 149.708px); opacity: 0.993823;"><div class="Zp7NQw" style="clip-path: path(&quot;M 0 3.98468 L 0 483.919 C 0 484.975 0.419814 485.989 1.16709 486.736 C 1.91436 487.483 2.92788 487.903 3.98468 487.903 L 340.221 487.903 C 341.278 487.903 342.291 487.483 343.038 486.736 C 343.786 485.989 344.206 484.975 344.206 483.919 L 344.206 3.98468 C 344.206 2.92788 343.786 1.91436 343.038 1.16709 C 342.291 0.419814 341.278 0 340.221 0 L 3.98468 0 C 2.92788 0 1.91436 0.419814 1.16709 1.16709 C 0.419814 1.91436 0 2.92788 0 3.98468 Z&quot;);"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 346.411px; height: 487.903px; transform: translate(-2.19724px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/1aefe24baeea64d23c125edc386d1bcb.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 487.903px; width: 344.206px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 3.98468 L 0 483.919 C 0 484.975 0.419814 485.989 1.16709 486.736 C 1.91436 487.483 2.92788 487.903 3.98468 487.903 L 340.221 487.903 C 341.278 487.903 342.291 487.483 343.038 486.736 C 343.786 485.989 344.206 484.975 344.206 483.919 L 344.206 3.98468 C 344.206 2.92788 343.786 1.91436 343.038 1.16709 C 342.291 0.419814 341.278 0 340.221 0 L 3.98468 0 C 2.92788 0 1.91436 0.419814 1.16709 1.16709 C 0.419814 1.91436 0 2.92788 0 3.98468 Z&quot;);"></div></div></div></div><div id="LBqSqZWyZVgP0Qkj" class="DF_utQ _0xkaeQ" style="width: 319.301px; height: 445.343px; transform: translate(31.4547px, 364.533px); opacity: 0.974141;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 360.822px; height: 484.324px; transform: translate(-21.6461px, -16.5376px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/c1df992dc73ad7f684f489d065fc65df.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 445.343px; width: 319.301px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBWrqkr0wYWY0nhd" class="DF_utQ _0xkaeQ" style="width: 74.1458px; height: 73.5021px; transform: translate(160.156px, 327.128px); opacity: 0.985791;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 94.7041px; height: 94.7041px; transform: translate(-10.5816px, -9.72745px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/68c70494d7e7ecf6d03ed8eb19410614.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 73.5021px; width: 74.1458px; pointer-events: none; transform: scale(1);"></div></div></div>
+
+		<link rel="stylesheet" href="assets/flip.min.css" />
+        <style>
+            .tick {
+                padding-bottom: 1em;
+                font-size: 1rem;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+                    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            }
+
+            /* ---- Etiquetas (Dias, Horas, Minutos, Segundos) ---- */
+            .tick-label {
+                font-size: 0.5em;
+                text-align: center;
+                margin-top: 0.5em;      /* ESPACIO ENTRE LOS NUMEROS Y LAS ETIQUETAS. 0 = sin ajuste.
+                                            Para pegarlas mas usa negativos: -0.6em, -1em, -1.5em...
+                                            (la "em" aqui es relativa al tamano de la etiqueta, que es pequeno) */
+            }
+
+            /* IMPORTANTE: la libreria fuerza display:inline-block en las etiquetas (".tick span[data-view]").
+               En ese modo el margin-top NO mueve la etiqueta, porque queda alineada a la linea base del texto.
+               Pasandola a bloque, el margin-top si tiene efecto. No borres esta regla. */
+            .tick span.tick-label[data-view] {
+                display: block;
+                line-height: 1.2;
+            }
+
+            /* ---- Espaciados ---- */
+            .tick-group {
+                margin: 0 0.25em;        /* ESPACIO ENTRE GRUPOS (Dias | Horas | Minutos | Segundos) */
+                text-align: center;
+            }
+
+            .tick-flip {
+                margin: 0 0.0625em;      /* ESPACIO ENTRE UN DIGITO Y EL SIGUIENTE (valor original de la libreria) */
+                vertical-align: top;     /* quita el hueco que deja el texto bajo las tarjetas (alineacion a la linea base) */
+            }
+
+            /* ---- Contenedor flotante del contador ----
+               .cd-ancla  = punto de altura 0 (no empuja nada de lo que hay debajo).
+               .cd-caja   = cuadro que se superpone a partir del ancla.
+               Se configura en el style="" del div .cd-ancla (abajo en el HTML):
+                 --cd-top     distancia hacia abajo desde el ancla (admite negativos, ej. -40px)
+                 --cd-left    distancia hacia la derecha desde el ancla (se ignora con la clase cd-centrado)
+                 --cd-ancho   ancho del cuadro (px, %, etc.)
+                 --cd-z       capa (z-index), por defecto 10
+               Agrega la clase cd-centrado al div .cd-ancla para centrar el cuadro horizontalmente. */
+            .cd-ancla { position: relative; height: 0; overflow: visible; }
+            .cd-caja  { position: absolute; top: var(--cd-top, 0); left: var(--cd-left, 0); width: var(--cd-ancho, 100%);
+                        z-index: var(--cd-z, 10); text-align: center;
+                        /* Marco opcional: descomenta lo que necesites */
+                        /* background: #f2ece3; border: 1px solid #607fa8; border-radius: 14px; padding: 1.2em 0.5em 0; */ }
+            .cd-ancla.cd-centrado .cd-caja { left: 50%; transform: translateX(-50%); }
+        </style>
+
+        <!-- ANCLA: pega este div donde quieras que quede el punto de referencia. El contador se superpone desde aqui. -->
+        <div id="countdown" class="cd-ancla cd-centrado" style="--cd-top: 95px; --cd-left: 0px; --cd-ancho: 240px;">
+            <div class="cd-caja">
+                <div class="tick" data-credits="false" data-did-init="handleTickInit">
+                    <div
+                        data-repeat="true"
+                        data-layout="horizontal center fit"
+                        data-transform="preset(d, h, m, s) -> delay"
+                    >
+                        <div class="tick-group">
+                            <div
+                                data-key="value"
+                                data-repeat="true"
+                                data-transform="pad(00) -> split -> delay"
+                            >
+                                <span data-view="flip"></span>
+                            </div>
+
+                            <span data-key="label" data-view="text" class="tick-label"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function handleTickInit(tick) {
+                // Traduccion de etiquetas al espanol.
+                // Las letras con acento van como codigos Unicode (barra invertida + u + 4 digitos) para que se vean
+                // bien aunque la pagina se lea con una codificacion distinta de UTF-8.
+                var locale = {
+                    YEAR_PLURAL: 'A\u00f1os',
+                    YEAR_SINGULAR: 'A\u00f1o',
+                    MONTH_PLURAL: 'Meses',
+                    MONTH_SINGULAR: 'Mes',
+                    WEEK_PLURAL: 'Semanas',
+                    WEEK_SINGULAR: 'Semana',
+                    DAY_PLURAL: 'D\u00edas',
+                    DAY_SINGULAR: 'D\u00eda',
+                    HOUR_PLURAL: 'Horas',
+                    HOUR_SINGULAR: 'Hora',
+                    MINUTE_PLURAL: 'Minutos',
+                    MINUTE_SINGULAR: 'Minuto',
+                    SECOND_PLURAL: 'Segundos',
+                    SECOND_SINGULAR: 'Segundo',
+                    MILLISECOND_PLURAL: 'Milisegundos',
+                    MILLISECOND_SINGULAR: 'Milisegundo'
+                };
+
+                for (var key in locale) {
+                    if (!locale.hasOwnProperty(key)) { continue; }
+                    tick.setConstant(key, locale[key]);
+                }
+
+                // Configurado para el 14 de noviembre de 2026 a las 15:30 (3:30 PM) HORA DE LIMA.
+                Tick.count.down('2026-11-14T15:30:00-05:00').onupdate = function (value) {
+                    tick.value = value;
+                };
+            }
+        </script>
+        <script src="assets/flip.min.js"></script>
+
+<div id="LBL9QYVcshLmQsmX" class="DF_utQ _0xkaeQ" style="width: 324.249px; height: 53.5223px; transform: translate(30.3787px, 32.4057px); opacity: 1;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 406.869px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">El gran día</span></h3></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 827.623px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBl9ws3ZQ48v0B8X" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(154, 175, 181);"><div><div class="onhyOQ" style="width: 385px; height: 308.338px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 308.338px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 308.338px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(154, 175, 181);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 529.201px; height: 352.25px; transform: translate(-66.2019px, -43.9115px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/4fbbf6e895a14c5f2a29ddcdb24ad625.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 30.8338px; left: 30.8338px; width: 323.332px; height: 246.671px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 308.338px; margin: 0px;"></div></div></div></div></section><section id="PB99jh2K0RvDJNKV" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 733.677px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 733.677px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 733.677px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 733.677px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 585.759px; height: 760.263px; transform: translate(-100.38px, 5.68434e-14px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/74c91f79f772d2abcc6e643e2baa6a2c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 656.677px;"></div><div id="LB83rWwmJZP0M5lw" class="DF_utQ _0xkaeQ" style="width: 354.2px; height: 679.667px; transform: translate(15.4px, 11.9029px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 362.198px; height: 724.397px; transform: translate(-3.99918px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/ec97cabacca78ae995dd3e69a8cb842b.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 679.667px; width: 354.2px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBzH7ctht18QDZmh" class="DF_utQ _0xkaeQ" style="width: 190.732px; height: 27.8715px; transform: translate(97.6131px, 307.911px); opacity: 0.896528;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 27.8715px; width: 190.732px; transform: scale(1);"><div class="hWv4NA" style="width: 190.732px; height: 27.8715px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id19"><path d="M128.00000009623724,0L1623.8803711883556,0C1694.5728192395009,0 1751.880371284593,57.30755204509212 1751.880371284593,128.00000009623724C1751.880371284593,198.6924478114688 1694.5728192395009,255.99999985656095 1623.8803711883556,255.99999985656095L128.00000009623724,255.99999985656095C57.30755204509212,255.99999985656095 0,198.6924478114688 0,128.00000009623724C0,57.30755204509212 57.30755204509212,0 128.00000009623724,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id19&quot;); background: rgb(175, 137, 90); width: 1751.88px; height: 256px; transform: scale(0.108873, 0.108873); transform-origin: 0px 0px;"></div></div></div></div><div id="LBBQnx1Z3wpQywWW" class="DF_utQ _0xkaeQ" style="width: 190.732px; height: 27.8715px; transform: translate(103.185px, 579.63px); opacity: 0.876254;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 27.8715px; width: 190.732px; transform: scale(1);"><div class="hWv4NA" style="width: 190.732px; height: 27.8715px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id21"><path d="M128.00000009623724,0L1623.8803711883556,0C1694.5728192395009,0 1751.880371284593,57.30755204509212 1751.880371284593,128.00000009623724C1751.880371284593,198.6924478114688 1694.5728192395009,255.99999985656095 1623.8803711883556,255.99999985656095L128.00000009623724,255.99999985656095C57.30755204509212,255.99999985656095 0,198.6924478114688 0,128.00000009623724C0,57.30755204509212 57.30755204509212,0 128.00000009623724,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id21&quot;); background: rgb(175, 137, 90); width: 1751.88px; height: 256px; transform: scale(0.108873, 0.108873); transform-origin: 0px 0px;"></div></div></div></div><div id="LBJnbxJmLjyKQ0nY" class="DF_utQ _0xkaeQ" style="width: 178.979px; height: 89.4895px; transform: translate(106.085px, 411.749px); opacity: 0.987661;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 178.979px; height: 89.4895px; transform: translate(-2.84217e-14px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/8dcb89b6feed3bc11ff6e34d4cccd2ad.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 89.4895px; width: 178.979px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB6RlyM8x9FhgdJ5" class="DF_utQ _0xkaeQ" style="width: 156.247px; height: 104.165px; transform: translate(113.825px, 125.208px); opacity: 0.999764;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 156.247px; height: 104.165px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/6e85a601d2c8b8306a357743bcf86765.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 104.165px; width: 156.247px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBFbhMM2bgM6YXmT" class="DF_utQ _0xkaeQ" style="width: 336.99px; height: 14.9505px; transform: translate(22.729px, 244.514px); opacity: 0.999057;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 422.857px; height: 18.76px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.880006px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Nuestra Señora de la Asunción</span></h3></div></div></div></div></div></div><div id="LBD370ygbM5r7Y86" class="DF_utQ _0xkaeQ" style="width: 336.99px; height: 14.9505px; transform: translate(26.1276px, 513.069px); opacity: 0.983635;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 422.857px; height: 18.76px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.880006px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Restaurante La Rosa Náutica</span></h3></div></div></div></div></div></div><div id="LB4nyGggFQLCp7zm" class="DF_utQ _0xkaeQ" style="width: 171.214px; height: 14.9505px; transform: translate(109.107px, 314.075px); opacity: 0.993888;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 214.84px; height: 18.76px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.880006px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(255, 255, 255); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="https://maps.app.goo.gl/uYLEjj8d7Y4mxKPd7" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ver ubicación</a></h3></div></div></div></div></div></div><div id="LBVScz7KQ28QLNB8" class="DF_utQ _0xkaeQ" style="width: 171.214px; height: 15.8644px; transform: translate(109.226px, 585.998px); opacity: 0.967561;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 214.84px; height: 19.9067px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.953337px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 17.3334px; color: rgb(255, 255, 255); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="https://maps.app.goo.gl/eweBdLDWDmTQSwap8" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ver ubicación</a></h3></div></div></div></div></div></div><div id="LBGJpg9jXCvkyGJ3" class="DF_utQ _0xkaeQ" style="width: 336.99px; height: 28.4985px; transform: translate(22.6533px, 263.917px); opacity: 0.997857;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 422.857px; height: 35.76px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.880006px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Bernardo Alcedo 320, Santa Cruz</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></h3><h3 class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Miraflores</span></h3></div></div></div></div></div></div><div id="LBNNlnTNBRHcy5Fr" class="DF_utQ _0xkaeQ" style="width: 336.99px; height: 28.4985px; transform: translate(29.1133px, 535.636px); opacity: 0.978963;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 422.857px; height: 35.76px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.880006px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Espigón Miraflores, Lima 18,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></h3><h3 class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Circuito de Playas, Miraflores</span></h3></div></div></div></div></div></div><div id="LBMDWdYk4NbfydB6" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 53.5223px; transform: translate(64.7668px, 78.7672px); opacity: 1;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ceremonia</span></h3></div></div></div></div></div></div><div id="LBbWDsVz67q7WNW1" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 53.5223px; transform: translate(61.475px, 351.592px); opacity: 0.991069;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Recepción</span></h3></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 733.677px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBvY2jnRxKT3Dby5" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(154, 175, 181);"><div><div class="onhyOQ" style="width: 385px; height: 519.722px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 519.722px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 519.722px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(154, 175, 181);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 385px; height: 578.947px; transform: translate(-2.84217e-14px, -59.2256px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/110c2c6e336f562bc62518d328f2889a.jpg"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 442.722px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 519.722px; margin: 0px;"></div></div></div></div></section><section id="PBLzRkJ7d2bC33Bd" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 823.235px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 823.235px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 823.235px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 823.235px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 657.262px; height: 853.067px; transform: translate(-136.131px, 5.68434e-14px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/ebc1ceafe2440d4102ee396cca03b17c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 746.235px;"></div><div id="LBWlBkXNrT36PQs0" class="DF_utQ _0xkaeQ" style="width: 94.2363px; height: 46.647px; transform: translate(882.518px, 2453.11px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 94.2363px; height: 46.647px; transform: translate(0px, 0px) rotate(0deg);"><img class="dMHlHA" crossorigin="anonymous" draggable="false" src="assets/file_629248064.svg"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 46.647px; width: 94.2363px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBDwx58xXGRXMXry" class="DF_utQ _0xkaeQ" style="width: 350.029px; height: 700.059px; transform: translate(17.4854px, 87.8407px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 350.029px; height: 700.059px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/ec97cabacca78ae995dd3e69a8cb842b.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 700.059px; width: 350.029px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBmHcxCyKNCv2cqc" class="DF_utQ _0xkaeQ" style="width: 79.364px; height: 81.399px; transform: translate(83.0055px, 309.263px); opacity: 0.995836;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 79.364px; height: 81.399px; transform: translate(-2.13163e-14px, -1.42109e-14px) rotate(0deg);"><img class="Dt3KRw" width="781" height="800" draggable="false" data-spritesheet-image="" src="assets/file_881142836.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 81.399px; width: 79.364px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBSWT3dXBfJqgSQJ" class="DF_utQ _0xkaeQ" style="width: 72.9733px; height: 50.3515px; transform: translate(78.9925px, 167.374px); opacity: 0.99955;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 72.9733px; height: 50.3515px; transform: translate(0px, 0px) rotate(0deg);"><img class="Dt3KRw" width="800" height="553" draggable="false" data-spritesheet-image="" src="assets/file_455334588.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 50.3515px; width: 72.9733px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBxyntrFXF4bwWTt" class="DF_utQ _0xkaeQ" style="width: 83.5012px; height: 81.8312px; transform: translate(85.4748px, 617.502px); opacity: 0.975338;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 83.5012px; height: 81.8312px; transform: translate(0px, 0px) rotate(0deg);"><img class="Dt3KRw" width="800" height="783" draggable="false" data-spritesheet-image="" src="assets/file_663380335.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 81.8312px; width: 83.5012px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB0NWG6n5PrRMTcR" class="DF_utQ" style="width: 469.906px; height: 2px; transform: translate(-42.9198px, 427.941px) rotate(90.1138deg);"><div class="V7MmMA" style="transform: scale(1);"><svg class="Fe_H_Q" style="stroke: rgb(175, 137, 90); fill: rgb(175, 137, 90);"><path d="M6.5,1L463.406252935957,1" stroke-linecap="butt" stroke-width="2" fill="none" pointer-events="auto" opacity="0" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path><g><path d="M6.5,1L463.406252935957,1" stroke-linecap="butt" stroke-width="2" fill="none" pointer-events="none"></path><path fill="inherit" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" d="M1,1L4,-2L7,1L4,4Z" pointer-events="auto" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path><path fill="inherit" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" d="M468.906252935957,1L465.906252935957,-2L462.906252935957,1L465.906252935957,4Z" pointer-events="auto" class="_682gpw" style="touch-action: pan-x pan-y pinch-zoom;"></path></g></svg></div></div><div id="LBFTVGCQSMRhb6rn" class="DF_utQ _0xkaeQ" style="width: 10.9518px; height: 10.9518px; transform: translate(187.024px, 193.988px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 10.9518px; width: 10.9518px; transform: scale(1);"><div class="hWv4NA" style="width: 10.9518px; height: 10.9518px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id63"><path d="M128,0C57.30755202165845,0 0,57.30755202165844 0,128C0,198.69244797834153 57.307552021658424,256 128,256C198.69244797834153,256 256,198.6924479783416 256,128C256,57.30755202165848 198.6924479783416,0 128,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id63&quot;); background: rgb(175, 137, 90); width: 256px; height: 256px; transform: scale(0.0427803, 0.0427803); transform-origin: 0px 0px;"></div></div></div></div><div id="LBdJ2qWT6gyb9Py0" class="DF_utQ _0xkaeQ" style="width: 10.9518px; height: 10.9518px; transform: translate(186.091px, 502.989px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 10.9518px; width: 10.9518px; transform: scale(1);"><div class="hWv4NA" style="width: 10.9518px; height: 10.9518px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id65"><path d="M128,0C57.30755202165845,0 0,57.30755202165844 0,128C0,198.69244797834153 57.307552021658424,256 128,256C198.69244797834153,256 256,198.6924479783416 256,128C256,57.30755202165848 198.6924479783416,0 128,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id65&quot;); background: rgb(175, 137, 90); width: 256px; height: 256px; transform: scale(0.0427803, 0.0427803); transform-origin: 0px 0px;"></div></div></div></div><div id="LBrx90c2Sk4T33Hg" class="DF_utQ _0xkaeQ" style="width: 10.9518px; height: 10.9518px; transform: translate(186.091px, 652.942px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 10.9518px; width: 10.9518px; transform: scale(1);"><div class="hWv4NA" style="width: 10.9518px; height: 10.9518px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id67"><path d="M128,0C57.30755202165845,0 0,57.30755202165844 0,128C0,198.69244797834153 57.307552021658424,256 128,256C198.69244797834153,256 256,198.6924479783416 256,128C256,57.30755202165848 198.6924479783416,0 128,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id67&quot;); background: rgb(175, 137, 90); width: 256px; height: 256px; transform: scale(0.0427803, 0.0427803); transform-origin: 0px 0px;"></div></div></div></div><div id="LBkM16chthQW4LKD" class="DF_utQ _0xkaeQ" style="width: 10.9518px; height: 10.9518px; transform: translate(187.024px, 344.486px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 10.9518px; width: 10.9518px; transform: scale(1);"><div class="hWv4NA" style="width: 10.9518px; height: 10.9518px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id69"><path d="M128,0C57.30755202165845,0 0,57.30755202165844 0,128C0,198.69244797834153 57.307552021658424,256 128,256C198.69244797834153,256 256,198.6924479783416 256,128C256,57.30755202165848 198.6924479783416,0 128,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id69&quot;); background: rgb(175, 137, 90); width: 256px; height: 256px; transform: scale(0.0427803, 0.0427803); transform-origin: 0px 0px;"></div></div></div></div><div id="LB8lt0JMdK4jXBr2" class="DF_utQ _0xkaeQ" style="width: 83.1479px; height: 68.1812px; transform: translate(85.2434px, 474.375px); opacity: 0.987952;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 83.1479px; height: 68.1812px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/a16b10d86b723f88419b874b711eff7e.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 68.1812px; width: 83.1479px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 68.1812 L 83.1479 68.1812 L 83.1479 0 L 0 0&quot;);"></div></div></div></div><div id="LBttT8lQSnqb8X0G" class="DF_utQ _0xkaeQ" style="width: 109.328px; height: 59.1858px; transform: translate(213.536px, 179.509px); opacity: 0.998181;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 137.185px; height: 74.2667px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg GEC0sA XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ceremonia</span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"><br></span><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Religiosa</span></p><p class="_28USrA MDzzPg GEC0sA XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">3:30 pm</span></p></div></div></div></div></div></div><div id="LBbSsC7L300zxjJB" class="DF_utQ _0xkaeQ" style="width: 109.328px; height: 59.1858px; transform: translate(213.994px, 320.369px); opacity: 0.992448;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 137.185px; height: 74.2667px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg GEC0sA XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Cocktail</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg GEC0sA XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Hour</span></p><p class="_28USrA MDzzPg GEC0sA XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">5:30 pm</span></p></div></div></div></div></div></div><div id="LBfYr2TtFjZsfGMt" class="DF_utQ _0xkaeQ" style="width: 109.328px; height: 59.1858px; transform: translate(214.808px, 478.872px); opacity: 0.982274;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 137.185px; height: 74.2667px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg GEC0sA XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ceremonia<br>Civil</span></p><p class="_28USrA MDzzPg GEC0sA XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">6:00 pm</span></p></div></div></div></div></div></div><div id="LBT232x77JP64F9N" class="DF_utQ _0xkaeQ" style="width: 109.328px; height: 59.1858px; transform: translate(215.021px, 644.661px); opacity: 0.967059;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 137.185px; height: 74.2667px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.86667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg GEC0sA XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Cena y</span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"><br></span><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Recepción</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg GEC0sA XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 18.6667px; color: rgb(0, 0, 0); line-height: 26px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">7:30 pm</span></p></div></div></div></div></div></div><div id="LBkz6zB1Qx29QtkL" class="DF_utQ _0xkaeQ" style="width: 258.427px; height: 52.8847px; transform: translate(63.2895px, 32.1133px); opacity: 1;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 324.276px; height: 66.36px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 15.68px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 35px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Itinerario</span></p></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 823.235px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBwN3Ry9h9TLHWLT" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(154, 175, 181);"><div><div class="onhyOQ" style="width: 385px; height: 309.466px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 309.466px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 309.466px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(154, 175, 181);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 583.547px; height: 388.424px; transform: translate(-44.8126px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/75fc1919a48d727d89a6fcffa111e99f.jpg"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 30.9466px; left: 30.9466px; width: 323.107px; height: 247.572px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 309.466px; margin: 0px;"></div></div></div></div></section><section id="PBs3sk7zLYHX2j58" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 1005.46px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 1005.46px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 1005.46px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 1005.46px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 802.746px; height: 1041.89px; transform: translate(-208.873px, 1.13687e-13px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/ebc1ceafe2440d4102ee396cca03b17c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 928.457px;"></div><div id="LBMz6wbQ57gvJc92" class="DF_utQ _0xkaeQ" style="width: 319.433px; height: 470.445px; transform: translate(32.7837px, 23.0353px); opacity: 0.6;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 319.433px; height: 478.69px; transform: translate(0px, -8.52651e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/f6b039f0956e6f59955b149c59a65924.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 470.445px; width: 319.433px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBDbGszR3Vht1SgT" class="DF_utQ _0xkaeQ" style="width: 112.553px; height: 137.862px; transform: translate(136.08px, 186.112px); opacity: 0.998203;"><div style="width: 112.553px; height: 137.862px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBwt8Hsn2X9RB3pf" class="DF_utQ _0xkaeQ" style="width: 70.5738px; height: 137.296px; transform: translate(-7.10543e-15px, 0.566283px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 70.872px; height: 139.865px; transform: translate(-0.298172px, -2.5688px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/8345bb070a98b8afd54b520e1d26afb5.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 137.296px; width: 70.5738px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 137.296 L 70.5738 137.296 L 70.5738 0 L 0 0&quot;);"></div></div></div></div><div id="LBMhFQpGDy8V1FsK" class="DF_utQ _0xkaeQ" style="width: 45.7653px; height: 137.296px; transform: translate(66.7881px, 1.42109e-14px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 45.7653px; height: 137.296px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/be459fae9f4102aba5e3abe703962f16.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 137.296px; width: 45.7653px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 137.296 L 45.7653 137.296 L 45.7653 0 L 0 0&quot;);"></div></div></div></div></div></div><div id="LB0XVtmYjQdTQlDS" class="DF_utQ _0xkaeQ" style="width: 348.861px; height: 401.392px; transform: translate(18.8934px, 572.274px); opacity: 0.989703;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 348.861px; height: 401.392px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/0759d60f4a45e747affdd359f26af334.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 401.392px; width: 348.861px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBfJjytjBb3Sp0Fy" class="DF_utQ _0xkaeQ" style="width: 94.5411px; height: 86.9778px; transform: translate(146.631px, 690.223px); opacity: 0.982487;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 94.5411px; height: 86.9778px; transform: translate(-7.10543e-15px, 0px) rotate(0deg);"><img class="Dt3KRw" width="800" height="736" draggable="false" data-spritesheet-image="" src="assets/file_131756512.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 86.9778px; width: 94.5411px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBfb9k4Km3WsNYmn" class="DF_utQ _0xkaeQ" style="width: 190.732px; height: 27.8715px; transform: translate(99.2891px, 883.716px); opacity: 0.875753;"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 27.8715px; width: 190.732px; transform: scale(1);"><div class="hWv4NA" style="width: 190.732px; height: 27.8715px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id101"><path d="M128.00000009623724,0L1623.8803711883556,0C1694.5728192395009,0 1751.880371284593,57.30755204509212 1751.880371284593,128.00000009623724C1751.880371284593,198.6924478114688 1694.5728192395009,255.99999985656095 1623.8803711883556,255.99999985656095L128.00000009623724,255.99999985656095C57.30755204509212,255.99999985656095 0,198.6924478114688 0,128.00000009623724C0,57.30755204509212 57.30755204509212,0 128.00000009623724,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id101&quot;); background: rgb(175, 137, 90); width: 1751.88px; height: 256px; transform: scale(0.108873, 0.108873); transform-origin: 0px 0px;"></div></div></div></div><div id="LBSpdCQPJzr4NB1T" class="DF_utQ _0xkaeQ" style="width: 234.203px; height: 16.3638px; transform: translate(75.3354px, 154.348px); opacity: 0.999208;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 293.879px; height: 20.5333px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.73333px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 17.3333px; color: rgb(0, 0, 0); line-height: 24px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">ELEGANTE</span></p></div></div></div></div></div></div><div id="LBZlm1CLVJLTsnM5" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 53.5223px; transform: translate(59.324px, 103.207px); opacity: 0.999801;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Dress code</span></h3></div></div></div></div></div></div><div id="LBbD6njNMzCqYN7W" class="DF_utQ _0xkaeQ" style="width: 311.412px; height: 28.7535px; transform: translate(36.5355px, 339.343px); opacity: 0.996769;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 390.761px; height: 36.08px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.04px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Mujeres: Vestido largo</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Varones: Terno</span></p></div></div></div></div></div></div><div id="LBKpydbP7pk3bXpk" class="DF_utQ _0xkaeQ" style="width: 253.743px; height: 69.3972px; transform: translate(67.3836px, 798.978px); opacity: 0.978061;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 318.398px; height: 87.08px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.04001px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Tu presencia será</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">nuestro mejor regalo.</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Pero si deseas tener un detalle</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">con nosotros por nuestra boda,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16.0001px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">puedes hacerlo de la siguiente manera:</span></p></div></div></div></div></div></div><div id="LBXPs610JXLwcSqN" class="DF_utQ _0xkaeQ" style="width: 174.375px; height: 14.9909px; transform: translate(107.916px, 889.892px); opacity: 0.967454;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 218.806px; height: 18.8107px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.59465px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 15.9465px; color: rgb(255, 255, 255); line-height: 22px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="https://regalos.noviosabordo.com/YleneyJhonatan" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">LISTA DE REGALOS</a></p></div></div></div></div></div></div><div id="LBFqMMbyW0DBm1QR" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 53.5223px; transform: translate(60.4311px, 619.344px); opacity: 0.98636;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Regalos</span></h3></div></div></div></div></div></div><div id="LBZM31Tp5B3N70JM" class="DF_utQ _0xkaeQ" style="width: 311.412px; height: 42.3014px; transform: translate(36.385px, 375.678px); opacity: 0.994887;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 390.761px; height: 53.08px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.04px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">*El color blanco está</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">reservado</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 16px; color: rgb(0, 0, 0); line-height: 17px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">para la novia.</span></p></div></div></div></div></div></div><div id="LB3ktCby576MpDTb" class="DF_utQ _0xkaeQ" style="width: 133.43px; height: 152.884px; transform: translate(228.785px, 505.375px); opacity: 0.992539;"><div style="width: 133.43px; height: 152.884px; transform: scale(1, 1); transform-origin: 0px 0px;"><div id="LBGj90TlTM4CG8qr" class="DF_utQ _0xkaeQ" style="width: 68.5168px; height: 125.719px; transform: translate(32.4566px, 7.27834px) rotate(-40.1456deg);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 68.5168px; height: 125.719px; transform: translate(7.10543e-15px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/10041f9c37d5fca06f6e231bcb09ddfc.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 125.719px; width: 68.5168px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBHzvSYmfvYLHvj9" class="DF_utQ _0xkaeQ" style="width: 76.1286px; height: 75.4677px; transform: translate(55.298px, 77.4165px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 100.913px; height: 100.913px; transform: translate(-11.2754px, -12.1839px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/68c70494d7e7ecf6d03ed8eb19410614.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 75.4677px; width: 76.1286px; pointer-events: none; transform: scale(1);"></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 1005.46px; margin: 0px;"></div></div></div></div></div></div></div></section><section id="PBgZkLWxrlr1ZNhw" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(154, 175, 181);"><div><div class="onhyOQ" style="width: 385px; height: 505.63px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 505.63px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 505.63px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(154, 175, 181);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 385px; height: 577.726px; transform: translate(-2.84217e-14px, -44.0365px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/0bc7673e962b3174267f069f40940755.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 428.63px;"></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 505.63px; margin: 0px;"></div></div></div></div></section><section id="PBDxxKkVdqZFX4Tc" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 453.418px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 453.418px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 453.418px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 453.418px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 565.662px; height: 734.178px; transform: translate(-90.3308px, 0px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/74c91f79f772d2abcc6e643e2baa6a2c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 376.418px;"></div><div id="LBY1vT2w8CGr9bVk" class="DF_utQ _0xkaeQ" style="width: 67.4142px; height: 67.4142px; transform: translate(157.871px, 278.192px); opacity: 0.985791;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 67.4142px; height: 67.4142px; transform: translate(0px, 0px) rotate(0deg);"><img class="Dt3KRw" width="800" height="800" draggable="false" data-spritesheet-image="" src="assets/file_1026014955.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 67.4142px; width: 67.4142px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB840CqlStz5s3xM" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 80.0762px; transform: translate(58.9846px, 185.416px); opacity: 0.993823;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 100.48px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 16.24px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 34px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Confirmación</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></h3><h3 class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 34px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">de asistencia</span></h3></div></div></div></div></div></div><div id="LBZLBlPTC0q6FJSy" class="DF_utQ _0xkaeQ" style="width: 248.859px; height: 30.4855px; transform: translate(66.1077px, 361.006px); opacity: 0.974141;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 312.269px; height: 38.2533px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.12667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 17.3334px; color: rgb(0, 0, 0); line-height: 18px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Queremos saber si contaremos con<br>tu presencia en nuestra boda.</span></p></div></div></div></div></div></div><div id="LB5Vj34XGbYHlkQs" class="DF_utQ _0xkaeQ" style="width: 348.093px; height: 52.279px; transform: translate(18.4175px, 96.9138px); opacity: 0.998482;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 436.789px; height: 65.6px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.3px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 20px; color: rgb(0, 0, 0); line-height: 21px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Amamos a los pequeños,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 20px; color: rgb(0, 0, 0); line-height: 21px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">pero esta celebración especial</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdtQi73Xs_0, auto; --H97cbQ: 20px; color: rgb(0, 0, 0); line-height: 21px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(0, 0, 0); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">será exclusivamente para adultos:</span></p></div></div></div></div></div></div><div id="LBLLMZ7NhXph5yjP" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 53.5223px; transform: translate(59.3425px, 39.3687px); opacity: 1;"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 67.16px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 3.08px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 56px; color: rgb(176, 139, 92); line-height: 61px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Solo adultos</span></h3></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 453.418px; margin: 0px;"></div></div></div></div></div></div></div></section>
+
+<!-- =====================================================================================
+     RSVP INTEGRADO DENTRO DE LA SECCION "Solo adultos / Confirmacion" (PBDxxKkVdqZFX4Tc)
+     Pegar EN LUGAR del texto "RSVP" (justo despues del </section> de esa seccion).
+     Al cargar, el script MUEVE el formulario dentro de la seccion, la alarga lo necesario y
+     estira el fondo propio de Canva, asi el fondo es continuo (no hay corte entre bloques).
+     Cada vez que el formulario cambia de alto (mensaje abierto, ayudas, respuesta de los novios...)
+     la seccion se reajusta sola y responsive.js recalcula el lienzo.
+     Shadow DOM: canva.css no entra al formulario y los estilos del formulario no salen.
+     Requiere el assets/rsvp.js de la version anterior (sin cambios).
+     ===================================================================================== -->
+<div id="rsvp" class="rsvp-fondo" style="display:block;position:relative;box-sizing:border-box;width:385px;min-width:385px;max-width:none;height:auto;margin:0;padding:0;border:0;float:none;transform:none;overflow:visible;background:transparent;pointer-events:auto;">
+<template id="rsvp-plantilla">
+<style>
+  /* ---- Raiz: corta TODA herencia del lienzo Canva (fuente, color, line-height, letter-spacing...) ---- */
+  .rsvp-raiz {
+    all: initial;
+    display: block; box-sizing: border-box; width: 100%;
+    /* ===== CONFIGURACION VISUAL ===== */
+    --rsvp-fondo-bloque: transparent;      /* transparente: se ve el fondo de la seccion de Canva */
+    --rsvp-relleno: 0 22px 40px;            /* espacio arriba / lados / abajo del formulario */
+    --rsvp-sombra: 0 10px 32px rgba(0,0,0,.16);
+    --fondo-campo: #f9f5f2; --boton: #b9966f; --boton-osc: #a3825c;
+    --texto: #1c1c1c; --suave: #7a7066; --error: #b3402f; --ok: #4d7a4a;
+
+    /* ================================ */
+    position: relative;
+    padding: var(--rsvp-relleno); background-color: var(--rsvp-fondo-bloque);
+    font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 16px; line-height: 1.4; color: var(--texto); text-align: left;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    -webkit-user-select: text; user-select: text; -webkit-tap-highlight-color: transparent;
+  }
+  .rsvp-raiz *, .rsvp-raiz *::before, .rsvp-raiz *::after { box-sizing: border-box; }
+  .rsvp-raiz [hidden] { display: none !important; }
+
+  .rsvp-raiz .caja { position: relative; z-index: 1; zoom: 0.85; }
+
+  /* Recuadro blanco */
+  .rsvp-raiz .caja { width: 100%; max-width: 400px; margin: 0 auto; background: #fff; border-radius: 6px;
+                     padding: 26px 24px 30px; box-shadow: var(--rsvp-sombra); }
+  .rsvp-raiz .saludo { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid #efe8e1; text-align: center; }
+  .rsvp-raiz .saludo .nombres { font: 400 30px/1.1 'Titulo Boda', 'Snell Roundhand', 'Brush Script MT', cursive; margin: 0; }
+  .rsvp-raiz .saludo .linea { margin: 6px 0 0; font-size: 12px; letter-spacing: .06em; color: var(--suave); }
+  .rsvp-raiz form { margin: 0; padding: 0; }
+  .rsvp-raiz label, .rsvp-raiz .lbl { display: block; margin: 0 0 9px; font-weight: 700; font-size: 16px; line-height: 1.25; }
+  .rsvp-raiz .campo { margin-bottom: 24px; }
+
+  /* 16px en los campos: evita el zoom automatico de iPhone al tocar un campo */
+  .rsvp-raiz input[type=text], .rsvp-raiz select, .rsvp-raiz textarea {
+    display: block; width: 100%; margin: 0; border: 1px solid transparent; border-radius: 14px; background-color: var(--fondo-campo);
+    font: 500 16px/1.3 'Montserrat', system-ui, sans-serif; color: var(--texto); padding: 0 14px; height: 42px;
+    outline: none; box-shadow: none; transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  }
+  .rsvp-raiz select {
+    padding-right: 38px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%237a7066' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 15px center;
+  }
+  .rsvp-raiz textarea { height: 96px; padding: 12px 14px; resize: vertical; }
+  .rsvp-raiz input:focus, .rsvp-raiz select:focus, .rsvp-raiz textarea:focus { border-color: var(--boton); box-shadow: 0 0 0 3px rgba(185,150,111,.22); }
+  .rsvp-raiz input[readonly] { color: #6b6258; cursor: not-allowed; background-color: #f1ebe6; }
+  .rsvp-raiz .invalido { border-color: var(--error) !important; }
+
+  /* Mensaje desplegable */
+  .rsvp-raiz details.mensaje { display: block; margin: 0 0 24px; }
+  .rsvp-raiz details.mensaje > summary {
+    list-style: none; cursor: pointer; font-weight: 700; font-size: 16px; line-height: 1.25;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .rsvp-raiz details.mensaje > summary::-webkit-details-marker { display: none; }
+  .rsvp-raiz details.mensaje > summary::marker { content: ''; }
+  .rsvp-raiz details.mensaje > summary .opc { font-weight: 500; font-size: 12px; color: var(--suave); }
+  .rsvp-raiz details.mensaje > summary::after {
+    content: ''; width: 9px; height: 9px; border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave);
+    transform: rotate(45deg); transition: transform .2s; margin: -4px 4px 0 auto; flex: none;
+  }
+  .rsvp-raiz details.mensaje[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+  .rsvp-raiz details.mensaje > summary:focus-visible { outline: 2px solid var(--boton); outline-offset: 3px; border-radius: 4px; }
+  .rsvp-raiz .contador { margin-top: 5px; text-align: right; font-size: 11px; color: var(--suave); }
+
+  .rsvp-raiz .ayuda { margin: 8px 2px 0; font-size: 12.5px; line-height: 1.45; color: var(--suave); }
+  .rsvp-raiz .ayuda.error { color: var(--error); }
+  .rsvp-raiz .acciones-nombre { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .rsvp-raiz .enlace { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; font: 600 12.5px/1.4 'Montserrat', sans-serif;
+                       color: var(--boton-osc); text-decoration: underline; text-underline-offset: 3px; }
+  .rsvp-raiz .candidatos { margin-top: 8px; display: grid; gap: 6px; }
+  .rsvp-raiz .candidatos button { display: block; width: 100%; margin: 0; text-align: left; border: 1px solid #eadfd5; background: #fff;
+                                  border-radius: 12px; padding: 9px 12px; color: var(--texto);
+                                  font: 500 13px/1.3 'Montserrat', sans-serif; cursor: pointer; }
+  .rsvp-raiz .candidatos button:hover { background: var(--fondo-campo); }
+
+  /* Respuesta de los novios */
+  .rsvp-raiz .resp-novios { display: block; margin: 0 0 24px; padding: 14px 16px; border-radius: 14px; background: #fbf6ea; border: 1px solid #efe3c6; }
+  .rsvp-raiz .resp-novios .t { margin: 0 0 6px; font-weight: 700; font-size: 13px; letter-spacing: .04em; color: var(--boton-osc); }
+  .rsvp-raiz .resp-novios .c { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+
+  .rsvp-raiz .enviar-fila { display: flex; justify-content: center; }
+  .rsvp-raiz .btn-enviar {
+    width: 216px; height: 32px; margin: 0; padding: 0; border: 0; border-radius: 999px; background: var(--boton); color: #fff; cursor: pointer;
+    font: 500 14.5px/1 'Montserrat', system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    transition: background .2s, transform .15s, opacity .2s; -webkit-appearance: none; appearance: none;
+  }
+  .rsvp-raiz .btn-enviar:hover { background: var(--boton-osc); }
+  .rsvp-raiz .btn-enviar:active { transform: scale(.98); }
+  .rsvp-raiz .btn-enviar:disabled { opacity: .6; cursor: wait; }
+  .rsvp-raiz .btn-enviar:focus-visible { outline: 2px solid var(--boton-osc); outline-offset: 3px; }
+  .rsvp-raiz .estado { margin: 16px 0 0; min-height: 1.4em; text-align: center; font-size: 13px; line-height: 1.45; }
+  .rsvp-raiz .estado.ok { color: var(--ok); font-weight: 600; }
+  .rsvp-raiz .estado.error { color: var(--error); }
+  .rsvp-raiz .meta { margin: 14px 0 0; text-align: center; font-size: 11.5px; line-height: 1.6; color: var(--suave); }
+  .rsvp-raiz .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+<div class="rsvp-raiz">
+  <div class="caja">
+    <header class="saludo" id="saludo" hidden>
+      <p class="nombres" id="saludo-nombre"></p>
+      <p class="linea" id="saludo-linea"></p>
+    </header>
+    <form id="form" novalidate autocomplete="off">
+      <div class="campo">
+        <label for="nombre">*Nombre completo:</label>
+        <input type="text" id="nombre" name="nombre" maxlength="80" autocomplete="name" required>
+        <p class="ayuda" id="ayuda-nombre" hidden></p>
+        <div class="candidatos" id="candidatos" hidden></div>
+        <div class="acciones-nombre">
+          <button type="button" class="enlace" id="btn-buscar" hidden>Buscar mi registro</button>
+          <button type="button" class="enlace" id="btn-cambiar" hidden>No soy yo / cambiar nombre</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label for="asistencia">*&iquest;Asistir&aacute;s a nuestra boda?</label>
+        <select id="asistencia" name="asistencia" required>
+          <option value="">Selecciona una opci&oacute;n</option>
+          <option value="S&iacute;, asistir&eacute;">S&iacute;, asistir&eacute;</option>
+          <option value="No podr&eacute; asistir">No podr&eacute; asistir</option>
+        </select>
+      </div>
+      <details class="mensaje" id="det-mensaje">
+        <summary>D&eacute;janos un mensajito <span class="opc">(opcional)</span></summary>
+        <textarea id="mensaje" name="mensaje" maxlength="1000" aria-label="Mensaje para los novios"></textarea>
+        <div class="contador"><span id="contador">0</span>/1000</div>
+      </details>
+      <section class="resp-novios" id="resp-novios" hidden>
+        <p class="t">&#128140; Respuesta de los novios</p>
+        <p class="c" id="resp-novios-txt"></p>
+      </section>
+      <div class="trampa" aria-hidden="true"><label>No llenar <input type="text" id="web" tabindex="-1" autocomplete="off"></label></div>
+      <div class="enviar-fila">
+        <button type="submit" class="btn-enviar" id="btn-enviar">Enviar</button>
+      </div>
+      <p class="estado" id="estado" role="status" aria-live="polite"></p>
+      <p class="meta" id="meta" hidden></p>
+    </form>
+  </div>
+</div>
+</template>
+</div>
+<script>
+(function () {
+  /* ======================= CONFIGURACION ======================= */
+  var CFG = {
+    seccion: 'PBDxxKkVdqZFX4Tc',   // id de la seccion de Canva que recibe el formulario
+    contenedor: '.onhyOQ',          // capa de la seccion donde se inserta (por encima de las capas de Canva)
+    arriba: 425,                    // px (unidades Canva, ancho 385) desde el borde superior de la seccion hasta el formulario
+    abajo: 0,                       // px extra bajo el formulario (el formulario ya trae 40px de relleno inferior)
+    fondoModo: 'escalar',           // 'escalar' = agranda el fondo de Canva (mismo aspecto) hasta cubrir la seccion
+                                    // 'original' = no toca el fondo (lo que sobre queda con el color de la seccion)
+    fondoAncla: 'top',              // al escalar, que parte de la imagen se respeta: 'top' | 'center' | 'bottom'
+    parallax: 0,                    // 0 = sin parallax | 0.15 suave | 0.3 medio | 0.5 marcado | negativo = inverso
+    parallaxExtra: 80               // px de imagen sobrante arriba/abajo para el parallax (subir si ves bordes vacios)
+  };
+  /* ============================================================= */
+  var host = document.getElementById('rsvp'), tpl = document.getElementById('rsvp-plantilla');
+  if (!host || !tpl || host.shadowRoot) return;
+
+  /* Fuentes en el documento principal (Chrome ignora @font-face dentro de un Shadow DOM) */
+  var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
+  if (!document.getElementById('rsvp-fuentes')) {
+    var l = document.createElement('link');
+    l.id = 'rsvp-fuentes'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap';
+    head.appendChild(l);
+    /* 'Titulo Boda' ya esta declarada en el <head>: no se vuelve a declarar */
+  }
+  var contenido = tpl.content ? tpl.content.cloneNode(true) : null;
+  if (contenido && host.attachShadow) host.attachShadow({ mode: 'open' }).appendChild(contenido);
+  else if (contenido) host.appendChild(contenido);
+  else host.innerHTML = tpl.innerHTML;
+  if (tpl.parentNode) tpl.parentNode.removeChild(tpl);
+
+  /* ---------- Mover el formulario DENTRO de la seccion ---------- */
+  var sec = document.getElementById(CFG.seccion);
+  var capa = sec && sec.querySelector(CFG.contenedor);
+  if (!sec || !capa) {   // respaldo: si no existe la seccion, el formulario queda donde se pego (en flujo normal)
+    console.warn('[RSVP] No se encontro la seccion "' + CFG.seccion + '" o "' + CFG.contenedor + '". El formulario queda fuera de la seccion.');
+    return;
+  }
+  capa.appendChild(host);
+  if (getComputedStyle(capa).position === 'static') capa.style.position = 'relative';
+  host.style.position = 'absolute'; host.style.left = '0'; host.style.top = CFG.arriba + 'px'; host.style.zIndex = '50';
+
+  /* Alto original de la seccion (Canva lo fija en varios div con style="height: ...px") */
+  var primero = sec.querySelector('[style*="height"]');          // contenedor externo de la pagina Canva
+  var H0 = primero ? parseFloat(primero.style.height) || 0 : 0;
+  var fijos = [];   // div cuyo alto es el alto de la seccion: se alargan todos juntos
+  sec.querySelectorAll('[style*="height"]').forEach(function (e) {
+    if (e === host || host.contains(e)) return;
+    var h = parseFloat(e.style.height);
+    if (Math.abs(h - H0) < 0.6) fijos.push(e);
+  });
+
+  /* Fondo de Canva de la seccion: primera imagen dentro de .Izwocg con opacidad (capa de fondo) */
+  var fondo = null, F = null;
+  var cand = sec.querySelector('.PcHy7w .Izwocg');
+  if (cand) {
+    var m = /translate\(\s*(-?[\d.e-]+)px\s*,\s*(-?[\d.e-]+)px/.exec(cand.style.transform || '');
+    F = { w: parseFloat(cand.style.width), h: parseFloat(cand.style.height),
+          tx: m ? parseFloat(m[1]) : 0, ty: m ? parseFloat(m[2]) : 0, extra: '' };
+    var resto = (cand.style.transform || '').replace(/translate\([^)]*\)/, '').trim();
+    F.extra = resto;   // conserva rotate(...)
+    fondo = cand;
+  }
+
+  var Hactual = H0, pendiente = false;
+  function escalaLienzo() { return host.offsetWidth ? host.getBoundingClientRect().width / host.offsetWidth : 1; }
+
+  function pintarFondo(H) {
+    if (!fondo || !F || CFG.fondoModo !== 'escalar') return;
+    var extra = CFG.parallax ? Math.abs(CFG.parallaxExtra) : 0;
+    var s = Math.max(1, (H + 2 * extra - Math.min(0, F.ty)) / F.h);
+    var w = F.w * s, h = F.h * s;
+    var cx = F.tx + F.w / 2;                       // conserva el centrado horizontal de Canva
+    var tx = cx - w / 2;
+    var ty = CFG.fondoAncla === 'bottom' ? (H + extra - h) : CFG.fondoAncla === 'center' ? (H - h) / 2 : (F.ty * s - extra);
+    var py = 0;
+    if (CFG.parallax) {
+      var r = sec.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+      var desplazo = ((r.top + r.height / 2) - vh / 2) / escalaLienzo();
+      py = Math.max(-extra, Math.min(extra, -desplazo * CFG.parallax));
+    }
+    fondo.style.width = w.toFixed(2) + 'px'; fondo.style.height = h.toFixed(2) + 'px';
+    fondo.style.transform = 'translate(' + tx.toFixed(2) + 'px, ' + (ty + py).toFixed(2) + 'px) ' + F.extra;
+  }
+
+  function ajustar() {
+    pendiente = false;
+    var H = Math.max(H0, Math.ceil(CFG.arriba + host.offsetHeight + CFG.abajo));
+    if (Math.abs(H - Hactual) > 0.5) {
+      Hactual = H;
+      fijos.forEach(function (e) { e.style.height = H + 'px'; });
+      window.dispatchEvent(new Event('resize'));   // responsive.js recalcula el lienzo
+    }
+    pintarFondo(Hactual);
+  }
+  function pedir() { if (!pendiente) { pendiente = true; requestAnimationFrame(ajustar); } }
+
+  /* Reconoce el cambio de alto del formulario */
+  if (window.ResizeObserver) new ResizeObserver(ajustar).observe(host);
+  else setInterval(ajustar, 400);
+  if (CFG.parallax) window.addEventListener('scroll', pedir, { passive: true });
+  window.addEventListener('load', pedir);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(pedir);
+  ajustar();
+})();
+</script>
+<!-- ===================================== FIN RSVP ===================================== -->
+
+<section id="PBVWwPDsw0XcwfpS" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(254, 254, 254);"><div><div class="_8jGYJw" style="width: 385px; height: 393.865px;"><div class="fMSICA h517IA" aria-hidden="false"><div class="_5yhCRQ"><div class="onhyOQ" style="width: 385px; height: 393.865px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 385px; height: 393.865px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 385px; height: 393.865px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(254, 254, 254);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 445.031px; height: 577.611px; transform: translate(-30.0157px, 5.68434e-14px) rotate(0deg); opacity: 0.8;"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/74c91f79f772d2abcc6e643e2baa6a2c.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 38.5px; left: 38.5px; width: 308px; height: 316.865px;"></div><div style="clip-path: polygon(15.4px 124.68px, 369.6px 124.68px, 369.6px 393.865px, 15.4px 393.865px);"><div id="LBctXpcVywnS9v6F" class="DF_utQ _0xkaeQ" style="width: 355.588px; height: 312.473px; transform: translate(15.4px, 124.68px);"><div class="DF_utQ" style="width: 355.588px; height: 312.473px;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 556.948px; height: 313.283px; transform: translate(-100.088px, -0.810085px) rotate(0deg);"><div class="jXCxjw"><div class="NI12hw _4UrDqA"><video crossorigin="anonymous" preload="auto" playsinline muted autoplay loop disablepictureinpicture="" class="FLDMzw _4UrDqA Zmd7Ig BVJWuA" src="assets/8dfe2d77577bd15939d17ac6388b4abc.mp4" data-start="0"></video></div></div></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 312.473px; width: 355.588px; pointer-events: none; transform: scale(1);"></div></div></div></div></div><div id="LBhYqXnvtsDThz9H" class="DF_utQ _0xkaeQ" style="width: 266.32px; height: 54.3936px; transform: translate(59.3476px, 54.8862px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 334.18px; height: 68.2533px; transform: scale(0.796936, 0.796936); transform-origin: 0px 0px;"><div style="transform: translate(0px, 16.6267px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><h3 class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFcf5Qrkvs_0, auto; --H97cbQ: 57.3333px; color: rgb(176, 139, 92); line-height: 35px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(176, 139, 92); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Te esperamos</span></h3></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 385px; height: 393.865px; margin: 0px;"><div class="Lqh_3w theme dark xo86nag x1yowkxt xntwwlm" role="group" aria-label="Controles de vídeo" style="width: 355.588px; height: 269.185px; transform: translate(15.4px, 124.68px) rotate(0deg);"><div class="_97009w" role="none"><div class="Bu_D9Q"><div class="I4sCDQ v4nAuw n1_ZIg"></div></div><div class="Qy939g"><div class="OLvpgw PZ3xOQ"><div class="KTdHOA PZ3xOQ"><div class="_3jDRow e_HzGw QnPmDw" dir="ltr"><div class="QmLFKw IbxgnQ"><div class="_2Ouzng s0wW_g"><div class="_5MYBAA"><div class="i6797g"><div class="LK9gBQ"><div class="_6UfzEQ" style="background-color: rgba(255, 255, 255, 0.4); transform: scaleX(1);"><div class="jz_KVw Idr01w" style="transform: scaleX(1);"></div><div class="WcClCQ Idr01w" style="transform: scaleX(1);"></div></div></div></div><div class="i6797g"><div class="LK9gBQ"><div class="_6UfzEQ" style="background-color: rgba(255, 255, 255, 0.15); transform: scaleX(0.572444);"><div class="jz_KVw Idr01w" style="transform: scaleX(1.7469);"></div><div class="WcClCQ Idr01w" style="transform: scaleX(1.7469);"></div></div></div></div><div class="i6797g"><div class="LK9gBQ"><div class="_6UfzEQ" style="background-color: rgb(255, 255, 255); transform: scaleX(0.214982);"><div class="jz_KVw Idr01w" style="transform: scaleX(4.65155);"></div><div class="WcClCQ Idr01w mbNwCw" style="transform: scaleX(4.65155);"></div></div></div></div></div><div class="DYvFsA"><div class="k9236g"><div class="fHHmQw xE5Oww"><div class="VclgIw" style="left: 21.4982%;"><p class="xlh3980 xvmahel x1ghz6dp x1wtentn x1n2zxk4 x1ygvwap x7gbg69 xli2zx2 xw1srw1 x12oo3zp x1s83q2m x1mzt3pk xxrskpm x1vvkbs x9ilj92 xzboxd6 x1yc453h WLFbvw">13.1&nbsp;s</p></div></div></div><div class="DuLOcg"><input class="QCi37g BDTDKw bbGOcQ" step="any" max="61.33" aria-label="Barra de búsqueda" type="range" value="13.18485"></div></div></div></div><div class="q4QWTw QnPmDw"><div class="Z5sRUw"><div class="xjp7ctv"><button aria-label="Opción de silenciar" aria-describedby="_r_0_" class="_3NW_OA MWNIKw"><span aria-hidden="true" class="x6s0dn4 x9f619 x3nfvp2 x47corl x9k8uer xwro64b xk9ib7f xrw8j8e xd1rw5d lM4cjQ"><svg class="x1lliihq x5yr21d xh8yej3" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="m15.5 5.08-3.742 3.171a2.5 2.5 0 0 1-.243.182L15.5 12.4V5.08zm1.5 8.814V4.002a1 1 0 0 0-1.646-.763l-4.566 3.868a1 1 0 0 1-.398.206L6.53 3.468a.75.75 0 1 0-1.06 1.063l14 13.94a.75.75 0 1 0 1.06-1.063L17 13.894zM6.293 7.637l1.208 1.207H7.5v5.8h2.642a2.5 2.5 0 0 1 1.616.593l3.742 3.17v-1.564l1.5 1.5v1.143a1 1 0 0 1-1.646.763l-4.566-3.868a1 1 0 0 0-.646-.237H7a1 1 0 0 1-1-1v-6.8c0-.276.112-.526.293-.707z" fill="currentColor"></path></svg></span></button></div></div></div></div></div></div></div><div class="thT2yw" style="transform: rotate(0deg);"><button aria-label="Reproducir" class="qGs8mQ BDjDQQ" tabindex="-1" aria-hidden="true" type="button"><span aria-hidden="true" class="x6s0dn4 x9f619 x3nfvp2 x47corl x9k8uer xwro64b xk9ib7f xrw8j8e xd1rw5d"><svg class="x1lliihq x5yr21d xh8yej3" width="24" height="24" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="m8.248 4.212 11.05 6.574c.694.412.91 1.29.483 1.961-.121.19-.287.35-.483.467l-11.05 6.574c-.694.413-1.602.204-2.03-.467A1.39 1.39 0 0 1 6 18.574V5.426C6 4.638 6.66 4 7.475 4c.273 0 .54.073.773.212z" fill="currentColor"></path></svg></span></button></div><div class="thT2yw" style="transform: rotate(0deg);"><button aria-label="Pausa" class="qGs8mQ BDjDQQ" tabindex="-1" aria-hidden="true" type="button"><span aria-hidden="true" class="x6s0dn4 x9f619 x3nfvp2 x47corl x9k8uer xwro64b xk9ib7f xrw8j8e xd1rw5d KGHx9g"><svg class="x1lliihq x5yr21d xh8yej3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect x="7" y="5" width="3" height="14" rx="1.5" fill="currentColor"></rect><rect x="14" y="5" width="3" height="14" rx="1.5" fill="currentColor"></rect></svg></span></button></div><div class="foMqyw" style="transform: rotate(0deg);"><div aria-hidden="true" class="_0d0kIw uDupQw"><svg width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 0C10.745 0 0 10.745 0 24s10.745 24 24 24a2 2 0 1 0 0-4C12.954 44 4 35.046 4 24S12.954 4 24 4a2 2 0 1 0 0-4z" fill="currentColor"></path></svg></div></div></div></div></div></div></div></div></div></div></div></section></div><div></div></div></div><div class="_C1wYA"></div></div></main></div></div><div class="_3jkTAA"></div><div class="Bymw5Q"></div><div class="BghEng"><div></div><div></div></div><div id="_r_0_" aria-hidden="true" class="xkdpibf x1717udv x9r1u3d xng3xce xc342km xb3r6kr x1qvwoe0 x1o0tod x10l6tqk xuxw1ft xjm9jq1 x13vifvy x1i1rx1s">Opción de silenciar</div></body>
+
+<script src="assets/animacion.js" defer></script>
+<script src="assets/responsive.js" defer></script>
+<script src="assets/rsvp.js" defer></script>
+  
+
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---------------------------------------------------------------------- */
+    /* CONFIGURACIÓN                                                          */
+    /* ---------------------------------------------------------------------- */
+    var ASSETS_IMG = [
+      { id: 'fondo',      w: 20, url: 'assets/fondo.png' },
+      { id: 'sobre',      w: 8,  url: 'assets/sobre.png' },
+      { id: 'invitacion', w: 6,  url: 'assets/invitacion.png' },
+      { id: 'tarjeta',    w: 6,  url: 'assets/tarjeta.png' },
+      { id: 'sello',      w: 6,  url: 'assets/68c70494d7e7ecf6d03ed8eb19410614.png' }
+    ];
+    var PESO = { fuentes: 8, audio: 16, datos: 4, canva: 26 };   // junto con las imágenes suman 100
+    var MIN_MS = 900;          // la pantalla negra se muestra al menos este tiempo (evita parpadeos)
+    /* Presupuesto del arranque en frio (boda-api.js): intento 1 = 6 s, +1.5 s espera, intento 2 = 9 s -> ~16.5 s.
+       La portada espera los datos hasta DATOS_MAX_MS; si llegan despues, la tarjeta se actualiza sola (pintarTarjeta). */
+    var DATOS_MAX_MS = 18000;  // tope de espera de los datos del invitado (cubre 2 intentos completos)
+    var LIMITE_MS = 20000;     // si algo se atasca, se continúa igualmente (debe ser >= DATOS_MAX_MS)
+
+    /* Busca primero en la portada aislada, luego en el boton de musica y por ultimo en el documento */
+    var RAICES = [document.getElementById('gate'), document.getElementById('musica-ui')]
+      .map(function (h) { return h && h.shadowRoot; }).filter(Boolean);
+    var $ = function (id) {
+      for (var i = 0; i < RAICES.length; i++) { var e = RAICES[i].getElementById(id); if (e) return e; }
+      return document.getElementById(id);
+    };
+    var gate = $('gate'), portada = $('portada'), cargador = $('cargador');
+    var musica = $('musica'), btnMusica = $('btn-musica');
+    var icoOn = $('ico-on'), icoOff = $('ico-off');
+
+    /* ---------------------------------------------------------------------- */
+    /* DATOS DEL INVITADO                                                     */
+    /* Por defecto salen de la URL:  ?n=Familia%20Perez&p=3                   */
+    /* Para leerlos de Google Sheets, define window.cargarDatosInvitado antes */
+    /* de este script y devuelve { encontrado, nombre, pases }.               */
+    /* ---------------------------------------------------------------------- */
+    var q0 = new URLSearchParams(location.search);
+    var CODIGO = (q0.get('to') || q0.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    /* Red: assets/boda-api.js (URL unica, fetch/JSONP alternados, timeouts reales y crecientes, backoff).
+       BODA.invitado(CODIGO) se pide UNA vez; rsvp.js reutiliza la misma promesa (sin doble peticion en frio). */
+    if (typeof window.cargarDatosInvitado !== 'function') {
+      window.cargarDatosInvitado = function () {
+        // Respaldo sin servidor: ?n=Familia%20Perez&p=3
+        var porUrl = function () {
+          var nombre = (q0.get('n') || q0.get('nombre') || '').trim().slice(0, 60);
+          var pases = parseInt(q0.get('p') || q0.get('pases'), 10);
+          return { encontrado: !!nombre, nombre: nombre, tratamiento: '', pases: pases > 0 ? pases : 1, codigo: '' };
+        };
+        if (!window.BODA) { console.warn('[RSVP] Falta assets/boda-api.js'); return Promise.resolve(porUrl()); }
+        if (!CODIGO) { window.addEventListener('load', window.BODA.despertar, { once: true }); return Promise.resolve(porUrl()); }
+        return window.BODA.invitado(CODIGO)
+          .then(function (j) {
+            if (j && j.ok && j.encontrado && j.invitado) {
+              var g = j.invitado;
+              return { encontrado: true, nombre: g.nombre, tratamiento: g.tratamiento || '', pases: g.pases || 1,
+                       asistencia: g.asistencia || '', respuestaNovios: g.respuestaNovios || '', codigo: g.codigo || CODIGO };
+            }
+            return porUrl();
+          })
+          .catch(function () { return porUrl(); });
+      };
+    }
+    window.datosInvitadoGlobal = { encontrado: false, nombre: '', tratamiento: '', pases: 1, codigo: '' };
+
+    function pintarTarjeta() {
+      var d = window.datosInvitadoGlobal;
+      var nombre = d.encontrado && d.nombre ? d.nombre : 'Invitado especial';
+      var pases = parseInt(d.pases, 10) || 1;
+      $('t-trat').textContent = d.encontrado ? (d.tratamiento || '') : '';
+      $('t-nombre').textContent = nombre;
+      $('t-pases').textContent = pases + (pases > 1 ? ' pases reservados' : ' pase reservado');
+      ajustarNombre();
+      aplicarDatos();
+    }
+
+    /* Ganchos para la invitación (contenido de Canva):
+       <span data-invitado="nombre|tratamiento|pases|asistencia|respuestaNovios|codigo"></span>
+       <div data-si-respuesta hidden> ... se muestra solo si los novios escribieron una respuesta ... </div>
+       <a data-rsvp="rsvp.html">Confirmar asistencia</a>   -> agrega ?to=CODIGO (o ?pase=N si no tiene código) */
+    function aplicarDatos() {
+      var d = window.datosInvitadoGlobal || {};
+      var mapa = { nombre: d.nombre, tratamiento: d.tratamiento, pases: d.pases, asistencia: d.asistencia,
+                   respuestaNovios: d.respuestaNovios, codigo: d.codigo };
+      Array.prototype.forEach.call(document.querySelectorAll('[data-invitado]'), function (el) {
+        var v = mapa[el.getAttribute('data-invitado')];
+        if (v !== undefined && v !== null) el.textContent = v;
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-si-respuesta]'), function (el) { el.hidden = !d.respuestaNovios; });
+      Array.prototype.forEach.call(document.querySelectorAll('a[data-rsvp]'), function (a) {
+        var base = a.getAttribute('data-rsvp') || 'rsvp.html';
+        var pase = q0.get('pase') || q0.get('pases');
+        a.href = base + (d.codigo ? '?to=' + encodeURIComponent(d.codigo) : (pase ? '?pase=' + encodeURIComponent(pase) : ''));
+      });
+    }
+
+    // Reduce la letra del nombre hasta que quepa en una línea; si aún no cabe, permite dos líneas
+    function ajustarNombre() {
+      var el = $('t-nombre');
+      el.classList.remove('multilinea'); el.style.fontSize = '';
+      var fs = parseFloat(getComputedStyle(el).fontSize), min = fs * 0.55;
+      while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= 1; el.style.fontSize = fs + 'px'; }
+      if (el.scrollWidth > el.clientWidth + 1) el.classList.add('multilinea');
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* PROGRESO DE CARGA                                                      */
+    /* ---------------------------------------------------------------------- */
+    var tareas = {};
+    ASSETS_IMG.forEach(function (a) { tareas[a.id] = { w: a.w, p: 0 }; });
+    Object.keys(PESO).forEach(function (k) { tareas[k] = { w: PESO[k], p: 0 }; });
+    var pesoTotal = Object.keys(tareas).reduce(function (s, k) { return s + tareas[k].w; }, 0);
+
+    function avance(id, p) { var t = tareas[id]; if (t) t.p = Math.max(t.p, Math.min(1, p)); }
+    function total() {
+      return Object.keys(tareas).reduce(function (s, k) { return s + tareas[k].w * tareas[k].p; }, 0) / pesoTotal;
+    }
+
+    // Imágenes
+    ASSETS_IMG.forEach(function (a) {
+      var img = new Image();
+      var fin = function () { avance(a.id, 1); };
+      img.onload = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(fin); };
+      img.onerror = fin;
+      img.src = a.url;
+    });
+
+    // Fuentes
+    (function () {
+      if (!document.fonts || !document.fonts.load) { avance('fuentes', 1); return; }
+      var n = 0, hecho = function () { n++; avance('fuentes', n / 2); };
+      document.fonts.load('400 1em "Titulo Boda"', 'Ylene & Jhonatan').then(hecho, hecho);
+      document.fonts.load('400 1em "Subtitulo Boda"', 'NOVIEMBRE').then(hecho, hecho);
+    })();
+
+    // Música (con progreso parcial; no bloquea más de 3 s: iOS no precarga audio)
+    (function () {
+      var listo = function () { avance('audio', 1); };
+      if (musica.readyState >= 1) { listo(); return; }
+      musica.addEventListener('loadedmetadata', listo, { once: true });
+      musica.addEventListener('canplay', listo, { once: true });
+      musica.addEventListener('error', listo, { once: true });
+      musica.addEventListener('progress', function () {
+        try {
+          var b = musica.buffered;
+          if (b.length && isFinite(musica.duration) && musica.duration > 0) avance('audio', Math.min(.95, b.end(b.length - 1) / musica.duration));
+        } catch (e) {}
+      });
+      try { musica.load(); } catch (e) {}
+      setTimeout(listo, 3000);
+    })();
+
+    // Datos del invitado
+    Promise.resolve().then(function () { return window.cargarDatosInvitado(); })
+      .then(function (d) { if (d) window.datosInvitadoGlobal = d; })
+      .catch(function () {})
+      .then(function () { pintarTarjeta(); avance('datos', 1); });
+    setTimeout(function () { avance('datos', 1); }, DATOS_MAX_MS);
+
+    // DOM de Canva: espera a que cargue toda la página (imágenes incluidas) y da un instante al responsive
+    (function () {
+      var cargada = new Promise(function (res) {
+        if (document.readyState === 'complete') res(); else window.addEventListener('load', res, { once: true });
+      });
+      cargada.then(function () {
+        avance('canva', .85);
+        window.dispatchEvent(new Event('resize'));          // responsive.js recalcula el lienzo
+        setTimeout(function () { avance('canva', 1); }, 450);
+      });
+    })();
+
+    // Límite de seguridad
+    setTimeout(function () { Object.keys(tareas).forEach(function (k) { avance(k, 1); }); }, LIMITE_MS);
+
+    /* ---------------------------------------------------------------------- */
+    /* ANILLO DE PROGRESO (animación suave)                                   */
+    /* ---------------------------------------------------------------------- */
+    var circ = $('anillo-avance'), pct = $('anillo-pct');
+    var R = 46, C = 2 * Math.PI * R;
+    circ.style.strokeDasharray = C.toFixed(2);
+    circ.style.strokeDashoffset = C.toFixed(2);
+    var t0 = Date.now(), mostrado = 0, terminado = false;
+
+    function dibujar() {
+      circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+      pct.textContent = Math.round(mostrado * 100) + '%';
+    }
+    function tick() {
+      var objetivo = total();
+      mostrado = Math.min(objetivo, mostrado + Math.max(.004, (objetivo - mostrado) * .08));
+      dibujar();
+      if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) { mostrado = 1; dibujar(); terminar(); return; }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    function terminar() {
+      if (terminado) return; terminado = true;
+      setTimeout(function () {
+        cargador.classList.add('fuera');                       // se va la pantalla negra
+        setTimeout(function () { portada.classList.add('entra'); ajustarNombre(); }, 500);
+        setTimeout(function () { portada.classList.add('listo'); }, 2100);   // empieza el latido del sello
+      }, 280);
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* APERTURA: sello -> el sobre baja 50 % -> aparece la tarjeta            */
+    /* ---------------------------------------------------------------------- */
+    function iconos(pausado) { icoOn.style.display = pausado ? 'none' : 'block'; icoOff.style.display = pausado ? 'block' : 'none'; }
+
+    function abrirSobre(e) {
+      if (e) e.stopPropagation();
+      if (!portada.classList.contains('listo') || portada.classList.contains('abierto')) return;
+      portada.classList.add('abierto');
+      btnMusica.style.display = 'flex';
+      var p = musica.play();
+      if (p && p.then) p.then(function () { iconos(false); }, function () { iconos(true); }); else iconos(false);
+      var sube = parseFloat(getComputedStyle(portada).getPropertyValue('--tarjeta-sube')) || 4;   // lee la duracion real del CSS
+      setTimeout(function () { portada.classList.add('tarjeta-lista'); ajustarNombre(); }, 900 + sube * 1000 - 300);   // retraso 0.9 s + subida - 0.3 s
+    }
+    $('sello').addEventListener('click', abrirSobre);
+    $('grupo-sobre').addEventListener('click', abrirSobre);       // tocar el sobre también abre
+
+    /* ---------------------------------------------------------------------- */
+    /* VER INVITACIÓN: se retira la portada y se avisa a animacion.js          */
+    /* ---------------------------------------------------------------------- */
+    $('btn-ver').addEventListener('click', function (e) {
+      e.stopPropagation();
+      window.dispatchEvent(new Event('resize'));                  // recálculo previo del lienzo
+      setTimeout(function () {
+        document.documentElement.classList.remove('overlay-active');
+        window.scrollTo(0, 0);
+        window.__invitacionVisible = true; aplicarDatos();
+        window.dispatchEvent(new Event('invitacion:visible'));   // dispara las animaciones de Canva
+        // Desvanecido en linea con !important: ninguna hoja externa (canva.css) puede anularlo
+        gate.style.setProperty('pointer-events', 'none', 'important');
+        requestAnimationFrame(function () {
+          gate.style.setProperty('opacity', '0', 'important');
+          gate.style.setProperty('filter', 'blur(4px)', 'important');
+        });
+        gate.classList.add('fade-out');
+        setTimeout(function () { if (gate.parentNode) gate.parentNode.removeChild(gate); }, 1300);
+      }, 350);
+    });
+
+    btnMusica.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (musica.paused) { musica.play(); iconos(false); } else { musica.pause(); iconos(true); }
+    });
+
+    window.addEventListener('resize', ajustarNombre);
+  })();
+  </script>
+</body>
+</html>

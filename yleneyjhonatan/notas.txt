@@ -1,0 +1,344 @@
+
+
+taskkill /F /IM msedge.exe
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --allow-file-access-from-files
+
+
+
+https://invitaciones.parteydetalles.com/ylene-y-jhonatan-
+https://invitaciones.parteydetalles.com/ylene-y-jhonatan-/ylene--jhonatan
+https://bodas.parteydetalles.com/yleneyjhonatan?to=xxxx
+
+https://docs.google.com/spreadsheets/d/12w1Ark1EItwt0voksyZ6_dFL98HWQC91z43VxwVDN-k/edit?usp=sharing
+https://script.google.com/macros/s/AKfycbzvYouV1UMe3l8JRGDKPkP2RxVaI79ZqGixOs6-PssPmxfYNs714tjV0xYfBtjUr93q/exec
+
+
+400
+        anchoOriginal: 385,                 // ancho del diseño en Canva (px). Cambia en cada diseño
+        anchoMaximo: 560,                   // ancho máximo en pantallas grandes
+		
+<link rel="stylesheet" href="assets/canva.css">
+<script src="assets/animacion.js" defer></script>
+<script src="assets/responsive.js" defer></script>
+
+
+
+Ayudame a crear otra invitación partiremos desde el landing. Debe verse como la imagen. Las fuentes son assets/cbeb3d4cd3a6ee4d766a02539f1808d8.woff y assets/f8379cdb66878cb9f02f8bacbc3fdb36.woff para el titulo y subtitulo respectivamente. Tenemos en las carpetas assets fondo.png, sobre.png, 68c70494d7e7ecf6d03ed8eb19410614.png (sello), invitacion.png y tarjeta.png. La idea es la siguiente: Al presionar el sello (darle efecto heartbeat), el sobre baja un recorrido del 50% y revela la invitación pero tambien la tarjeta del nombre del invitado y el numero de pases reservado. Puedes guiarte del html adjunto perteneciente a otro proyecto y con otro efecto de animación para darte idea. La carga de los elementos como musica, imagen de fondo y dom canva manejemoslo de la misma forma que venimos trabajado en base a pantalla negra y barra de avance circular. 
+
+
+En landing.html el ancho de la tarjeta debe tener máximo el mismo ancho del sobre (tal vez un poco menos) una vez que el sobre baje sube la tarjeta que esta en z-order por debajo del sobre.png pero por encima de invitacion.png, la tarjeta sube lentamente apareciendo de 50% a 100% de opacidad hasta la altura por debajo de "NOS CASAMOS". Permite que pueda regular el tamaño del contenido de la tarjeta (las letras están muy chiquitas)
+
+Trabajemos también en el RSVP usando google sheets y scripts apps esta versión tiene algunas variantes a la ultima que trabajamos, el formulario rsvp.html, el fondo es assets/ebc1ceafe2440d4102ee396cca03b17c.png y encuadrado en un recuadro blanco con sombra (ver imagen). En cuanto a las funcionalidades si ingresa con código se obtiene el tratamiento, nombre y pases para colocarlo en tarjeta y en el textbox bloqueado correspondiente al nombre, si el codigo es erroneo o no existe el textbox queda habilitado para la busqueda por nombre o el ingreso de un nuevo registro. Existe un control por duplicidad, cada registro se guarda dentro del nombre del invitado reemplazando sus valores (no se generan registros por cada respuesta sino registros por cada invitado) pero los nombre deben ser únicos, en caso de repetición debe consignarse un apellido que lo diferencie o entre parentesis especificar parentesco (si se trata por ejemplo del Sr. Perez (Padre) o Sr. Perez (Hijo)). El numero de pases de nuevos invitados (no tienen codigo) se mira por el parametro pase=1, pase=2, etc
+
+Se debe permitir el reingreso al formulario por si el invitado quiere revisar o cambiarlas, el RSVP se carga automáticamente con las últimas respuestas y fechas en que se guardaron para permitir la edición sobre ellas. Añadir tambien un texto desplegable por si quieren dejar algun mensaje abierto a los novios en el reingreso se debe cargar también. Permitir traer también algun feedback que los novios puedan editar en el excel como respuesta y que se visualice en la invitación. Detallar el script rsvp.html, rsvp.js, code.gs.
+
+Estructura sugerida del excel:
+Nombre del invitado
+Tratamiento (Señor, Señora, Señorita, etc)
+Codigo -> codigo de 4 digitos alphanumérico deterministico de un hash con el nombre del invitado, ver la mejor forma de implementar esto pero que no sea secuencial o facilmente deducible y que sea compatible y facil de implementar en el js y en google sheet que entiendo se va a necesitar
+Link -> permite hacer click para navegar a la web donde estara el hosting: https://bodas.parteydetalles.com/yleneyjhonatan?to={codigo}
+Asistencia a la boda
+Pases -> Número de pases el invitado principal + acompañantes
+Mensaje a los novios
+Primera respuesta
+Última modificación
+N.º de ediciones
+Respuesta de los novios (se muestra en la invitación)
+
+
+  SECRETO: 'yleneyjhonatan-10102026-parteydetalles',
+function aplicarLink_(sh, fila) {
+  sh.getRange(fila, COL.LINK).setFormula('="' + CONFIG.URL_BASE + '"&C' + fila);
+}
+
+
+<div id="countdown" class="cd-ancla cd-centrado" style="--cd-top: 95px; --cd-left: 0px; --cd-ancho: 240px;">
+
+
+
+RSVP_YleneyJhonatan
+
+[PASO 1]
+
+
+(() => {
+  // 1. Sobrescribir estilos que ocultan contenido fuera de pantalla
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * { 
+      content-visibility: visible !important; 
+      animation: none !important; 
+      transition: none !important; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Simular un contenedor con scroll de altura completa
+  document.body.style.overflow = 'visible';
+  document.documentElement.style.overflow = 'visible';
+  // document.body.style.height = 'auto';
+
+  console.log('Fuerza bruta aplicada. Por favor, haz scroll manual hasta el final de la página.');
+})();
+
+
+[PASO 2]
+
+
+(async () => {
+  console.log('🔍 Analizando solo fuentes e imágenes ACTIVAS en pantalla...');
+
+  const downloads = [];
+  const deduplicacion = new Map();
+
+  const getExactFileName = (urlStr, contentType = '') => {
+    try {
+      const parsed = new URL(urlStr, document.baseURI);
+      let filename = parsed.pathname.split('/').pop().split('?')[0];
+      filename = decodeURIComponent(filename);
+      if (filename && filename.includes('.') && filename.length > 3) {
+        return filename;
+      }
+    } catch {}
+
+    let ext = 'asset';
+    if (contentType.includes('image/png')) ext = 'png';
+    else if (contentType.includes('image/jpeg')) ext = 'jpg';
+    else if (contentType.includes('image/webp')) ext = 'webp';
+    else if (contentType.includes('image/svg')) ext = 'svg';
+    else if (contentType.includes('video/mp4')) ext = 'mp4';
+    else if (contentType.includes('font/woff2')) ext = 'woff2';
+    else if (contentType.includes('font/woff')) ext = 'woff';
+
+    let hash = 0;
+    for (let i = 0; i < urlStr.length; i++) {
+      hash = (hash << 5) - hash + urlStr.charCodeAt(i);
+      hash |= 0;
+    }
+    return `file_${Math.abs(hash)}.${ext}`;
+  };
+
+  const fetchResource = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || '';
+      return { blob, contentType };
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Identificar familias de fuentes verdaderamente usadas en el DOM
+  const activeFontFamilies = new Set();
+  document.querySelectorAll('*').forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent.trim().length > 0) {
+      const fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim().toLowerCase();
+      if (fontFamily) activeFontFamilies.add(fontFamily);
+    }
+  });
+
+  console.log('✏️ Fuentes realmente usadas en el texto:', Array.from(activeFontFamilies));
+
+  // 2. Clonar el DOM y limpiar scripts/srcset
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
+  clone.querySelectorAll('img').forEach((img) => img.removeAttribute('srcset'));
+
+  // 3. Procesar imágenes <img> visibles
+  const liveImages = Array.from(document.querySelectorAll('img'));
+  for (const liveImg of liveImages) {
+    const style = window.getComputedStyle(liveImg);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+    const srcAttr = liveImg.getAttribute('src') || liveImg.src;
+    if (srcAttr && !srcAttr.startsWith('data:')) {
+      const absUrl = new URL(srcAttr, document.baseURI).href;
+
+      if (!deduplicacion.has(absUrl)) {
+        const data = await fetchResource(absUrl);
+        if (data) {
+          const fileName = getExactFileName(absUrl, data.contentType);
+          const localPath = `assets/${fileName}`;
+          deduplicacion.set(absUrl, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+      }
+
+      const matchingCloneImg = clone.querySelector(`img[src="${srcAttr}"]`) || clone.querySelectorAll('img')[liveImages.indexOf(liveImg)];
+      if (matchingCloneImg && deduplicacion.has(absUrl)) {
+        matchingCloneImg.src = deduplicacion.get(absUrl);
+      }
+    }
+  }
+
+  // 4. Procesar Vídeo activo
+  const liveVideo = document.querySelector('video');
+  if (liveVideo) {
+    let raw = liveVideo.src || liveVideo.querySelector('source')?.src || '';
+    if (raw) {
+      const parsedUrl = new URL(raw, document.baseURI);
+      let startTrim = 0;
+      let endTrim = null;
+      const hashMatch = parsedUrl.hash.match(/#t=([\d.]+),?([\d.]*)/);
+      if (hashMatch) {
+        startTrim = parseFloat(hashMatch[1]) || 0;
+        if (hashMatch[2]) endTrim = parseFloat(hashMatch[2]);
+      }
+
+      const data = await fetchResource(parsedUrl.href);
+      if (data) {
+        const fileName = getExactFileName(parsedUrl.href, data.contentType);
+        const localPath = `assets/${fileName}`;
+
+        if (!deduplicacion.has(parsedUrl.href)) {
+          deduplicacion.set(parsedUrl.href, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+
+        const videoClonado = clone.querySelector('video');
+        if (videoClonado) {
+          videoClonado.removeAttribute('controls');
+          videoClonado.setAttribute('playsinline', 'true');
+          videoClonado.setAttribute('autoplay', 'true');
+          videoClonado.setAttribute('muted', 'true');
+          videoClonado.setAttribute('data-start', startTrim);
+          if (endTrim !== null) videoClonado.setAttribute('data-end', endTrim);
+          videoClonado.innerHTML = '';
+          videoClonado.src = localPath;
+        }
+      }
+    }
+  }
+
+  // 5. Filtrar CSS: Mantener solo fuentes usadas (priorizando .woff2) y descartar redundancias
+  console.log('🎨 Filtrando reglas CSS y tipografías activas...');
+  let cssIncrustado = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      const sheetBase = sheet.href || document.baseURI;
+
+      for (const rule of Array.from(rules)) {
+        // Si es una regla @font-face, verificar si pertenece a una fuente activa
+        if (rule.type === CSSRule.FONT_FACE_RULE) {
+          const fontFamily = rule.style.fontFamily.replace(/['"]/g, '').trim().toLowerCase();
+          if (!activeFontFamilies.has(fontFamily)) {
+            continue; // Omitir fuentes que no se usan en ningún texto
+          }
+        }
+
+        let cssText = rule.cssText;
+        const matches = [...cssText.matchAll(/url\((['"]?)(?!data:)([^'"]+)\1\)/g)];
+
+        for (const match of matches) {
+          const rawUrl = match[2];
+          const absUrl = new URL(rawUrl, sheetBase).href;
+
+          // Filtrar formatos obsoletos de fuentes (.eot, .ttf si existe woff2)
+          if (absUrl.match(/\.(eot|ttf)(\?.*)?$/i) && !absUrl.includes('fontawesome')) {
+            continue; 
+          }
+
+          if (absUrl.match(/\.(woff2?|otf|png|jpe?g|svg|webp|gif)(\?.*)?$/i)) {
+            if (!deduplicacion.has(absUrl)) {
+              const data = await fetchResource(absUrl);
+              if (data) {
+                const fileName = getExactFileName(absUrl, data.contentType);
+                const localPath = `assets/${fileName}`;
+                deduplicacion.set(absUrl, localPath);
+                downloads.push({ fileName, blob: data.blob });
+              }
+            }
+
+            if (deduplicacion.has(absUrl)) {
+              cssText = cssText.replace(match[0], `url("${deduplicacion.get(absUrl)}")`);
+            }
+          }
+        }
+        cssIncrustado += cssText + '\n';
+      }
+    } catch {}
+  }
+
+  // 6. Controlador de vídeo
+  const customVideoControllerScript = `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.querySelector('video');
+      if (!video) return;
+
+      const start = parseFloat(video.getAttribute('data-start')) || 0;
+      const end = parseFloat(video.getAttribute('data-end'));
+
+      const applyStartTime = () => {
+        if (start > 0) video.currentTime = start;
+      };
+
+      if (video.readyState >= 1) {
+        applyStartTime();
+      } else {
+        video.addEventListener('loadedmetadata', applyStartTime, { once: true });
+      }
+
+      video.addEventListener('timeupdate', () => {
+        if (end && video.currentTime >= end) {
+          video.currentTime = start;
+        }
+      });
+
+      video.muted = true;
+      video.play().catch(() => {});
+
+      document.addEventListener('click', (e) => {
+        if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      });
+    });
+  </script>
+  `;
+
+  // 7. Generar HTML final
+  const htmlFinal = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${document.title}</title>
+  <style>
+${cssIncrustado}
+video { cursor: pointer; }
+  </style>
+</head>
+${clone.outerHTML}
+${customVideoControllerScript}
+</html>`;
+
+  // Descargar HTML
+  const htmlBlob = new Blob([htmlFinal], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'invitacion_optimizada.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Descargar conjunto limpio
+  console.log(`⬇️ Descargando exclusivamente ${downloads.length} archivos indispensables para assets/...`);
+  for (const item of downloads) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(item.blob);
+    link.download = item.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    await new Promise((r) => setTimeout(r, 300));
+    URL.revokeObjectURL(link.href);
+  }
+
+  console.log('✅ ¡Proceso completado! Archivos reducidos drásticamente.');
+})();
+
