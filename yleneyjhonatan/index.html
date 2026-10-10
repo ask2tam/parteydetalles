@@ -712,8 +712,9 @@
         // Respaldo sin servidor: ?n=Familia%20Perez&p=3
         var porUrl = function () {
           var nombre = (q0.get('n') || q0.get('nombre') || '').trim().slice(0, 60);
-          var pases = parseInt(q0.get('p') || q0.get('pases'), 10);
-          return { encontrado: !!nombre, nombre: nombre, tratamiento: '', pases: pases > 0 ? pases : 1, codigo: '' };
+          var pases = parseInt(q0.get('pase') || q0.get('pases') || q0.get('p'), 10);
+          pases = pases > 0 ? Math.min(pases, 10) : 1;
+          return { encontrado: !!nombre, nombre: nombre, tratamiento: '', pases: pases, codigo: '' };
         };
         if (!window.BODA) { console.warn('[RSVP] Falta assets/boda-api.js'); return Promise.resolve(porUrl()); }
         if (!CODIGO) { window.addEventListener('load', window.BODA.despertar, { once: true }); return Promise.resolve(porUrl()); }
