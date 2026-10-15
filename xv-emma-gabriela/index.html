@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es" class="overlay-active">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mis 15 años · Emma Gabriela</title>
+<link rel="stylesheet" href="assets/canva.css">
+<link rel="stylesheet" href="assets/portada.css">
+<script>
+  // animacion.js espera este valor / el evento "invitacion:visible" antes de animar
+  window.__invitacionVisible = false;
+</script>
+</head>
+<body style="overflow: visible;">
+
+<!-- ===================== PORTADA ===================== -->
+<audio id="musica-fondo" src="assets/musica.mp3" preload="auto" loop></audio>
+
+<button id="btn-musica" type="button" aria-label="Silenciar / activar música">
+  <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+  <svg id="icon-sound-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
+</button>
+
+<!-- Host de la portada: su contenido vive en un Shadow DOM (aislado de canva.css) -->
+<div id="gate"></div>
+
+<template id="gate-template">
+<style>
+  /* Los estilos de aquí SOLO afectan a la portada (Shadow DOM). Sin prefers-reduced-motion:
+     la animación se muestra siempre. */
+  :host { all: initial; display: block; position: fixed; inset: 0; z-index: 2147483647; }
+
+  .gate {
+    --w: min(100vw, 600px);              /* mismo ancho máximo que responsive.js */
+    position: absolute; inset: 0;
+    overflow: hidden;
+    background: #FBF9F1;
+    color: #fff;
+    font-family: 'YAFdJvwa-l0_0', Georgia, 'Times New Roman', serif;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 1.5s ease-in-out;
+  }
+  .gate.fade-out { opacity: 0; pointer-events: none; }
+
+  .gate-stage {
+    position: relative;
+    width: var(--w); height: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    background: rgb(255, 250, 238);
+  }
+
+  /* Fondo: mismo PNG de la invitación */
+  .gate-bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center;
+    display: block;
+    user-select: none; -webkit-user-drag: none;
+  }
+
+  /* Video de brillos: mismas proporciones y opacidad que en la invitación
+     (alto 117.1 % del lienzo, anclado abajo y centrado, opacity .25) */
+  .gate-video {
+    position: absolute;
+    left: 50%; bottom: 0;
+    height: 117.1%;
+    aspect-ratio: 16 / 9;
+    transform: translateX(-50%);
+    opacity: .25;
+    object-fit: fill;
+    pointer-events: none;
+    backface-visibility: hidden;
+  }
+
+  .gate-content {
+    position: absolute; left: 0; right: 0; top: 52%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out;
+  }
+  .gate.loaded .gate-content { opacity: 1; }
+
+  .gate-title {
+    margin: 0;
+    display: flex; align-items: baseline; justify-content: center;
+    gap: calc(var(--w) * 0.04);
+    font-weight: 400; line-height: 1;
+    color: #fff;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, .10);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .gate-title .t-mis,
+  .gate-title .t-anos {
+    font-family: 'YAHOz13BGw0_0', 'Brush Script MT', cursive;
+    font-size: calc(var(--w) * 0.105);
+  }
+  .gate-title .t-15 {
+    font-family: 'YAFdJvwa-l0_0', Georgia, serif;
+    font-size: calc(var(--w) * 0.07);
+  }
+
+  .gate-name {
+    margin: calc(var(--w) * 0.012) 0 0;
+    font-size: calc(var(--w) * 0.036);
+    font-weight: 400; line-height: 1.2;
+    letter-spacing: .02em; text-transform: uppercase;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .10);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+
+  .gate-envelope {
+    position: relative;
+    width: calc(var(--w) * 0.69);
+    margin-top: calc(var(--w) * 0.055);
+    cursor: default; pointer-events: none; outline: none;
+  }
+  .gate-envelope.ready { cursor: pointer; pointer-events: auto; }
+  .gate-envelope img {
+    display: block; width: 100%; height: auto;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .12));
+    transform-origin: center center;
+    will-change: transform, opacity;
+    user-select: none; -webkit-user-drag: none;
+  }
+
+  .gate-hint {
+    margin: calc(var(--w) * 0.06) 0 0;
+    font-style: italic;
+    font-size: calc(var(--w) * 0.036); line-height: 1.2;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .12);
+    opacity: .85;
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .gate-hint.ready {
+    opacity: 1;
+    text-decoration: underline; text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  @keyframes gateHeartbeat {
+    0%   { transform: translateY(0) scale(1); }
+    15%  { transform: translateY(-4px) scale(1.02); }
+    30%  { transform: translateY(0) scale(1); }
+    45%  { transform: translateY(-4px) scale(1.02); }
+    60%  { transform: translateY(0) scale(1); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  @keyframes gateZoomOpen {
+    0%   { transform: scale(1); opacity: 1; }
+    40%  { opacity: 1; }
+    100% { transform: scale(7); opacity: 0; }
+  }
+  .gate-envelope.ready img { animation: gateHeartbeat 2.5s infinite ease-in-out; }
+  .gate-envelope.zoom-envelope img {
+    animation: gateZoomOpen 3.8s cubic-bezier(.35, 0, .35, 1) forwards;
+  }
+
+  /* Al abrir, los textos se desvanecen */
+  .gate.opening .gate-title,
+  .gate.opening .gate-name,
+  .gate.opening .gate-hint {
+    opacity: 0;
+    transform: translateY(-10px);
+    text-decoration-color: transparent;
+  }
+</style>
+
+<div class="gate">
+  <div class="gate-stage">
+    <img class="gate-bg" src="assets/94f3483d0d61ca25ce40b75893586c03.png" alt="" draggable="false">
+    <video class="gate-video" src="assets/865b48e3b51a45a764a404b8a02e46d6.mp4" autoplay muted loop playsinline preload="auto" disablepictureinpicture></video>
+
+    <div class="gate-content">
+      <h1 class="gate-title"><span class="t-mis">Mis</span><span class="t-15">15</span><span class="t-anos">años</span></h1>
+      <p class="gate-name">EMMA GABRIELA</p>
+
+      <div class="gate-envelope" role="button" tabindex="0" aria-label="Abrir invitación" aria-disabled="true">
+        <img src="assets/sobre.png" alt="Sobre de invitación" draggable="false">
+      </div>
+
+      <p class="gate-hint">Cargando…</p>
+    </div>
+  </div>
+</div>
+</template>
+<!-- =================== FIN PORTADA =================== -->
+
+<!-- ================= INVITACIÓN (CANVA) ================= -->
+<div id="root"><div class="yIDCqA"><main class="_8OlyIw"><div class="_4KoDHA"><div class="ZRRuDw"><div style="height: 100%; width: 100%;"><div class="KYQZFA"><section id="PB0vMsB1KjGvpGc0" class="rGeu6w" data-scroll-ready="true" style="background-color: rgb(255, 250, 238);"><div><div class="onhyOQ" style="width: 425px; height: 2549.84px; align-items: center;"><div class="twbtjQ"><div class="GDnEHQ" style="width: 425px; height: 2549.84px; background-color: rgb(255, 255, 255);"><div class="o2Yl2g"><div class="_mXnjA" lang="en" style="width: 425px; height: 2549.84px;"><div class="_6t4CHA"><div class="a26Xuw"><div class="fbzKiw" style="background: rgb(255, 250, 238);"></div><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 1147.43px; height: 2549.84px; transform: translate(-361.215px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/94f3483d0d61ca25ce40b75893586c03.png"></div></div></div></div></div></div><div class="WyoGFw" style="position: absolute; top: 42.5px; left: 42.5px; width: 340px; height: 2464.84px;"></div><div id="LBy3PPkCzwhC1GcX" class="DF_utQ _0xkaeQ" style="width: 1106.8px; height: 2549.84px; transform: translate(-340.898px, 0px); opacity: 0.25;"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 5309.75px; height: 2986.73px; transform: translate(-2101.48px, -436.89px) rotate(0deg);"><div class="jXCxjw"><div class="NI12hw _4UrDqA"><video crossorigin="anonymous" preload="metadata" playsinline="true" disablepictureinpicture="" class="FLDMzw _4UrDqA Zmd7Ig BVJWuA" src="assets/865b48e3b51a45a764a404b8a02e46d6.mp4" autoplay="true" muted="true" data-start="0"></video></div></div></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 2549.84px; width: 1106.8px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBMZmDvWNgTZ434N" class="DF_utQ _0xkaeQ" style="width: 319.973px; height: 104.475px; transform: translate(52.5998px, 968.89px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 319.973px; height: 126.836px; transform: translate(-5.68434e-14px, -22.3614px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/f26b15853f30de42e5917f0af1239a84.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 104.475px; width: 319.973px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBgmf2wnHVXwTmN5" class="DF_utQ _0xkaeQ" style="width: 349.909px; height: 461.562px; transform: translate(37.5456px, 1082.5px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 349.909px; height: 466.545px; transform: translate(2.84217e-14px, -0.302547px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/b5b3a7b09eb37166e0f4856ff80099bc.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 461.562px; width: 349.909px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBf7v0y0X6Dx6sJW" class="DF_utQ _0xkaeQ" style="width: 163.172px; height: 29.8004px; transform: translate(130.914px, 1423.31px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 29.8004px; width: 163.172px; transform: scale(1);"><div class="hWv4NA" style="width: 163.172px; height: 29.8004px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id13"><path d="M128.00000020421916,0L1273.722799201076,0C1344.4152468997925,0 1401.722798645334,57.30755174554153 1401.722798645334,128.00000020421916C1401.722798645334,198.69244790293547 1344.4152468997925,255.999999648477 1273.722799201076,255.999999648477L128.00000020421916,255.999999648477C57.30755174554153,255.999999648477 0,198.69244790293547 0,128.00000020421916C0,57.30755174554153 57.30755174554153,0 128.00000020421916,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id13&quot;); background: rgb(239, 137, 172); width: 1401.72px; height: 256px; transform: scale(0.116408, 0.116408); transform-origin: 0px 0px;"></div></div></div></div><div id="LBv3Jy9bzBQ1VTjf" class="DF_utQ _0xkaeQ" style="width: 350.886px; height: 486.812px; transform: translate(37.0568px, 227.974px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 380.034px; height: 570.05px; transform: translate(-14.8106px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/5d0f79dc6b65ba40eab4f6c5ad9e55bf.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 486.812px; width: 350.886px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBXFVzgyXh41Q5m5" class="DF_utQ _0xkaeQ" style="width: 355.297px; height: 250.015px; transform: translate(34.8516px, 495.444px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 355.297px; height: 250.015px; transform: translate(0px, 0px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/f17d19c1cc7113900558039171519f80.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 250.015px; width: 355.297px; pointer-events: none; transform: scale(1);"><div class="TRWryw" style="clip-path: path(&quot;M 0 0 L 0 250.015 L 355.297 250.015 L 355.297 0 L 0 0&quot;);"></div></div></div></div><div id="LBVCMFfJP4p6LS2Q" class="DF_utQ _0xkaeQ" style="width: 219.209px; height: 54.8022px; transform: translate(102.011px, 1009.95px);"><div style="width: 600px; height: 150px; transform: scale(0.365348, 0.365348); transform-origin: 0px 0px;"><div class="S3wQqg _8YzbFQ"><div class="uqhtBg">
+
+		<link rel="stylesheet" href="assets/flip.min.css" />
+        <style>
+            .tick {
+                padding-bottom: 1em;
+                font-size: 1rem;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+                    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            }
+
+            /* ---- Etiquetas (Dias, Horas, Minutos, Segundos) ---- */
+            .tick-label {
+                font-size: 0.5em;
+                text-align: center;
+                color: #ffffff;          /* color de las etiquetas: rosa un poco mas profundo que la tarjeta, para que se lean bien.
+                                            Alternativas:  #ef89ac rosa de la invitacion (si el fondo es claro)
+                                                           #ffffff blanco (si el fondo es el cielo azul-gris)
+                                                           #FFFAEE crema */
+                margin-top: 0.5em;      /* ESPACIO ENTRE LOS NUMEROS Y LAS ETIQUETAS. 0 = sin ajuste.
+                                            Para pegarlas mas usa negativos: -0.6em, -1em, -1.5em...
+                                            (la "em" aqui es relativa al tamano de la etiqueta, que es pequeno) */
+            }
+
+            /* IMPORTANTE: la libreria fuerza display:inline-block en las etiquetas (".tick span[data-view]").
+               En ese modo el margin-top NO mueve la etiqueta, porque queda alineada a la linea base del texto.
+               Pasandola a bloque, el margin-top si tiene efecto. No borres esta regla. */
+            .tick span.tick-label[data-view] {
+                display: block;
+                line-height: 1.2;
+            }
+
+            /* ---- Espaciados ---- */
+            .tick-group {
+                margin: 0 0.25em;        /* ESPACIO ENTRE GRUPOS (Dias | Horas | Minutos | Segundos) */
+                text-align: center;
+            }
+
+            .tick-flip {
+                margin: 0 0.0625em;      /* ESPACIO ENTRE UN DIGITO Y EL SIGUIENTE (valor original de la libreria) */
+                vertical-align: top;     /* quita el hueco que deja el texto bajo las tarjetas (alineacion a la linea base) */
+            }
+
+            /* ---- Numeros y tarjetas: deja UNA sola opcion activa ---- */
+            /* color = numero, background-color = tarjeta */
+            .tick-flip-panel { color: #ffffff; background-color: #ef89ac; }      /* A: rosa de la invitacion (activa) */
+            /* .tick-flip-panel { color: #ffffff; background-color: #d8648f; } */ /* B: rosa profundo, mas contraste */
+            /* .tick-flip-panel { color: #ef89ac; background-color: #ffffff; } */ /* C: tarjeta blanca, numero rosa */
+            /* .tick-flip-panel { color: #d9638f; background-color: #f8d3df; } */ /* D: rosa palo, muy suave */
+
+            /* ---- Sombras del efecto de volteo (la libreria las trae en negro puro) ----
+               Aqui se reemplazan por un rosa oscuro de tu paleta.
+               --sombra son los canales R, G, B (sin #). Cambia solo esta linea para ajustar el tono:
+                 150, 50, 90    rosa frambuesa (activo, va con la opcion A)
+                 120, 35, 70    mas profundo (va con la opcion B)
+                 200, 90, 130   mas claro y liviano (va con la opcion D)
+                 239, 137, 172  rosa de la invitacion (va con la opcion C, tarjetas blancas) */
+            .tick { --sombra: 150, 50, 90; }
+
+            .tick-flip-panel-front-shadow { background-image: linear-gradient(0deg, rgba(var(--sombra), .8), rgba(var(--sombra), .3)); }
+            .tick-flip-panel-back-shadow  { background-image: linear-gradient(180deg, rgba(var(--sombra), .7), rgba(var(--sombra), .5)); }
+            .tick-flip-panel-back:after   { background-image: linear-gradient(180deg, rgba(var(--sombra), .3) 1px, rgba(var(--sombra), .15) 0, transparent 30%); }
+            .tick-flip-panel-back         { box-shadow: inset 0 -1px rgba(var(--sombra), .1); }
+            .tick-flip-card-shadow        { box-shadow: 0 .125em .25em rgba(var(--sombra), .5), 0 .125em .5em rgba(var(--sombra), .75); }
+            .tick-flip-shadow             { box-shadow: 0 .125em .3125em rgba(var(--sombra), .25), 0 .02125em .06125em rgba(var(--sombra), .25); }
+
+            /* ---- Contenedor flotante del contador ----
+               .cd-ancla  = punto de altura 0 (no empuja nada de lo que hay debajo).
+               .cd-caja   = cuadro que se superpone a partir del ancla.
+               Se configura en el style="" del div .cd-ancla (abajo en el HTML):
+                 --cd-top     distancia hacia abajo desde el ancla (admite negativos, ej. -40px)
+                 --cd-left    distancia hacia la derecha desde el ancla (se ignora con la clase cd-centrado)
+                 --cd-ancho   ancho del cuadro (px, %, etc.)
+                 --cd-z       capa (z-index), por defecto 10
+               Agrega la clase cd-centrado al div .cd-ancla para centrar el cuadro horizontalmente. */
+            .cd-ancla { position: relative; height: 0; overflow: visible; }
+            .cd-caja  { position: absolute; top: var(--cd-top, 0); left: var(--cd-left, 0); width: var(--cd-ancho, 100%);
+                        z-index: var(--cd-z, 10); text-align: center;
+                        /* Marco opcional: descomenta lo que necesites */
+                        /* background: #FFFAEE; border: 1px solid #ef89ac; border-radius: 14px; padding: 1.2em 0.5em 0; */ }
+            .cd-ancla.cd-centrado .cd-caja { left: 50%; transform: translateX(-50%); }
+        </style>
+
+        <!-- ANCLA: pega este div donde quieras que quede el punto de referencia. El contador se superpone desde aqui. -->
+        <div class="cd-ancla cd-centrado" style="--cd-top: 50px; --cd-left: 0px; --cd-ancho: 650px;">
+            <div class="cd-caja">
+                <div class="tick" data-credits="false" data-did-init="handleTickInit">
+                    <div
+                        data-repeat="true"
+                        data-layout="horizontal center fit"
+                        data-transform="preset(d, h, m, s) -> delay"
+                    >
+                        <div class="tick-group">
+                            <div
+                                data-key="value"
+                                data-repeat="true"
+                                data-transform="pad(00) -> split -> delay"
+                            >
+                                <span data-view="flip"></span>
+                            </div>
+
+                            <span data-key="label" data-view="text" class="tick-label"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function handleTickInit(tick) {
+                // Traduccion de etiquetas al espanol.
+                // Las letras con acento van como codigos Unicode (barra invertida + u + 4 digitos) para que se vean
+                // bien aunque la pagina se lea con una codificacion distinta de UTF-8.
+                var locale = {
+                    YEAR_PLURAL: 'A\u00f1os',
+                    YEAR_SINGULAR: 'A\u00f1o',
+                    MONTH_PLURAL: 'Meses',
+                    MONTH_SINGULAR: 'Mes',
+                    WEEK_PLURAL: 'Semanas',
+                    WEEK_SINGULAR: 'Semana',
+                    DAY_PLURAL: 'D\u00edas',
+                    DAY_SINGULAR: 'D\u00eda',
+                    HOUR_PLURAL: 'Horas',
+                    HOUR_SINGULAR: 'Hora',
+                    MINUTE_PLURAL: 'Minutos',
+                    MINUTE_SINGULAR: 'Minuto',
+                    SECOND_PLURAL: 'Segundos',
+                    SECOND_SINGULAR: 'Segundo',
+                    MILLISECOND_PLURAL: 'Milisegundos',
+                    MILLISECOND_SINGULAR: 'Milisegundo'
+                };
+
+                for (var key in locale) {
+                    if (!locale.hasOwnProperty(key)) { continue; }
+                    tick.setConstant(key, locale[key]);
+                }
+
+                // Configurado para el viernes 6 de noviembre de 2026 a las 19:30 (7:30 PM) HORA DE LIMA,
+                // igual que la fecha de la invitacion. Cambia solo este valor si la fecha cambia.
+                Tick.count.down('2026-11-06T19:30:00-05:00').onupdate = function (value) {
+                    tick.value = value;
+                };
+            }
+        </script>
+        <script src="assets/flip.min.js"></script>
+
+</div></div></div></div><div id="LB24YB7MS3p8Nr6d" class="DF_utQ _0xkaeQ" style="width: 176.561px; height: 91.3788px; transform: translate(124.219px, 1246.89px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 176.561px; height: 105.937px; transform: translate(1.42109e-14px, -11.9175px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/0d1c9ad5b51e6bdf1f8ef60387dc053a.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 91.3788px; width: 176.561px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBmd21CJllgRr1Bx" class="DF_utQ _0xkaeQ" style="width: 363.329px; height: 440.524px; transform: translate(30.8355px, 1810.9px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 363.329px; height: 443.084px; transform: translate(0px, -1.27985px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/aec7cb68c2285162711bd77c8f95dd45.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 440.524px; width: 363.329px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB4DPxKhMQhd9xKw" class="DF_utQ _0xkaeQ" style="width: 130.299px; height: 29.8004px; transform: translate(147.35px, 2128.14px);"><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 29.8004px; width: 130.299px; transform: scale(1);"><div class="hWv4NA" style="width: 130.299px; height: 29.8004px; left: 0px; top: 0px;"><svg class="_7KaXww"><defs><clipPath id="__id32"><path d="M128.00000020421916,0L991.3325201612475,0C1062.0249686199252,0 1119.3325203654667,57.30755174554153 1119.3325203654667,128.00000020421916C1119.3325203654667,198.69244790293547 1062.0249686199252,255.999999648477 991.3325201612475,255.999999648477L128.00000020421916,255.999999648477C57.30755174554153,255.999999648477 0,198.69244790293547 0,128.00000020421916C0,57.30755174554153 57.30755174554153,0 128.00000020421916,0Z"></path></clipPath></defs></svg><div class="bFnJ2A" style="clip-path: url(&quot;#__id32&quot;); background: rgb(239, 137, 172); width: 1119.33px; height: 256px; transform: scale(0.116408, 0.116408); transform-origin: 0px 0px;"></div></div></div></div><div id="LBBQCLf5h5JH9gbs" class="DF_utQ _0xkaeQ" style="width: 360.348px; height: 189.212px; transform: translate(32.326px, 29.8373px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 378.425px; height: 189.212px; transform: translate(-8.27521px, -1.42109e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/c30e6009105793fb5fbf41da3a482e56.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 189.212px; width: 360.348px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBRkngF6jgJL9MvF" class="DF_utQ _0xkaeQ" style="width: 179.064px; height: 199.881px; transform: translate(122.968px, 762.459px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 179.064px; height: 199.881px; transform: translate(-1.42109e-14px, -1.42109e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/c124dda9ae9e4c4409d1c06747f8e0c1.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 199.881px; width: 179.064px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBcLgmnqzjdhpgWS" class="DF_utQ _0xkaeQ" style="width: 321.916px; height: 107.238px; transform: translate(51.5421px, 2267.8px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 321.916px; height: 107.238px; transform: translate(-2.84217e-14px, 2.13163e-14px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/810f6285c9b6dcdec1771a4357e587ae.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 107.238px; width: 321.916px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB1Pd0FltJHcnbGG" class="DF_utQ _0xkaeQ" style="width: 350.19px; height: 233.46px; transform: translate(37.4049px, 1561.06px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 233.46px; height: 350.19px; transform: translate(58.365px, -58.365px) rotate(90deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/072faecb45e13f863271f7ff4420578f.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 233.46px; width: 350.19px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LB4ZYsLVtvL2nvXC" class="DF_utQ _0xkaeQ" style="width: 68.395px; height: 75.3533px; transform: translate(178.302px, 630.323px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 115.201px; height: 115.201px; transform: translate(-21.2204px, -19.7763px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/aa8db2a51babf3e82d6b277b7884874b.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 75.3533px; width: 68.395px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBqG63xC0dLGSD2w" class="DF_utQ _0xkaeQ" style="width: 262.24px; height: 124.742px; transform: translate(80.1336px, 2392.03px);"><div class="Zp7NQw"><div class="a26Xuw"><div class="PcHy7w"><div class="uk_25A Ty61NA"><div class="H5qArQ"><div class="Izwocg" style="width: 267.65px; height: 132.487px; transform: translate(-2.84294px, -6.03312px) rotate(0deg);"><img class="_7_i_XA" crossorigin="anonymous" draggable="false" src="assets/2a22e2d15d65c95f907761b9419b5846.png"></div></div></div></div></div><div style="position: absolute; top: 0px; left: 0px; transform-origin: 0px 0px; height: 124.742px; width: 262.24px; pointer-events: none; transform: scale(1);"></div></div></div><div id="LBzbG0MtT89YMWBQ" class="DF_utQ _0xkaeQ" style="width: 119.057px; height: 18.8242px; transform: translate(152.972px, 2133.63px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 145.417px; height: 22.9921px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.99603px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 19.9603px; color: rgb(255, 255, 255); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="#page-1" target="_self" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: underline; text-decoration-thickness: initial; text-decoration-style: initial;">IDEAS</a></p></div></div></div></div></div></div><div id="LBlqPVjdb0Xw2kfQ" class="DF_utQ _0xkaeQ" style="width: 255.963px; height: 78.0518px; transform: translate(84.5184px, 485.021px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 312.636px; height: 95.3333px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.166667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ada Cintia Castillo Garcia</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Álvaro Mejía Salvatierra</span></p><div class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><br></div><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Te invitamos a celebrar este</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">día especial con nosotros.</span></p></div></div></div></div></div></div><div id="LB4wxKNp0XZLfHMD" class="DF_utQ _0xkaeQ" style="width: 229.622px; height: 23.7854px; transform: translate(97.6891px, 138.232px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 255.153px; height: 26.4301px; transform: scale(0.899938, 0.899938); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.28496px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 22.8496px; color: rgb(255, 255, 255); line-height: 31px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">EMMA GABRIELA</span></p></div></div></div></div></div></div><div id="LBw0nbJZlxpxf9C2" class="DF_utQ _0xkaeQ" style="width: 342.048px; height: 50.4335px; transform: translate(41.476px, 96.8525px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 417.781px; height: 61.6px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -5.19999px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAHOz13BGw0_0, auto; --H97cbQ: 51.9999px; color: rgb(255, 255, 255); line-height: 72px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Mis</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">     </span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">años</span></p></div></div></div></div></div></div><div id="LBP5V6QfZhLMYJZV" class="DF_utQ _0xkaeQ" style="width: 41.2552px; height: 46.9948px; transform: translate(191.872px, 94.3963px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 50.3896px; height: 57.4px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -4.8px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 48px; color: rgb(255, 255, 255); line-height: 67px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">15</span></p></div></div></div></div></div></div><div id="LBsS8KGvLjSrZqc8" class="DF_utQ _0xkaeQ" style="width: 261.557px; height: 124.719px; transform: translate(81.7215px, 349.648px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 319.469px; height: 152.333px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, 0.166667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Deseamos que seas, como dice</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Maya Angelou, un ave libre que viaje sobre</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">el viento, que extienda sus alas sin miedo y se<br>atreva a reclamar el cielo como suyo.</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Que vueles siempre tan alto como tus sueños,<br>tan libre como tu corazón y tan fuerte como la<br>mujer que estás empezando a ser.</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Sus padres</span></p></div></div></div></div></div></div><div id="LBVY5WRtfqmj77FV" class="DF_utQ _0xkaeQ" style="width: 260.242px; height: 91.4243px; transform: translate(82.3788px, 1651.58px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 317.863px; height: 111.667px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.66667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(255, 255, 255); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">ELEGANTE</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(255, 255, 255); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Caballeros:</span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> Terno</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(255, 255, 255); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Dam</span><span class="a_GcMg" style="font-size: 1em; font-weight: 700; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">as:</span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> Vestido</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(255, 255, 255); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">(Reservar los colores rosa,</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(255, 255, 255); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">nude, celeste, azul).</span></p></div></div></div></div></div></div><div id="LBC7YzN7JqrMQP5c" class="DF_utQ _0xkaeQ" style="width: 85.7594px; height: 20.3237px; transform: translate(169.62px, 887.385px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 133.623px; height: 31.6667px; transform: scale(0.6418, 0.6418); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.66666px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 26.6666px; color: rgb(255, 255, 255); line-height: 37px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">7:30PM</span></p></div></div></div></div></div></div><div id="LBygQsWJnFhdCtPV" class="DF_utQ _0xkaeQ" style="width: 76.0201px; height: 16.3003px; transform: translate(174.49px, 817.091px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 75.8659px; height: 16.2672px; transform: scale(1.00203, 1.00203); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.3664px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 13.664px; color: rgb(255, 255, 255); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">VIERNES</span></p></div></div></div></div></div></div><div id="LB3bYYqbtFC4Gntd" class="DF_utQ _0xkaeQ" style="width: 75.1972px; height: 58.1295px; transform: translate(174.901px, 822.957px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 91.8468px; height: 71px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -5.99999px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YACgEcnnqB4_0, auto; --H97cbQ: 59.9999px; color: rgb(255, 255, 255); line-height: 83px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">06</span></p></div></div></div></div></div></div><div id="LB4WRGHbtTrw5WL9" class="DF_utQ _0xkaeQ" style="width: 85.7594px; height: 15.8738px; transform: translate(169.62px, 872.33px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 133.623px; height: 24.7333px; transform: scale(0.6418, 0.6418); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.13334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 21.3334px; color: rgb(255, 255, 255); line-height: 29px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">NOVIEMBRE</span></p></div></div></div></div></div></div><div id="LBQynpkkB0vwvyLY" class="DF_utQ _0xkaeQ" style="width: 169.158px; height: 36.4605px; transform: translate(127.921px, 1616.74px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 206.612px; height: 44.5333px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -3.73334px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAHOz13BGw0_0, auto; --H97cbQ: 37.3334px; color: rgb(255, 255, 255); line-height: 52px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Dress code</span></p></div></div></div></div></div></div><div id="LBjFqqzg6BRT1Kth" class="DF_utQ _0xkaeQ" style="width: 232.981px; height: 27.5092px; transform: translate(96.0107px, 2298.35px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 284.566px; height: 33.6px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, 2.8px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAG1m8bGhCs_0, auto; --H97cbQ: 28px; color: rgb(255, 255, 255); line-height: 28px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="https://forms.gle/DaRxJGGxnPEJfho77" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">RSVP</a></p></div></div></div></div></div></div><div id="LBLpC2lRnYcQGwXQ" class="DF_utQ _0xkaeQ" style="width: 237.787px; height: 20.2498px; transform: translate(93.6076px, 2324.23px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 290.436px; height: 24.7333px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.13333px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 21.3333px; color: rgb(255, 255, 255); line-height: 29px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: underline; text-decoration-thickness: initial; text-decoration-style: initial;">Confirma tu asistencia</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(255, 255, 255); font-kerning: normal; text-decoration-line: underline; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p></div></div></div></div></div></div><div id="LBnTx2QkBFl0hWhP" class="DF_utQ _0xkaeQ" style="width: 227.342px; height: 91.4243px; transform: translate(99.9686px, 2024.2px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 277.679px; height: 111.667px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.66667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Tu presencia es el mejor regalo.</span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Pero si deseas tener un detalle conmigo,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">aquí te dejo algunas ideas de regalos que<br>me harían mucha ilusión y que puedes<br>tomar como inspiración.</span></p></div></div></div></div></div></div><div id="LBlG0rkGZ13fRkWg" class="DF_utQ _0xkaeQ" style="width: 149.093px; height: 18.8242px; transform: translate(137.954px, 1428.8px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 182.104px; height: 22.9921px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, 1.99603px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 19.9603px; color: rgb(255, 255, 255); line-height: 19px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><a href="https://maps.app.goo.gl/tJJRu4g8toP5uXE16" target="_blank" draggable="false" rel="noopener nofollow" class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(255, 255, 255); font-kerning: none; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Ver ubicación</a></p></div></div></div></div></div></div><div id="LB0nr5t1wP7c4q3w" class="DF_utQ _0xkaeQ" style="width: 237.787px; height: 34.9322px; transform: translate(93.6085px, 1371.65px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 290.436px; height: 42.6667px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -1.66667px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Av. Alameda Sur Mz ñ Lote 8,</span><span class="a_GcMg zYq_BQ" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;"> </span></p><p class="_28USrA MDzzPg AfeL7g XN6uKA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 16.6667px; color: rgb(239, 137, 172); line-height: 23px; letter-spacing: 0em; --gixK-A: 0; text-transform: none; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: italic; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Chorrillos 15066</span></p></div></div></div></div></div></div><div id="LBVY1FfZyMStkBdB" class="DF_utQ _0xkaeQ" style="width: 240.008px; height: 20.2498px; transform: translate(92.4964px, 1341.54px);"><div class="aF9o6Q _0yZ6Qg" style="writing-mode: horizontal-tb; width: 293.149px; height: 24.7333px; transform: scale(0.818725, 0.818725); transform-origin: 0px 0px;"><div style="transform: translate(0px, -2.13333px);"><div class="E8yZTA"><div><div lang="en" translate="no" class="_2UyCZQ vkN2Cw Mb8E_A e1_zQg"><p class="_28USrA MDzzPg AfeL7g XN6uKA _4N4NA" style="font-family: YAFdJvwa-l0_0, auto; --H97cbQ: 21.3333px; color: rgb(239, 137, 172); line-height: 29px; letter-spacing: 0em; --gixK-A: 0; text-transform: uppercase; --kJ5CrQ: 0px; --zPlnxA: none; list-style-type: none;"><span class="a_GcMg" style="font-size: 1em; font-weight: 400; font-style: normal; color: rgb(239, 137, 172); font-kerning: normal; text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial;">Garden Palace</span></p></div></div></div></div></div></div></div></div></div><div class="QhExXw pKfnlA" style="width: 425px; height: 2549.84px; margin: 0px;"></div></div></div></div></section></div><div></div></div></div><div class="_C1wYA"></div></div></main></div></div><div class="_3jkTAA"></div><div class="Bymw5Q"></div><div class="BghEng"><div></div><div></div></div>
+<script src="assets/animacion.js" defer></script>
+<script src="assets/responsive.js" defer></script>
+<script src="assets/video-modal.js" defer></script>
+<script src="assets/portada.js" defer></script>
+</body>
+</html>

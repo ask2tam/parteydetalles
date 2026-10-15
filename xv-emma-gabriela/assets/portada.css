@@ -1,0 +1,42 @@
+/* =====================================================================
+   PORTADA — estilos del DOCUMENTO (lo mínimo; el diseño vive en el Shadow DOM)
+   canva.css trae una regla global  * { animation: none !important; transition: none !important }
+   que anula cualquier animación. Los estilos de la portada están dentro de un
+   Shadow DOM (ver <template id="gate-template"> en index.html), donde esa regla no entra.
+   ===================================================================== */
+
+/* Mientras la portada está activa, la página de atrás no hace scroll */
+html.overlay-active,
+html.overlay-active body {
+  overflow: hidden !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: fixed !important;
+  inset: 0;
+}
+
+/* Contenedor (host) de la portada. Solo posición y color de fondo: no lleva transiciones
+   porque la regla global de canva.css las anularía; el fundido se hace dentro del Shadow DOM. */
+#gate {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: #FBF9F1;
+}
+
+/* Botón de música (aparece tras el click) */
+#btn-musica {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  z-index: 2147483647;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: #ef89ac;
+  border: 1px solid rgba(255, 255, 255, .4);
+  color: #fff;
+  display: none;
+  align-items: center; justify-content: center;
+  cursor: pointer; padding: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+}
