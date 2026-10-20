@@ -106,7 +106,6 @@
 						} },
     invitacion: { url: 'invitacion.html', host: 'invitacion-host', resp: { anchoOriginal: 435, modo: 'ancho' },
                 anim: { duracion: 9.5, umbral: 0.5,
-                        textos: ["LBLTQb9s0Cw0bQ6W", "LBpK7Dr8XnFFKy7x", "LBc9dcs52N4TZHw6"],
 						textos: [
 							 { id: "LBLTQb9s0Cw0bQ6W", tipo: "palabras", velocidad: 300 },
 							 { id: "LBpK7Dr8XnFFKy7x", tipo: "letras",   velocidad: 150  },
@@ -138,6 +137,8 @@
 						arribaAbajo: ["LBDFTf8kG6RkDjyL", "LB4CMqGPYqrDlQFN", "LBqVB0n0v1L2wW7s", "LBRyKxyKfm5bP2H3", "LBvsTvf4nW69Ntd5", "LBg3mlfWJJB12D7M", "LBK6M5QMbxgJQGZQ", "LBRGhrXN8ppyrTyz", "LBf5TVQsL4mBhWs9", "LBWVrmY7Zk1ycTG5", "LBM41GW2BzcmFcGS", "LBPC5LJzcy87XB6g", "LBDXWRCCgZj7V3hM", "LBZXX47JBWdGh0pF"] } }
   };
   var ID_SELLO = '__id739';                  // sello de la portada
+  /* Latido del sello (llama a hacer clic). Se aplica a la imagen interna del sello, sin chocar con su animación de entrada. */
+  var LATIDO = { duracion: 1.8, retraso: 3.2, escala: 1.14 };   // retraso (s): espera a que termine la animación de entrada de la portada
   var PARAM_PASES = 'pase';                  // index.html?pase=3  → "( 3 ) PASES". Vacío, 0, texto o negativo → 1 pase
   var MAX_PASES = 99;
   var HASH_TIPS = '#page-1';                 // enlace "Ingresa aquí" de la invitación
@@ -205,7 +206,11 @@
     var raiz = host.attachShadow({ mode: 'open' });
     var st = document.createElement('style');
     st.textContent = adaptarCss(css) +
-      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}\n.a_GcMg{cursor:pointer}\n#' + ID_SELLO + ',a[aria-labelledby="' + ID_SELLO + '"]{cursor:pointer}';
+      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}\n.a_GcMg{cursor:pointer}\n#' + ID_SELLO + ',a[aria-labelledby="' + ID_SELLO + '"]{cursor:pointer}' +
+      // Latido tipo "lub-dub": se anima el contenedor interno de la imagen (.Zp7NQw), no el sello, para no pisar su animación de entrada.
+      // Más específico que el "* { animation: none !important }" del export de Canva, por eso gana.
+      '\n@keyframes latido-sello{0%{transform:scale(1)}14%{transform:scale(' + LATIDO.escala + ')}28%{transform:scale(1)}42%{transform:scale(' + (1 + (LATIDO.escala - 1) * .8).toFixed(3) + ')}70%,100%{transform:scale(1)}}' +
+      '\n#' + ID_SELLO + ' .Zp7NQw{transform-origin:50% 50%;will-change:transform;animation:latido-sello ' + LATIDO.duracion + 's ease-in-out ' + LATIDO.retraso + 's infinite !important}';
     raiz.appendChild(st);
     while (doc.body.firstChild) raiz.appendChild(document.adoptNode(doc.body.firstChild));
     raiz.querySelectorAll('img').forEach(function (i) { i.loading = 'eager'; });
