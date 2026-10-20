@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es" class="bloqueado">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cynthia &amp; Eduardo</title>
+<meta property="og:title" content="Cynthia &amp; Eduardo · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 19 de diciembre." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/cynthiayeduardo/miniatura.jpg" />
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+<style id="fuentes-canva"></style><!-- aquí se copian los @font-face de Canva (Chrome ignora @font-face dentro de un Shadow DOM) -->
+<style>
+  :root { --cafe:#9D7B56; --crema:#FFFBF4; --durazno:#F6D5BB; --oliva:#7D7C50; }
+  * { -webkit-tap-highlight-color:transparent; box-sizing:border-box; }   /* solo alcanza el documento principal (botones, modal, loader) */
+  html, body { margin:0; padding:0; background:var(--crema); }
+  html { scrollbar-gutter: stable; }
+  html.bloqueado, html.bloqueado body { overflow:hidden !important; }
+  html.bloqueado body { touch-action:none; }
+
+  /* ---------- Hosts de los 3 diseños (cada uno con su Shadow DOM) ---------- */
+  #invitacion-host { position:relative; visibility:hidden; }          /* maquetada desde el inicio, pero no se pinta hasta abrir el sello */
+  #invitacion-host.visible { visibility:visible; }
+  #portada-host { position:fixed; inset:0; z-index:100; background:var(--crema);
+                  transition:opacity 1.6s ease, filter 1.6s ease; }
+  #portada-host.fuera { opacity:0; filter:blur(4px); pointer-events:none; }
+
+  /* ---------- Modal tips ---------- */
+  #tips-modal { position:fixed; inset:0; z-index:200; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+                background:rgba(52,38,24,.62); opacity:0; visibility:hidden;
+                transition:opacity .45s ease, visibility 0s linear .45s; }
+  #tips-modal.abierto { opacity:1; visibility:visible; transition:opacity .45s ease, visibility 0s; }
+  #tips-host { position:relative; width:100%; }
+  #tips-cerrar { position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:210; width:44px; height:44px; padding:0;
+                 border-radius:50%; border:1px solid rgba(255,251,244,.6); background:var(--cafe); color:var(--crema);
+                 display:grid; place-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(40,28,16,.4);
+                 opacity:0; pointer-events:none; transition:opacity .35s ease, transform .2s ease; -webkit-tap-highlight-color:transparent; }
+  #tips-modal.abierto #tips-cerrar { opacity:1; pointer-events:auto; transition-delay:.15s; }
+  #tips-cerrar:hover { transform:scale(1.06); }
+  #tips-cerrar:focus-visible, #musica-btn:focus-visible { outline:2px solid var(--durazno); outline-offset:3px; }
+
+  /* ---------- Botón de música (paleta del diseño: café + crema) ---------- */
+  #musica-btn { position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:300; width:44px; height:44px; padding:0;
+                border-radius:50%; border:1px solid rgba(255,251,244,.6); background:var(--cafe); color:var(--crema);
+                display:none; place-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(40,28,16,.4);
+                opacity:0; transform:scale(.8); transition:opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1), background .2s ease;
+                -webkit-tap-highlight-color:transparent; }
+  #musica-btn.mostrar { display:grid; }
+  #musica-btn.activo { opacity:1; transform:none; }
+  #musica-btn:hover { background:#8a6a47; }
+  #musica-btn svg { display:block; }
+
+  /* ---------- Pantalla de carga ---------- */
+  #cargador { position:fixed; inset:0; z-index:1000; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+              transition:opacity .9s ease, visibility 0s linear .9s; }
+  #cargador.fuera { opacity:0; visibility:hidden; pointer-events:none; }
+  .anillo { position:relative; width:104px; height:104px; }
+  .anillo svg { width:100%; height:100%; display:block; transform:rotate(-90deg); }
+  .anillo circle { fill:none; stroke-width:3; }
+  .anillo .riel { stroke:rgba(255,251,244,.14); }
+  .anillo .avance { stroke:var(--durazno); stroke-linecap:round; }
+  .anillo .pct { position:absolute; inset:0; display:grid; place-items:center; color:var(--crema); font:500 18px/1 system-ui,-apple-system,'Segoe UI',sans-serif; letter-spacing:.04em; }
+  .cargador-txt { color:rgba(255,251,244,.55); font:400 11px/1 system-ui,-apple-system,'Segoe UI',sans-serif; letter-spacing:.3em; text-transform:uppercase; text-align:center; padding:0 24px; }
+</style>
+</head>
+<body>
+
+<audio id="musica" src="assets/musica.mp3" preload="auto" loop></audio>
+
+<div id="invitacion-host"></div>
+<div id="portada-host"></div>
+
+<div id="tips-modal" role="dialog" aria-modal="true" aria-label="Tips y notas importantes">
+  <div id="tips-host"></div>
+  <button id="tips-cerrar" type="button" aria-label="Cerrar" hidden>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+</button>
+</div>
+
+<button id="musica-btn" type="button" aria-label="Silenciar música">
+  <svg id="ico-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+  <svg id="ico-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+</button>
+
+<div id="cargador" role="status" aria-live="polite">
+  <div class="anillo">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="riel" cx="50" cy="50" r="46"/><circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"/></svg>
+    <div class="pct" id="anillo-pct">0%</div>
+  </div>
+  <div class="cargador-txt" id="cargador-txt">Preparando tu invitaci&oacute;n</div>
+</div>
+
+<script src="assets/responsive.js"></script>
+<script src="assets/animacion.js"></script>
+<script>
+(function () {
+  'use strict';
+  history.scrollRestoration = 'manual';
+
+  /* ====================== CONFIGURACIÓN ====================== */
+  var DISENOS = {
+    portada:    { url: 'portada.html', host: 'portada-host', resp: { anchoOriginal: 435, modo: 'cubrir', colorFondo: '#FFFBF4' },   
+                anim: { duracion: 2.5, umbral: 0.1,
+                        izquierdaADerecha: ["LBj2SvFRwyCqN8vY", "LBHz71q6p61wb4yF", "LBBPBwCb6mHzjW3s"],
+						derechaAIzquierda: ["LB4YRKTPNC7MlFJ1", "LBVsx1zJs7vz5hKq", "__id739"],
+						} },
+    invitacion: { url: 'invitacion.html', host: 'invitacion-host', resp: { anchoOriginal: 435, modo: 'ancho' },
+                anim: { duracion: 9.5, umbral: 0.5,
+                        textos: ["LBLTQb9s0Cw0bQ6W", "LBpK7Dr8XnFFKy7x", "LBc9dcs52N4TZHw6"],
+						textos: [
+							 { id: "LBLTQb9s0Cw0bQ6W", tipo: "palabras", velocidad: 300 },
+							 { id: "LBpK7Dr8XnFFKy7x", tipo: "letras",   velocidad: 150  },
+							 { id: "LBc9dcs52N4TZHw6", tipo: "palabras", velocidad: 300 },
+						],
+						izquierdaADerecha: [
+						"LBl6Vw0cv3WxDJMy", "LByWwdzS3kbX7fhS", // padres
+						"LB3Kj7lTfccFsGsp", "LB2k374LF08x0H2p", // falta
+						"LB0qpQJx57YhKZqc", "LB02k9TSM3XpT1RN", "__id226", "LBJBrRxfyXrGVh4f", "LBNPzn7NSJCXbvWt", "LBjsWmQpDnmNwskq", "LB6Rk3z0TkxgT3h5", "LB5LL5vdG7rcTWd2", "LB0wfYHrFCcpNpTK", "LB4KVKVX1Fpg9nZh", "LByTDyBgQSvt8rd9", "LBmK0XSbJFd6Gtg6", "LBVkbZyQSPV5PkQK", "LBvmgS65pxYl99Gc", "LBLmy6Jd9g4xqPhX", "LBL0SdvDmZB4JS7k", // ceremonia, recepción
+						"LBHrMY34FjdBSSMf", "LBlN7w1y3cT4Flqq", "LBnqFVt8bg6d612F", "LB29WJwFrMxKFrnN", "LBKSTWxRJRzdvHk3", "LBlC9ZYcQgH7WFyM", // regalos
+						"LB579kw0hyLPv3cv", "LBsDQVCKrkfplPy1", "LBJRCm22sQ9kvT1j", "LBktycJFYKb38W6z", "LBCNFl6cljCgCT40", // TIPS
+						],
+						derechaAIzquierda: [
+						"LB1kF5bdBWPV9St0", "LBQdT5bXRRdvVrDj", // papa y mama
+						"LBrxGvT2NfYkSMdk", "LBFp3Txv5Qtq2j34", "LBCk5gWWtbJLqbPz", // agendar
+						"LBxj4MH7w85HQdsS", "LBDlGVjdKGlypM7X", "LBzG30Jg9cpV4zXj", "LB5s4YJgvF0Tvw9v", "LBQb6jMspMdty32J", "LBx32NkhrJd8Z4yk", // dress code
+						"LBcPSPT3D4CR1hgq", "LBSWRNtVPNdJfmv2", "LBPzw3k31Nwydl2H", "LBsq3d7rCSVjMXPy", "LBSNmwWJ9Y5lpZ3V", // Confirmación
+						"LBWZtGcFhRRCBd68", "LBQqZHdMw45cWs59", "LB76nLVRcHdppC1q", "LBNgLGSYhY1qmq9R", "LB2fttkdVX42FZx4", "LBkXzKzhnZkNpY2g", "LBvc2NvKlygGtNpg", "LBfytRh20rYZRZnb", // Los mejores recuerdos
+						],
+						arribaAbajo: ["LBCBccVrbGLMRTQ6", "LBnBlwHYKbj3YQbk", "LBwktbk7zTYF7Mth", "LBl9fk1zzHXjYp20", "LBvnqkbhzF3Cd0wf", "LBsfHRlch7rGf57Q", "LB2XR6dwN3S6r9lY", "LBsnhRF1GDdbbkz1", "LB20FbnnQpstRcP0", "LBttN2bXrcwrV5xD", "LBdczNvwg6d8t8jS", "LBkddVHSKMzT6vY3", // Cynthia y Eduardo
+						"LB2hXYHGz8Zkm335", "LB3rRtmFpLZ7R5mh", "LBMVJ2ltrXvXVFkt", // solo adultos
+						"LBFJyKZtVSlr6qNb", "LBd8Np3wyYpbL868", "__id308", "LBRqPvrwrC5q9cV6", "LB8dLjG2twLmRp6x", "LBJ34LMvXgZfn6r0", // playlist
+						],
+						abajoArriba: ["LBtl99BP8SBh30Rm", // foto inicial
+						"LBZPcvZJKdG5QlLL", // te esperamos
+						] } },
+    tips:       { url: 'tips.html', host: 'tips-host', resp: { anchoOriginal: 435, anchoMaximo: 600, modo: 'cubrir' },
+				anim: { duracion: 2.5, umbral: 0.1, repetir: true,   // repetir: true → la animación vuelve a correr cada vez que se abre el modal
+						arribaAbajo: ["LBDFTf8kG6RkDjyL", "LB4CMqGPYqrDlQFN", "LBqVB0n0v1L2wW7s", "LBRyKxyKfm5bP2H3", "LBvsTvf4nW69Ntd5", "LBg3mlfWJJB12D7M", "LBK6M5QMbxgJQGZQ", "LBRGhrXN8ppyrTyz", "LBf5TVQsL4mBhWs9", "LBWVrmY7Zk1ycTG5", "LBM41GW2BzcmFcGS", "LBPC5LJzcy87XB6g", "LBDXWRCCgZj7V3hM", "LBZXX47JBWdGh0pF"] } }
+  };
+  var ID_SELLO = '__id739';                  // sello de la portada
+  var PARAM_PASES = 'pase';                  // index.html?pase=3  → "( 3 ) PASES". Vacío, 0, texto o negativo → 1 pase
+  var MAX_PASES = 99;
+  var HASH_TIPS = '#page-1';                 // enlace "Ingresa aquí" de la invitación
+  var PESO = { docs: 14, montaje: 6, imgs: 38, fuentes: 14, libs: 4, audio: 24 };   // suman 100
+  var LIBS_PERMITIDAS = /flip|tick/i;      // scripts del diseño que SÍ se ejecutan (global, una vez). El resto de scripts de Canva se descarta
+  var MIN_MS = 900, LIMITE_MS = 25000, AUDIO_MAX_MS = 3000;
+  /* =========================================================== */
+
+  var $ = function (id) { return document.getElementById(id); };
+  /* ---------------------- NÚMERO DE PASES (desde la URL) ---------------------- */
+  var PASES = (function () {
+    var n = parseInt(new URLSearchParams(location.search).get(PARAM_PASES), 10);
+    return (isFinite(n) && n >= 1) ? Math.min(n, MAX_PASES) : 1;
+  })();
+  // Reemplaza "( 1 ) PASE" por "( N ) PASE/PASES" en cualquier texto del diseño (respeta mayúsculas/minúsculas)
+  function aplicarPases(raiz) {
+    var w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT), nodos = [], n;
+    while ((n = w.nextNode())) if (/\(\s*\d+\s*\)\s*pases?\b/i.test(n.nodeValue)) nodos.push(n);
+    nodos.forEach(function (t) {
+      t.nodeValue = t.nodeValue.replace(/\(\s*\d+\s*\)(\s*)(pases?)\b/gi, function (m, esp, palabra) {
+        var w2 = PASES === 1 ? 'pase' : 'pases';
+        if (palabra === palabra.toUpperCase()) w2 = w2.toUpperCase();
+        else if (palabra[0] === palabra[0].toUpperCase()) w2 = w2[0].toUpperCase() + w2.slice(1);
+        return '( ' + PASES + ' )' + esp + w2;
+      });
+    });
+  }
+  window.PASES = PASES;
+
+  var raices = {};            // shadow roots: portada / invitacion / tips
+  var ajustes = {};
+  var controlesAnim = {};     // controladores de animacion.js por diseño (reiniciar())           // controladores de responsive.js
+
+  /* ---------------------------- PROGRESO ---------------------------- */
+  var T = {}; Object.keys(PESO).forEach(function (k) { T[k] = { w: PESO[k], p: 0 }; });
+  function avance(k, p) { T[k].p = Math.max(T[k].p, Math.min(1, p)); }
+  function total() { var s = 0; for (var k in T) s += T[k].w * T[k].p; return s / 100; }
+
+  /* ------------------ CSS de Canva → válido en Shadow DOM ------------------ */
+  function adaptarCss(css) {
+    return css
+      .replace(/:root/g, ':host')                                           // variables globales de Canva
+      .replace(/(^|[}{,;])\s*html(?=[\s,{.:\[])/g, '$1:host')
+      .replace(/(^|[}{,;])\s*body(?=[\s,{.:\[])/g, '$1.__body')             // body{overflow:hidden} no debe aplicar al host
+      .replace(/\(prefers-reduced-motion:\s*reduce\)/g, '(min-width:99999px)'); // sin "reducir movimiento": siempre animado
+  }
+
+  var reglasFuente = new Set(), familiasUsadas = new Set(), libsExternas = [], scriptsInicio = [];
+  function montarDiseno(clave, html) {
+    var d = DISENOS[clave], host = $(d.host);
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    // Scripts del export: se descartan, salvo librerías permitidas (ej. flip.min.js del contador) y su script de inicio (handleTickInit).
+    doc.querySelectorAll('script').forEach(function (s) {
+      var src = s.getAttribute('src');
+      if (src) { if (LIBS_PERMITIDAS.test(src) && libsExternas.indexOf(src) < 0) libsExternas.push(src); }
+      else if (/\bTick\b|handleTick/.test(s.textContent)) scriptsInicio.push(s.textContent);
+      s.remove();
+    });
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    (css.match(/@font-face\s*\{[^}]*\}/g) || []).forEach(function (r) { reglasFuente.add(r); });
+    css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+    var marcado = doc.body.innerHTML;
+    (css + marcado).replace(/font-family:\s*([A-Za-z0-9_-]+)/g, function (m, f) { familiasUsadas.add(f); return m; });
+
+    var raiz = host.attachShadow({ mode: 'open' });
+    var st = document.createElement('style');
+    st.textContent = adaptarCss(css) +
+      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}\n.a_GcMg{cursor:pointer}\n#' + ID_SELLO + ',a[aria-labelledby="' + ID_SELLO + '"]{cursor:pointer}';
+    raiz.appendChild(st);
+    while (doc.body.firstChild) raiz.appendChild(document.adoptNode(doc.body.firstChild));
+    raiz.querySelectorAll('img').forEach(function (i) { i.loading = 'eager'; });
+    raices[clave] = raiz;
+  }
+
+  function esperarImg(img) {
+    return new Promise(function (res) {
+      var ok = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(res); };
+      if (img.complete) ok();
+      else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', res, { once: true }); }
+    });
+  }
+
+  /* ---------------------------- TAREAS ---------------------------- */
+  // 1) Documentos Canva → DOM (Shadow DOM) → imágenes y fuentes → motores responsive/animación
+  function tareaDiseños() {
+    var claves = Object.keys(DISENOS), n = 0;
+    return Promise.all(claves.map(function (c) {
+      return fetch(DISENOS[c].url).then(function (r) {
+        if (!r.ok) throw new Error(DISENOS[c].url + ' → HTTP ' + r.status);
+        return r.text();
+      }).then(function (t) { avance('docs', ++n / claves.length); return t; });
+    })).then(function (htmls) {
+      claves.forEach(function (c, i) { montarDiseno(c, htmls[i]); aplicarPases(raices[c]); });
+      $('fuentes-canva').textContent = Array.from(reglasFuente).join('\n');
+      avance('montaje', .5);
+      return new Promise(requestAnimationFrame);
+    }).then(function () {
+      var imgs = [];
+      claves.forEach(function (c) { imgs = imgs.concat(Array.prototype.slice.call(raices[c].querySelectorAll('img'))); });
+      var hojas = [];
+      claves.forEach(function (c) { hojas = hojas.concat(Array.prototype.slice.call(raices[c].querySelectorAll('link[rel="stylesheet"]'))); });
+      var tHojas = Promise.all(hojas.map(function (l) {
+        return new Promise(function (res) {
+          if (l.sheet) return res();
+          l.addEventListener('load', res, { once: true }); l.addEventListener('error', res, { once: true });
+        });
+      }));
+      var ni = 0, nf = 0;
+      var tImgs = Promise.all(imgs.map(function (i) { return esperarImg(i).then(function () { avance('imgs', ++ni / imgs.length); }); }));
+      if (!imgs.length) avance('imgs', 1);
+      var faces = Array.from(document.fonts).filter(function (f) { return familiasUsadas.has(f.family.replace(/["']/g, '')); });
+      var tFuentes = Promise.all(faces.map(function (f) {
+        return f.load().catch(function () {}).then(function () { avance('fuentes', ++nf / faces.length); });
+      }));
+      if (!faces.length) avance('fuentes', 1);
+      return Promise.all([tImgs, tFuentes, tHojas]);
+    }).then(function () {
+      return cargarLibs();
+    }).then(function () {
+      // Contador flip: Tick solo busca ".tick" en document; hay que pedirle que parsee cada Shadow DOM
+      if (window.Tick && Tick.DOM && Tick.DOM.parse) claves.forEach(function (c) { Tick.DOM.parse(raices[c]); });
+      else if (libsExternas.length) console.warn('[contador] Tick no está disponible: revisa la ruta de', libsExternas);
+    }).then(function () {
+      // Con fuentes e imágenes listas, los tres lienzos se escalan y se ajusta la altura
+      claves.forEach(function (c) { ajustes[c] = Responsive.montar(raices[c], DISENOS[c].resp); });
+      Object.keys(DISENOS).forEach(function (c) {
+        var a = DISENOS[c].anim; if (!a) return;
+        controlesAnim[c] = Animacion.montar(raices[c], Object.assign({ cuandoVisible: puertas[c] }, a));
+      });
+      enlazarEventos();
+      return (document.fonts && document.fonts.ready) || null;
+    }).then(function () {
+      claves.forEach(function (c) { ajustes[c] && ajustes[c].reajustar(); });
+      avance('montaje', 1);
+    });
+  }
+
+  // Librerías externas del diseño (flip.min.js): se cargan una vez en el documento, en orden, y luego sus scripts de inicio
+  function cargarScript(src, texto) {
+    return new Promise(function (res) {
+      var s = document.createElement('script');
+      if (src) { s.src = src; s.onload = res; s.onerror = function () { console.warn('[libs] No se pudo cargar', src); res(); }; }
+      document.head.appendChild(s);
+      if (!src) { s.textContent = texto; res(); }
+    });
+  }
+  function cargarLibs() {
+    var n = 0, tot = libsExternas.length + scriptsInicio.length;
+    if (!tot) { avance('libs', 1); return Promise.resolve(); }
+    var p = Promise.resolve();
+    libsExternas.forEach(function (u) { p = p.then(function () { return cargarScript(u); }).then(function () { avance('libs', ++n / tot); }); });
+    scriptsInicio.forEach(function (t) { p = p.then(function () { return cargarScript(null, t); }).then(function () { avance('libs', ++n / tot); }); });
+    return p;
+  }
+
+  // 2) Música (progreso parcial; no bloquea más de AUDIO_MAX_MS: iOS no precarga audio)
+  var musica = $('musica');
+  function tareaAudio() {
+    return new Promise(function (res) {
+      var fin = function () { avance('audio', 1); res(); };
+      if (musica.readyState >= 1) return fin();
+      musica.addEventListener('loadedmetadata', fin, { once: true });
+      musica.addEventListener('canplay', fin, { once: true });
+      musica.addEventListener('error', fin, { once: true });
+      musica.addEventListener('progress', function () {
+        try { var b = musica.buffered; if (b.length && isFinite(musica.duration) && musica.duration > 0) avance('audio', Math.min(.95, b.end(b.length - 1) / musica.duration)); } catch (e) {}
+      });
+      try { musica.load(); } catch (e) {}
+      setTimeout(fin, AUDIO_MAX_MS);
+    });
+  }
+
+  // 3) Ventana "load" (por si el navegador aún pinta algo pendiente)
+  var tareaLoad = new Promise(function (res) {
+    if (document.readyState === 'complete') res(); else window.addEventListener('load', res, { once: true });
+  });
+
+  var promesa = Promise.race([
+    Promise.all([tareaDiseños(), tareaAudio(), tareaLoad]),
+    new Promise(function (res) { setTimeout(res, LIMITE_MS); })           // si algo se atasca, continúa
+  ]).catch(function (e) {
+    console.error('[carga]', e);
+    $('cargador-txt').textContent = 'No se pudo cargar. Abre la página desde un servidor (http/https), no con doble clic.';
+    throw e;
+  });
+  promesa.then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); }, function () {});
+
+  /* ---------------------- ANILLO (animación suave) ---------------------- */
+  var circ = $('anillo-avance'), pct = $('anillo-pct'), C = 2 * Math.PI * 46;
+  circ.style.strokeDasharray = C.toFixed(2); circ.style.strokeDashoffset = C.toFixed(2);
+  var t0 = Date.now(), mostrado = 0;
+  (function tick() {
+    var obj = total();
+    mostrado = Math.min(obj, mostrado + Math.max(.004, (obj - mostrado) * .08));
+    circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+    pct.textContent = Math.round(mostrado * 100) + '%';
+    if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) {
+      mostrado = 1; circ.style.strokeDashoffset = '0'; pct.textContent = '100%';
+      setTimeout(function () {
+        $('cargador').classList.add('fuera');
+        window.dispatchEvent(new Event('portada:visible'));          // arranca las animaciones de la portada
+        setTimeout(function () { var c = $('cargador'); c.parentNode && c.parentNode.removeChild(c); }, 1000);
+      }, 280);
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  /* ---------------- Puente con animacion.js ---------------- */
+  /* Cada diseño tiene su "puerta": sus animaciones esperan a que ese diseño sea visible.
+     portada → al terminar la carga (evento 'portada:visible') · invitacion → al abrir el sello ('invitacion:visible') */
+  var puertas = {};
+  function crearPuerta(clave, evento) {
+    var cola = [], abierta = false;
+    puertas[clave] = function (fn) { abierta ? fn() : cola.push(fn); };
+    window.addEventListener(evento, function () { abierta = true; cola.splice(0).forEach(function (f) { f(); }); }, { once: true });
+  }
+  crearPuerta('portada', 'portada:visible');
+  crearPuerta('invitacion', 'invitacion:visible');
+  crearPuerta('tips', 'tips:visible');
+
+  /* ---------------------------- MÚSICA UI ---------------------------- */
+  var btnMusica = $('musica-btn'), icoOn = $('ico-on'), icoOff = $('ico-off');
+  function iconos(pausado) {
+    icoOn.style.display = pausado ? 'none' : 'block'; icoOff.style.display = pausado ? 'block' : 'none';
+    btnMusica.setAttribute('aria-label', pausado ? 'Activar música' : 'Silenciar música');
+  }
+  btnMusica.addEventListener('click', function () {
+    if (musica.paused) { musica.play(); iconos(false); } else { musica.pause(); iconos(true); }
+  });
+
+  /* --------------- 1) SELLO → música + revela la invitación --------------- */
+  var abierta = false;
+  function abrirInvitacion() {
+    if (abierta) return; abierta = true;
+    var p = musica.play();                                         // dentro del gesto del usuario: el navegador lo permite
+    if (p && p.then) p.then(function () { iconos(false); }, function () { iconos(true); }); else iconos(false);
+    btnMusica.classList.add('mostrar');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { btnMusica.classList.add('activo'); }); });
+
+    var inv = $('invitacion-host'), por = $('portada-host');
+    ajustes.invitacion && ajustes.invitacion.reajustar();
+    inv.classList.add('visible');
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, 0);
+    window.__invitacionVisible = true;
+    window.dispatchEvent(new Event('invitacion:visible'));          // arranca animacion.js
+    por.style.pointerEvents = 'none';
+    requestAnimationFrame(function () { por.classList.add('fuera'); });   // se desvanece revelando la invitación
+    setTimeout(function () { if (por.parentNode) por.parentNode.removeChild(por); }, 1800);
+  }
+
+  /* ------------- 2) "Ingresa aquí" → modal tips (conserva el scroll) ------------- */
+  var modal = $('tips-modal'), btnCerrar = $('tips-cerrar'), scrollGuardado = 0, tipsAbierto = false;
+  btnCerrar.hidden = false;
+  function abrirTips() {
+    if (tipsAbierto) return; tipsAbierto = true;
+    scrollGuardado = window.pageYOffset || document.documentElement.scrollTop || 0;
+    document.documentElement.classList.add('bloqueado');
+    modal.scrollTop = 0;
+    ajustes.tips && ajustes.tips.reajustar();
+    modal.classList.add('abierto');
+    if (!window.__tipsVisible) { window.__tipsVisible = true; window.dispatchEvent(new Event('tips:visible')); }   // 1ª vez: la dispara la "puerta"
+    else if (DISENOS.tips.anim && DISENOS.tips.anim.repetir && controlesAnim.tips) controlesAnim.tips.reiniciar();   // siguientes: se repite
+    try { history.pushState({ tips: 1 }, ''); } catch (e) {}
+    btnCerrar.focus({ preventScroll: true });
+  }
+  function cerrarTipsReal() {
+    if (!tipsAbierto) return; tipsAbierto = false;
+    modal.classList.remove('abierto');
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, scrollGuardado);                             // vuelve exactamente a donde estaba
+    requestAnimationFrame(function () { window.scrollTo(0, scrollGuardado); });
+  }
+  function cerrarTips() {
+    if (history.state && history.state.tips) history.back();        // popstate hace el cierre real
+    else cerrarTipsReal();
+  }
+  window.addEventListener('popstate', function () { if (tipsAbierto) cerrarTipsReal(); });
+  btnCerrar.addEventListener('click', cerrarTips);
+  modal.addEventListener('click', function (e) { if (e.target === modal) cerrarTips(); });   // clic fuera del diseño
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && tipsAbierto) cerrarTips(); });
+
+  /* ----------------- Eventos dentro de los Shadow DOM ----------------- */
+  function enlazarEventos() {
+    // Portada: clic en el sello (o en su enlace superpuesto) → abrir. Se bloquea cualquier ancla interna (#page-0).
+    raices.portada.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a');
+      if (a && (a.getAttribute('href') || '').charAt(0) === '#') e.preventDefault();
+      var sello = e.target.closest && e.target.closest('#' + ID_SELLO + ', a[aria-labelledby="' + ID_SELLO + '"]');
+      if (sello) abrirInvitacion();
+    });
+    // Invitación: el enlace "#page-1" abre el modal; el resto de enlaces (https://…) funciona normal
+    raices.invitacion.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a');
+      if (!a) return;
+      var h = a.getAttribute('href') || '';
+      if (h === HASH_TIPS) { e.preventDefault(); abrirTips(); }
+      else if (h.charAt(0) === '#') e.preventDefault();
+    });
+    raices.tips.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a');
+      if (a && (a.getAttribute('href') || '').charAt(0) === '#') e.preventDefault();
+    });
+  }
+})();
+</script>
+</body>
+</html>
