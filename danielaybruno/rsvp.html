@@ -409,476 +409,71 @@
         </div>
     </section>
 
-    <!-- JS intl-tel-input -->
-    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intlTelInput.min.js"></script>
-
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-        // --- CAPA DE SEGURIDAD MEDIANTE TOKEN EN LA URL ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-
-        if (!token) {
-            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#842029;background:#f8d7da;text-align:center;padding:20px;"><h2>Acceso denegado: Token no proporcionado en la URL.</h2></div>';
-            throw new Error("Token no proporcionado");
-        }
-
-        const parts = token.split('.');
-        if (parts.length < 3) {
-            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#842029;background:#f8d7da;text-align:center;padding:20px;"><h2>Acceso denegado: Token inválido.</h2></div>';
-            throw new Error("Token inválido");
-        }
-
-        // Enmascaramiento de credenciales y tabla utilizando los argumentos del token
-        const SUPABASE_URL = 'https://axblncwwexkebq' + parts[0] + '.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4YmxuY3d3ZXhrZWJxYW9lYmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MjMxNTAsImV4cCI6MjEwMTA5OTE1MH0.bZXAsCyVP8W-JptrzxyjNlZGDW_56qnsghbB7' + parts[1];
-        const BASE_INVITADOS = 'invitados_' + parts[2];
-
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        const phoneInputElem = document.getElementById('regWhatsapp');
-        const iti = window.intlTelInput(phoneInputElem, {
-            initialCountry: "pe",
-            separateDialCode: true,
-            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js"
-        });
-
-        const guestInput = document.getElementById('guestInput');
-        const statusMsg = document.getElementById('statusMsg');
-        const resultCard = document.getElementById('resultCard');
-        const registrationCard = document.getElementById('registrationCard');
-        
-        const txtNombre = document.getElementById('txtNombre');
-        const txtEstado = document.getElementById('txtEstado');
-        const txtAcompanantes = document.getElementById('txtAcompanantes');
-        const inputAcompanantes = document.getElementById('inputAcompanantes');
-        const btnToggleAcomp = document.getElementById('btnToggleAcomp');
-        const pasesSeleccionados = document.getElementById('pasesSeleccionados');
-        const rowPasesSeleccionados = document.getElementById('rowPasesSeleccionados');
-        const txtComentario = document.getElementById('txtComentario');
-        const btnSaveComment = document.getElementById('btnSaveComment');
-        const btnHelpdesk = document.getElementById('btnHelpdesk');
-        const coupleReplyContainer = document.getElementById('coupleReplyContainer');
-        const txtRespuestaNovios = document.getElementById('txtRespuestaNovios');
-        const notificationBox = document.getElementById('notificationBox');
-        const notifStatus = document.getElementById('notifStatus');
-        const notifDate = document.getElementById('notifDate');
-
-        const regTitle = document.getElementById('regTitle');
-        const regSubtitle = document.getElementById('regSubtitle');
-        const infoRevisionBox = document.getElementById('infoRevisionBox');
-        const regNombre = document.getElementById('regNombre');
-        const regComentario = document.getElementById('regComentario');
-        const btnSubmitRequest = document.getElementById('btnSubmitRequest');
-        const regStatusMsg = document.getElementById('regStatusMsg');
-
-        let activeGuest = null;
-        let isEditingAcomp = false;
-        let debounceTimer = null;
-        let originalGuestComment = "";
-
-        function normalizar(texto) {
-            return texto ? texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
-        }
-
-        function resetCardState() {
-            notificationBox.style.opacity = '0';
-            notifStatus.textContent = '';
-            notifDate.textContent = '';
-            txtEstado.textContent = '';
-            txtEstado.className = 'tag';
-            txtRespuestaNovios.textContent = '';
-            coupleReplyContainer.style.display = 'none';
-            isEditingAcomp = false;
-            inputAcompanantes.style.display = 'none';
-            txtAcompanantes.style.display = 'inline';
-            btnToggleAcomp.textContent = '✏️';
-            rowPasesSeleccionados.style.display = 'none';
-        }
-
-        function adjustTextareaHeight(elem) {
-            elem.style.height = 'auto';
-            elem.style.height = (elem.scrollHeight) + 'px';
-        }
-
-        txtComentario.addEventListener('input', function() {
-            adjustTextareaHeight(this);
-        });
-
-        regComentario.addEventListener('input', function() {
-            adjustTextareaHeight(this);
-            validarFormularioSolicitud();
-        });
-
-        function validarFormularioSolicitud() {
-            const esTelValido = iti.isValidNumber();
-            
-            if (esTelValido) {
-                if (regComentario.disabled) {
-                    regComentario.disabled = false;
-                    if (!regComentario.value.trim()) {
-                        regComentario.value = "Favor incluirme en la lista con 1 pase";
-                    }
-                }
-            } else {
-                regComentario.disabled = true;
-            }
-
-            const tieneComentario = regComentario.value.trim() !== "";
-            const esFormValido = esTelValido && tieneComentario && regNombre.value.trim() !== "";
-
-            btnSubmitRequest.disabled = !esFormValido;
-        }
-
-        phoneInputElem.addEventListener('input', validarFormularioSolicitud);
-        phoneInputElem.addEventListener('countrychange', validarFormularioSolicitud);
-
-        async function buscarInvitado() {
-            const rawVal = guestInput.value.trim();
-            const queryStr = normalizar(rawVal);
-            
-            resetCardState();
-
-            if (queryStr.length < 3) {
-                resultCard.style.display = 'none';
-                registrationCard.style.display = 'none';
-                statusMsg.textContent = "";
-                return;
-            }
-
-            statusMsg.textContent = "Buscando...";
-
-            try {
-                const { data, error } = await supabase
-                    .from(BASE_INVITADOS)
-                    .select('*')
-                    .eq('nombre_busqueda', queryStr)
-                    .maybeSingle();
-
-                if (error) throw error;
-
-                if (data) {
-                    statusMsg.textContent = "";
-                    activeGuest = data;
-
-                    if (normalizar(data.estado) === "EN REVISION" || normalizar(data.estado) === "EN REVISIÓN") {
-                        mostrarFormularioRevision(data);
-                    } else {
-                        registrationCard.style.display = 'none';
-                        mostrarDatos(activeGuest);
-                    }
-                } else {
-                    statusMsg.textContent = "";
-                    resultCard.style.display = 'none';
-                    prepararNuevoRegistro(rawVal);
-                }
-            } catch (err) {
-                console.error(err);
-                statusMsg.textContent = "Error al consultar la base de datos.";
-            }
-        }
-
-        function prepararNuevoRegistro(nombreOriginal) {
-            regTitle.textContent = "¿No estás en la lista?";
-            regSubtitle.textContent = "Ingresa tus datos para solicitar tu pase a los novios.";
-            infoRevisionBox.style.display = 'none';
-            regNombre.value = nombreOriginal;
-            
-            phoneInputElem.value = "";
-            if (iti) {
-                iti.setNumber("");
-            }
-
-            regComentario.value = "";
-            regComentario.disabled = true;
-            btnSubmitRequest.textContent = "Enviar Solicitud";
-            btnSubmitRequest.disabled = true;
-            regStatusMsg.textContent = "";
-            registrationCard.style.display = 'block';
-
-            validarFormularioSolicitud();
-        }
-
-        function mostrarFormularioRevision(inv) {
-            resultCard.style.display = 'none';
-            regTitle.textContent = "Solicitud en Revisión";
-            regSubtitle.textContent = "Puedes modificar tu teléfono o mensaje antes de la aprobación.";
-            
-            const fechaHora = inv.fecha_solicitud ? new Date(inv.fecha_solicitud).toLocaleString() : new Date().toLocaleString();
-            infoRevisionBox.innerHTML = `📌 <b>Solicitud enviada el ${fechaHora}.</b><br>Los novios la revisarán pronto para incluirte en la lista de confirmación.`;
-            infoRevisionBox.style.display = 'block';
-
-            regNombre.value = inv.nombre;
-            if (inv.whatsapp) {
-                iti.setNumber(inv.whatsapp);
-            } else {
-                phoneInputElem.value = "";
-                iti.setNumber("");
-            }
-            regComentario.value = inv.comentario || "Favor incluirme en la lista con 1 pase";
-            adjustTextareaHeight(regComentario);
-            
-            btnSubmitRequest.textContent = "Actualizar Solicitud";
-            registrationCard.style.display = 'block';
-            validarFormularioSolicitud();
-        }
-
-        guestInput.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(buscarInvitado, 300);
-        });
-
-        btnSubmitRequest.addEventListener('click', async () => {
-            const nom = regNombre.value.trim();
-            const wa = iti.getNumber();
-            const com = regComentario.value.trim();
-            const nomKey = normalizar(nom);
-            const ahoraIso = new Date().toISOString();
-
-            btnSubmitRequest.disabled = true;
-            btnSubmitRequest.textContent = "Enviando...";
-
-            try {
-                const payload = {
-                    nombre: nom,
-                    nombre_busqueda: nomKey,
-                    pases: 1,
-                    pases_seleccionados: 1,
-                    estado: 'En revisión',
-                    whatsapp: wa,
-                    comentario: com,
-                    fecha_solicitud: ahoraIso
-                };
-
-                const { error } = await supabase
-                    .from(BASE_INVITADOS)
-                    .upsert(payload, { onConflict: 'nombre_busqueda' });
-
-                if (error) throw error;
-
-                btnSubmitRequest.textContent = "Enviado ✓";
-                regStatusMsg.style.color = "#2f5938";
-                regStatusMsg.textContent = "¡Solicitud registrada correctamente!";
-                
-                setTimeout(() => buscarInvitado(), 1000);
-
-            } catch (err) {
-                console.error(err);
-                regStatusMsg.style.color = "#842029";
-                regStatusMsg.textContent = "Error al enviar la solicitud.";
-                btnSubmitRequest.disabled = false;
-                btnSubmitRequest.textContent = "Enviar Solicitud";
-            }
-        });
-
-        async function guardarEnSupabase(nuevoEstado = null) {
-            if (!activeGuest) return;
-
-            const estadoFinal = nuevoEstado || activeGuest.estado || "Pendiente";
-            
-            let acompFinal = "";
-            const totalPases = activeGuest.pases || 1;
-            
-            if (totalPases > 1) {
-                acompFinal = isEditingAcomp ? inputAcompanantes.value.trim() : (txtAcompanantes.textContent === "Favor definir" ? "" : txtAcompanantes.textContent);
-            }
-
-            const pasesSelFinal = totalPases === 1 ? 1 : (parseInt(pasesSeleccionados.value) || 1);
-            const comFinal = txtComentario.value.trim();
-            const ahoraIso = new Date().toISOString();
-
-            const updateData = {
-                estado: estadoFinal,
-                acompanantes: acompFinal,
-                pases_seleccionados: pasesSelFinal,
-                comentario: comFinal,
-                fecha_confirmacion: ahoraIso
-            };
-
-            if (comFinal !== originalGuestComment) {
-                updateData.respuesta_novios = null;
-                coupleReplyContainer.style.display = 'none';
-                originalGuestComment = comFinal;
-            }
-
-            activeGuest.estado = estadoFinal;
-            activeGuest.acompanantes = acompFinal;
-            activeGuest.pases_seleccionados = pasesSelFinal;
-
-            try {
-                await supabase.from(BASE_INVITADOS).update(updateData).eq('id', activeGuest.id);
-            } catch (err) { console.error(err); }
-        }
-
-        btnSaveComment.addEventListener('click', async () => {
-            await guardarEnSupabase();
-            btnSaveComment.innerHTML = '✓';
-            setTimeout(() => { 
-                btnSaveComment.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>'; 
-            }, 2000);
-        });
-
-        pasesSeleccionados.addEventListener('change', () => {
-            guardarEnSupabase();
-        });
-
-        btnHelpdesk.addEventListener('click', () => {
-            const nombre = activeGuest ? activeGuest.nombre : (guestInput.value.trim() || "[Nombre]");
-            const destino = "51942013403";
-            const texto = encodeURIComponent(`Hola mi nombre es ${nombre}, necesito ayuda con mi confirmación de asistencia RSVP a la boda de Daniela & Bruno.`);
-            window.open(`https://wa.me/${destino}?text=${texto}`, '_blank');
-        });
-
-        btnToggleAcomp.addEventListener('click', () => {
-            isEditingAcomp = !isEditingAcomp;
-            if (isEditingAcomp) {
-                txtAcompanantes.style.display = 'none';
-                inputAcompanantes.style.display = 'block';
-                inputAcompanantes.focus();
-                btnToggleAcomp.textContent = '✔️';
-            } else {
-                let val = inputAcompanantes.value.trim();
-                const totalPases = activeGuest ? (activeGuest.pases || 1) : 1;
-                
-                if (val !== "") {
-                    txtAcompanantes.textContent = val;
-                } else {
-                    txtAcompanantes.textContent = totalPases === 1 ? "No aplica" : "Favor definir";
-                }
-
-                inputAcompanantes.style.display = 'none';
-                txtAcompanantes.style.display = 'inline';
-                btnToggleAcomp.textContent = '✏️';
-                guardarEnSupabase();
-            }
-        });
-
-        function mostrarDatos(inv) {
-            txtNombre.textContent = inv.nombre;
-
-            const totalPases = inv.pases || 1;
-            
-            if (totalPases === 1) {
-                btnToggleAcomp.style.display = 'none';
-                txtAcompanantes.textContent = (inv.acompanantes && inv.acompanantes.trim() !== "") ? inv.acompanantes : "No aplica";
-            } else {
-                btnToggleAcomp.style.display = 'inline-block';
-                txtAcompanantes.textContent = (inv.acompanantes && inv.acompanantes.trim() !== "") ? inv.acompanantes : "Favor definir";
-            }
-
-            inputAcompanantes.value = inv.acompanantes || "";
-
-            // Llenar dinámicamente el combo box de pases seleccionados para todos (1 o más)
-            pasesSeleccionados.innerHTML = '';
-            for (let i = 1; i <= totalPases; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = i === 1 ? `${i} pase` : `${i} pases`;
-                pasesSeleccionados.appendChild(option);
-            }
-
-            if (totalPases === 1) {
-                pasesSeleccionados.value = 1;
-                pasesSeleccionados.disabled = true;
-            } else {
-                pasesSeleccionados.value = inv.pases_seleccionados || totalPases;
-                pasesSeleccionados.disabled = false;
-            }
-            rowPasesSeleccionados.style.display = 'flex';
-            
-            originalGuestComment = inv.comentario || "";
-            txtComentario.value = originalGuestComment;
-            adjustTextareaHeight(txtComentario);
-
-            if (inv.respuesta_novios && inv.respuesta_novios.trim() !== "") {
-                txtRespuestaNovios.textContent = inv.respuesta_novios;
-                coupleReplyContainer.style.display = 'block';
-            } else {
-                coupleReplyContainer.style.display = 'none';
-            }
-
-            actualizarEstadoVisual(inv.estado || "Pendiente");
-
-            if (inv.fecha_confirmacion && normalizar(inv.estado) !== "PENDIENTE") {
-                const dt = new Date(inv.fecha_confirmacion);
-                notifStatus.textContent = `Estado: ${inv.estado.toUpperCase()}`;
-                notifDate.textContent = `Registrado: ${dt.toLocaleDateString('es-ES')} ${dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                notificationBox.style.opacity = '1';
-            }
-
-            resultCard.style.display = 'block';
-        }
-
-        function actualizarEstadoVisual(estado) {
-            txtEstado.textContent = estado;
-            txtEstado.className = 'tag';
-            const est = normalizar(estado);
-            
-            if (est === "ASISTIRA" || est === "CONFIRMADO") {
-                txtEstado.classList.add('confirmado');
-            } else if (est.includes("NO")) {
-                txtEstado.classList.add('declinado');
-            } else if (est.includes("REVISION")) {
-                txtEstado.classList.add('revision');
-            } else {
-                txtEstado.classList.add('pendiente');
-            }
-        }
-
-        function responder(estado) {
-            actualizarEstadoVisual(estado);
-            const ahora = new Date();
-            const fechaStr = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const horaStr = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            notifStatus.textContent = `Estado: ${estado.toUpperCase()}`;
-            notifDate.textContent = `Registrado: ${fechaStr} ${horaStr}`;
-            notificationBox.style.opacity = '1';
-            guardarEnSupabase(estado);
-        }
-
-        document.getElementById('btnYes').addEventListener('click', () => responder("Confirmado"));
-        document.getElementById('btnNo').addEventListener('click', () => responder("No asistirá"));
-		
-        function enviarAltura() {
-            const body = document.body;
-            const html = document.documentElement;
-
-            const contenedorPrincipal = document.querySelector('section') || document.querySelector('.rsvp-section') || body.firstElementChild;
-
-            let height = 0;
-
-            if (contenedorPrincipal) {
-              const styles = window.getComputedStyle(contenedorPrincipal);
-              const margin = parseFloat(styles.marginTop) + parseFloat(styles.marginBottom);
-              height = Math.ceil(contenedorPrincipal.offsetHeight + margin);
-            } else {
-              body.style.minHeight = '0px';
-              html.style.minHeight = '0px';
-              height = Math.max(body.offsetHeight, html.offsetHeight);
-            }
-
-            if (height > 0) {
-              window.parent.postMessage({ type: 'RESIZE_FORM', height: height }, '*');
-            }
-        }
-
-        if (window.ResizeObserver) {
-            const observer = new ResizeObserver(() => {
-              enviarAltura();
-            });
-
-            window.addEventListener('DOMContentLoaded', () => {
-              observer.observe(document.body);
-              document.body.addEventListener('transitionend', enviarAltura);
-              document.body.addEventListener('animationend', enviarAltura);
-            });
-        } else {
-            window.addEventListener('load', enviarAltura);
-            window.addEventListener('resize', enviarAltura);
-        }
-
-    </script>
+	<!-- JS intl-tel-input -->
+		<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intlTelInput.min.js"></script>
+
+		<script type="module">
+			import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+			// --- CAPA DE SEGURIDAD MEDIANTE TOKEN EN LA URL ---
+			const urlParams = new URLSearchParams(window.location.search);
+			const token = urlParams.get('token');
+
+			if (!token) {
+				document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#842029;background:#f8d7da;text-align:center;padding:20px;"><h2>Acceso denegado: Token no proporcionado en la URL.</h2></div>';
+				throw new Error("Token no proporcionado");
+			}
+
+			const parts = token.split('.');
+			if (parts.length < 3) {
+				document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#842029;background:#f8d7da;text-align:center;padding:20px;"><h2>Acceso denegado: Token inválido.</h2></div>';
+				throw new Error("Token inválido");
+			}
+
+			const SUPABASE_URL = 'https://axblncwwexkebq' + parts[0] + '.supabase.co';
+			const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4YmxuY3d3ZXhrZWJxYW9lYmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MjMxNTAsImV4cCI6MjEwMTA5OTE1MH0.bZXAsCyVP8W-JptrzxyjNlZGDW_56qnsghbB7' + parts[1];
+			const BASE_INVITADOS = 'invitados_' + parts[2];
+
+			const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+			// Ocultar la sección de búsqueda y mostrar un mensaje de cierre de fecha
+			const searchContainer = document.querySelector('.search-container');
+			if (searchContainer) {
+				searchContainer.innerHTML = `
+					<div style="background-color: #f8d7da; color: #842029; padding: 15px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 20px; text-align: center; border: 1px solid #f5c2c7;">
+						<strong>El plazo para confirmar asistencia ha finalizado.</strong><br>Muchas gracias a todos los que nos acompañaron con su respuesta.
+					</div>
+				`;
+			}
+
+			// Si deseas ocultar por completo las tarjetas de resultado o registro para que no queden vacías:
+			document.getElementById('resultCard').style.display = 'none';
+			document.getElementById('registrationCard').style.display = 'none';
+
+			// --- Ajuste de altura automático para el iframe ---
+			function enviarAltura() {
+				const body = document.body;
+				const html = document.documentElement;
+				const contenedorPrincipal = document.querySelector('section') || document.querySelector('.rsvp-section') || body.firstElementChild;
+				let height = 0;
+
+				if (contenedorPrincipal) {
+				  const styles = window.getComputedStyle(contenedorPrincipal);
+				  const margin = parseFloat(styles.marginTop) + parseFloat(styles.marginBottom);
+				  height = Math.ceil(contenedorPrincipal.offsetHeight + margin);
+				} else {
+				  body.style.minHeight = '0px';
+				  html.style.minHeight = '0px';
+				  height = Math.max(body.offsetHeight, html.offsetHeight);
+				}
+
+				if (height > 0) {
+				  window.parent.postMessage({ type: 'RESIZE_FORM', height: height }, '*');
+				}
+			}
+
+			window.addEventListener('load', enviarAltura);
+			window.addEventListener('resize', enviarAltura);
+		</script>
 </body>
 </html>
