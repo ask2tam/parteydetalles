@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1f1b17">
+<title>Recepción · Parte y Detalles</title>
+<script src="assets/pyd-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --fondo:#f4f1ec; --tarjeta:#fff; --tinta:#1f1b17; --suave:#7a7066; --linea:#e7e0d6; --oro:#a3825c; --oro2:#b9966f;
+          --ok:#2f7a45; --okf:#e8f5ec; --mal:#b3402f; --malf:#fbecea; --pend:#a16207; --pendf:#fdf4e2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100dvh; background: var(--fondo); color: var(--tinta); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  .ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 14px;
+         border: 1.5px solid var(--linea); background: var(--tarjeta); font-weight: 600; }
+  .btn.p { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+  .btn.o { background: var(--oro2); border-color: var(--oro2); color: #fff; }
+  .btn:disabled { opacity: .55; cursor: wait; }
+  .btn:focus-visible, .icono:focus-visible, .chip:focus-visible, .fila:focus-visible { outline: 3px solid var(--oro2); outline-offset: 2px; }
+  .icono { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 0; background: transparent; color: #fff; }
+  .campo { width: 100%; min-height: 50px; padding: 0 16px; border-radius: 14px; border: 1.5px solid var(--linea); background: #fff; font-size: 16px; }
+  .campo:focus { outline: none; border-color: var(--oro2); box-shadow: 0 0 0 3px rgba(185,150,111,.25); }
+  label { display: block; margin: 0 0 6px; font-weight: 600; font-size: 14px; }
+
+  /* acceso */
+  .acceso { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
+  .acceso form { width: 100%; max-width: 380px; background: #fff; border-radius: 22px; padding: 26px; box-shadow: 0 10px 30px rgba(0,0,0,.08); display: grid; gap: 14px; }
+  .acceso img { height: 40px; width: auto; justify-self: start; }
+  .marca { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--oro); }
+  .acceso h1 { margin: -6px 0 4px; font-size: 24px; }
+  .msg { min-height: 1.3em; margin: 0; font-size: 14px; color: var(--mal); }
+  .msg.ok { color: var(--ok); }
+
+  /* principal */
+  header.cab { position: sticky; top: 0; z-index: 10; background: var(--tinta); color: #fff; padding: max(10px, env(safe-area-inset-top)) 14px 12px; }
+  .cab-fila { display: flex; align-items: center; gap: 8px; max-width: 760px; margin: 0 auto; }
+  .cab-fila img { height: 26px; width: auto; max-width: 84px; object-fit: contain; filter: brightness(0) invert(1); opacity: .95; }
+  .cab-titulo { flex: 1; min-width: 0; }
+  .cab-titulo small { display: block; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; opacity: .7; }
+  .cab-titulo b { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cab-titulo select { max-width: 100%; background: transparent; border: 0; color: #fff; font-weight: 700; font-size: 17px; padding: 0; }
+  .cab-titulo select option { color: var(--tinta); }
+  .contadores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 760px; margin: 12px auto 0; }
+  .cont { background: rgba(255,255,255,.08); border-radius: 12px; padding: 8px 10px; }
+  .cont b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .cont span { font-size: 11.5px; opacity: .75; }
+  .barra-pro { height: 6px; background: rgba(255,255,255,.15); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .barra-pro i { display: block; height: 100%; background: #8fd19e; width: 0; transition: width .4s; }
+  main { max-width: 760px; margin: 0 auto; padding: 14px 14px calc(90px + env(safe-area-inset-bottom)); }
+  .buscar { position: relative; }
+  .buscar .ico { position: absolute; left: 14px; top: 15px; color: var(--suave); }
+  .buscar .campo { padding-left: 44px; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; margin: 12px 0 10px; padding-bottom: 2px; scrollbar-width: none; }
+  .chip { flex: none; border: 1.5px solid var(--linea); background: #fff; border-radius: 99px; padding: 8px 14px; font-size: 13.5px; font-weight: 600; }
+  .chip[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+  .lista { display: grid; gap: 8px; }
+  .fila { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; width: 100%; text-align: left; background: #fff; border: 1.5px solid transparent;
+          border-radius: 16px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .fila .n { font-weight: 700; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .fila .n small { font-weight: 500; color: var(--suave); }
+  .fila .d { grid-column: 1; font-size: 13px; color: var(--suave); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .fila .e { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; }
+  .fila.dentro { border-color: #bfe3c9; background: #fbfefc; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .t-si { background: var(--okf); color: var(--ok); } .t-no { background: var(--malf); color: var(--mal); } .t-pend { background: var(--pendf); color: var(--pend); }
+  .t-mesa { background: #f3ece2; color: #6d5434; }
+  .ing { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ing small { font-size: 13px; font-weight: 600; color: var(--suave); }
+  .vacio { text-align: center; color: var(--suave); padding: 40px 10px; }
+  footer.pie { text-align: center; font-size: 12px; color: var(--suave); padding: 10px 14px 24px; }
+  footer.pie a { color: inherit; }
+  .fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9; min-height: 56px; border-radius: 99px; padding: 0 22px;
+         box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+
+  /* ficha y escáner */
+  dialog { border: 0; padding: 0; background: transparent; max-width: 100vw; max-height: 100dvh; }
+  dialog::backdrop { background: rgba(20,16,12,.6); }
+  .hoja { width: min(560px, 100vw); max-height: 92dvh; overflow: auto; background: #fff; border-radius: 24px 24px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+          position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); }
+  @media (min-width: 640px) { .hoja { position: static; transform: none; border-radius: 24px; margin: 6vh auto; } }
+  .hoja h2 { margin: 6px 0 4px; font-size: 24px; line-height: 1.15; }
+  .asa { width: 44px; height: 5px; border-radius: 99px; background: var(--linea); margin: -6px auto 10px; }
+  .datos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .dato { background: var(--fondo); border-radius: 14px; padding: 12px; }
+  .dato b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .dato span { font-size: 12px; color: var(--suave); }
+  .bloque { background: var(--fondo); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; font-size: 14px; }
+  .bloque dt { font-size: 12px; color: var(--suave); }
+  .bloque dd { margin: 0 0 8px; font-weight: 600; }
+  .bloque dd:last-child { margin: 0; }
+  .alerta { background: var(--pendf); color: #7a4b05; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 10px; }
+  .stepper { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--fondo); border-radius: 16px; padding: 10px 12px; margin-top: 6px; }
+  .stepper button { width: 54px; height: 54px; border-radius: 50%; border: 2px solid var(--oro); background: #fff; color: var(--oro); font-size: 28px; line-height: 1; }
+  .stepper output { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .acc { display: grid; gap: 8px; margin-top: 14px; }
+  .acc2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cam { position: relative; width: min(520px, 100vw); background: #000; border-radius: 0; overflow: hidden; aspect-ratio: 3 / 4; max-height: 80dvh; margin: auto; }
+  @media (min-width: 640px) { .cam { border-radius: 24px; margin-top: 6vh; } }
+  .cam video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam .marco { position: absolute; inset: 18%; border: 3px solid rgba(255,255,255,.85); border-radius: 22px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); }
+  .cam p { position: absolute; left: 0; right: 0; bottom: 70px; margin: 0; text-align: center; color: #fff; font-weight: 600; text-shadow: 0 1px 4px #000; }
+  .cam .cerrar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); }
+  .toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; background: var(--tinta); color: #fff;
+           padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 92vw; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+  .toast.mal { background: var(--mal); }
+  @media (prefers-reduced-motion: reduce) { .barra-pro i { transition: none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<dialog id="dlg-ficha" aria-label="Ficha del invitado"></dialog>
+<dialog id="dlg-cam" aria-label="Escanear código QR"></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+'use strict';
+const P = window.PYD;
+const sb = window.supabase.createClient(P.SUPABASE_URL, P.SUPABASE_ANON);
+const $ = s => document.querySelector(s);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const hora = iso => iso ? new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '';
+const ICO = {
+  scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  sync: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>'
+};
+const ico = k => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+const S = { proyectos: [], slug: P.slug, lista: [], preguntas: [], filtro: 'todos', q: '', timer: 0, abierto: null };
+
+let toastT;
+function toast(t, mal = false) { const e = $('#toast'); e.textContent = t; e.className = 'toast' + (mal ? ' mal' : ''); e.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => e.hidden = true, 3200); }
+
+/* ===================================================================== acceso */
+function pantallaLogin(msg = '') {
+  $('#app').innerHTML = `<main class="acceso"><form id="f-login" novalidate>
+    <img src="assets/logo_parteydetalles.png" alt="Parte y Detalles" onerror="this.hidden=true">
+    <p class="marca">Modo recepción</p><h1>Registro de ingreso</h1>
+    <div><label for="l-email">Correo</label><input id="l-email" class="campo" type="email" autocomplete="email" required></div>
+    <div><label for="l-pass">Contraseña</label><input id="l-pass" class="campo" type="password" autocomplete="current-password" required></div>
+    <p class="msg" id="l-msg" role="status">${esc(msg)}</p>
+    <button class="btn p">Ingresar</button>
+    <a href="${esc(P.PANEL_URL)}" style="font-size:13px;color:var(--suave);text-align:center">¿Olvidaste tu contraseña? Restablécela desde el panel</a>
+  </form></main>`;
+  $('#f-login').addEventListener('submit', async e => {
+    e.preventDefault(); const m = $('#l-msg'); m.className = 'msg'; m.textContent = 'Ingresando…';
+    const { error } = await sb.auth.signInWithPassword({ email: $('#l-email').value.trim(), password: $('#l-pass').value });
+    if (error) m.textContent = 'Correo o contraseña incorrectos.';
+  });
+}
+let entrando = false;
+async function entrar() {
+  if (entrando || document.getElementById('lista')) return; entrando = true;
+  try { await entrar2(); } finally { entrando = false; }
+}
+async function entrar2() {
+  const { data, error } = await sb.rpc('mi_perfil');
+  if (error || !data) return pantallaLogin('No se pudo verificar tu acceso.');
+  const prs = (data.proyectos || []).filter(p => p.rol === 'staff' || p.rol === 'admin');
+  localStorage.setItem('pyd.staff', JSON.stringify({ proyectos: (data.proyectos || []).filter(p => p.rol === 'staff').map(p => p.slug) }));
+  if (!prs.length) {
+    $('#app').innerHTML = `<main class="acceso"><form><p class="marca">Modo recepción</p><h1>Sin acceso de recepción</h1>
+      <p style="margin:0;color:var(--suave)">Tu usuario no tiene el rol <b>staff</b> en ningún evento.${(data.proyectos || []).length ? ' Puedes gestionar tus invitados desde el panel.' : ''}</p>
+      <a class="btn" href="${esc(P.PANEL_URL)}">Ir al panel</a><button type="button" class="btn" id="salir">Cerrar sesión</button></form></main>`;
+    $('#salir').onclick = salir; return;
+  }
+  S.proyectos = prs;
+  if (!prs.some(p => p.slug === S.slug)) S.slug = prs.length === 1 ? prs[0].slug : (prs.find(p => p.slug === localStorage.getItem('pyd.staff.ultimo')) || prs[0]).slug;
+  localStorage.setItem('pyd.staff.ultimo', S.slug);
+  layout(); await cargar(true);
+  clearInterval(S.timer); S.timer = setInterval(() => { if (!document.hidden) cargar(); }, 20000);
+}
+async function salir() { localStorage.removeItem('pyd.staff'); clearInterval(S.timer); await sb.auth.signOut(); }
+
+/* ===================================================================== vista */
+function layout() {
+  const p = S.proyectos.find(x => x.slug === S.slug);
+  $('#app').innerHTML = `
+  <header class="cab">
+    <div class="cab-fila">
+      <img src="assets/logo_parteydetalles.png" alt="" onerror="this.hidden=true">
+      <div class="cab-titulo"><small>Recepción</small>${S.proyectos.length > 1
+        ? `<select id="sel-p" aria-label="Evento">${S.proyectos.map(x => `<option value="${esc(x.slug)}" ${x.slug === S.slug ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('')}</select>`
+        : `<b>${esc(p ? p.nombre : S.slug)}</b>`}</div>
+      <button class="icono" id="b-sync" aria-label="Actualizar" title="Actualizar">${ico('sync')}</button>
+      <button class="icono" id="b-salir" aria-label="Cerrar sesión" title="Cerrar sesión">${ico('out')}</button>
+    </div>
+    <div class="contadores" id="conts"></div>
+  </header>
+  <main>
+    <div class="buscar">${ico('search')}<input id="q" class="campo" type="search" placeholder="Buscar por nombre, código o mesa" autocomplete="off" aria-label="Buscar invitado"></div>
+    <div class="chips" role="group" aria-label="Filtrar">
+      ${[['todos', 'Todos'], ['por', 'Por ingresar'], ['dentro', 'Ingresaron'], ['pend', 'Sin confirmar'], ['no', 'No asistirán']]
+        .map(([k, t]) => `<button class="chip" data-f="${k}" aria-pressed="${S.filtro === k}">${t}</button>`).join('')}
+    </div>
+    <div class="lista" id="lista" aria-live="polite"></div>
+  </main>
+  <footer class="pie">Hecho con amor por <a href="${esc(P.INSTAGRAM)}" target="_blank" rel="noopener">Parte y Detalles</a></footer>
+  <button class="btn o fab" id="b-scan">${ico('scan')} Escanear QR</button>`;
+  $('#q').addEventListener('input', e => { S.q = e.target.value; pintar(); });
+  $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = visibles(); if (v.length === 1) abrirFicha(v[0].codigo); } });
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { S.filtro = b.dataset.f; document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b)); pintar(); });
+  $('#b-sync').onclick = () => cargar().then(() => toast('Lista actualizada'));
+  $('#b-salir').onclick = salir;
+  $('#b-scan').onclick = escanear;
+  $('#sel-p')?.addEventListener('change', e => { S.slug = e.target.value; localStorage.setItem('pyd.staff.ultimo', S.slug); history.replaceState(null, '', '?p=' + S.slug); S.lista = []; pintar(); cargar(); });
+  $('#lista').addEventListener('click', e => { const f = e.target.closest('[data-cod]'); if (f) abrirFicha(f.dataset.cod); });
+}
+
+async function cargar(inicial = false) {
+  const { data, error } = await sb.rpc('staff_lista', { p_proyecto: S.slug });
+  if (error || !data?.ok) { toast(data?.error === 'no_autorizado' ? 'Sin permiso de recepción en este evento.' : 'No se pudo cargar la lista.', true); return; }
+  S.lista = data.invitados || []; S.preguntas = data.proyecto?.preguntas || [];
+  pintar();
+  if (S.abierto) pintarFicha();
+  if (inicial) {
+    const to = (new URLSearchParams(location.search).get('to') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (to) { history.replaceState(null, '', '?p=' + S.slug); abrirFicha(to); }
+  }
+}
+
+const confirmados = g => g.asistencia === 'si' ? (g.pasesConfirmados || g.pases) : 0;
+function visibles() {
+  const q = norm(S.q);
+  return S.lista.filter(g => {
+    if (S.filtro === 'por' && !(g.asistencia === 'si' && g.ingresoPases < confirmados(g))) return false;
+    if (S.filtro === 'dentro' && !(g.ingresoPases > 0)) return false;
+    if (S.filtro === 'pend' && g.asistencia) return false;
+    if (S.filtro === 'no' && g.asistencia !== 'no') return false;
+    return !q || norm(g.nombre).includes(q) || norm(g.codigo) === q || norm(g.mesa) === q || norm(g.acompanantes).includes(q);
+  });
+}
+function etiqueta(g) {
+  return g.asistencia === 'si' ? '<span class="tag t-si">Confirmado</span>' : g.asistencia === 'no' ? '<span class="tag t-no">No asistirá</span>' : '<span class="tag t-pend">Sin confirmar</span>';
+}
+function pintar() {
+  const L = S.lista, conf = L.reduce((s, g) => s + confirmados(g), 0), dentro = L.reduce((s, g) => s + (g.ingresoPases || 0), 0);
+  const fam = L.filter(g => g.ingresoPases > 0).length;
+  $('#conts').innerHTML = `
+    <div class="cont"><b>${dentro}</b><span>pases ingresaron</span><div class="barra-pro"><i style="width:${conf ? Math.min(100, dentro / conf * 100) : 0}%"></i></div></div>
+    <div class="cont"><b>${conf}</b><span>pases confirmados</span></div>
+    <div class="cont"><b>${fam}<small style="font-size:13px;opacity:.7">/${L.filter(g => g.asistencia === 'si').length}</small></b><span>invitaciones</span></div>`;
+  const v = visibles();
+  $('#lista').innerHTML = v.length ? v.slice(0, 200).map(g => {
+    const c = confirmados(g), dentro = g.ingresoPases > 0;
+    return `<button class="fila ${dentro ? 'dentro' : ''}" data-cod="${esc(g.codigo)}">
+      <span class="n">${g.tratamiento && !norm(g.nombre).startsWith(norm(g.tratamiento)) ? `<small>${esc(g.tratamiento)} </small>` : ''}${esc(g.nombre)}</span>
+      <span class="d">${etiqueta(g)}${g.mesa ? `<span class="tag t-mesa">Mesa ${esc(g.mesa)}</span>` : ''}<span>${c ? c + ' de ' + g.pases : g.pases} ${g.pases === 1 ? 'pase' : 'pases'}</span><span>· ${esc(g.codigo)}</span></span>
+      <span class="e"><span class="ing">${g.ingresoPases}<small>/${c || g.pases}</small></span><br><small style="color:var(--suave);font-size:12px">${dentro ? hora(g.ingresoFecha) : 'ingresaron'}</small></span>
+    </button>`;
+  }).join('') + (v.length > 200 ? `<p class="vacio">Mostrando 200 de ${v.length}. Afina la búsqueda.</p>` : '')
+    : `<p class="vacio">${S.lista.length ? 'Ningún invitado coincide.' : 'Cargando invitados…'}</p>`;
+}
+
+/* ===================================================================== ficha */
+const dlgF = $('#dlg-ficha');
+dlgF.addEventListener('click', e => { if (e.target === dlgF) dlgF.close(); });
+dlgF.addEventListener('close', () => { S.abierto = null; });
+let nIngreso = 0;
+function abrirFicha(cod) {
+  const g = S.lista.find(x => x.codigo === cod);
+  if (!g) { toast(`No hay ningún invitado con el código ${cod} en este evento.`, true); return; }
+  S.abierto = cod; nIngreso = g.ingresoPases || confirmados(g) || 0;
+  if (g.ingresoPases) nIngreso = g.ingresoPases;
+  pintarFicha(); if (!dlgF.open) dlgF.showModal();
+}
+function valorResp(pq, v) { return Array.isArray(v) ? v.join(', ') : pq.tipo === 'sino' ? (v === 'si' ? 'Sí' : 'No') : v; }
+function pintarFicha() {
+  const g = S.lista.find(x => x.codigo === S.abierto); if (!g) return;
+  const c = confirmados(g), resp = g.respuestas || {};
+  const filas = S.preguntas.filter(pq => resp[pq.id] != null).map(pq => `<dt>${esc(pq.etiqueta)}</dt><dd>${esc(valorResp(pq, resp[pq.id]))}</dd>`).join('');
+  dlgF.innerHTML = `<div class="hoja">
+    <div class="asa" aria-hidden="true"></div>
+    ${etiqueta(g)}
+    <h2>${g.tratamiento && !norm(g.nombre).startsWith(norm(g.tratamiento)) ? esc(g.tratamiento) + ' ' : ''}${esc(g.nombre)}</h2>
+    <div style="color:var(--suave);font-size:13px">Código ${esc(g.codigo)}</div>
+    <div class="datos">
+      <div class="dato"><b>${c}<small style="font-size:15px;color:var(--suave)"> / ${g.pases}</small></b><span>Pases confirmados / asignados</span></div>
+      <div class="dato"><b>${esc(g.mesa || '—')}</b><span>Mesa</span></div>
+    </div>
+    ${g.asistencia !== 'si' ? `<div class="alerta">${g.asistencia === 'no' ? 'Este invitado indicó que <b>no asistirá</b>.' : 'Este invitado <b>no confirmó</b> su asistencia.'} Puedes registrar su ingreso igualmente.</div>` : ''}
+    ${g.acompanantes || filas ? `<dl class="bloque">${g.acompanantes ? `<dt>Acompañantes</dt><dd>${esc(g.acompanantes)}</dd>` : ''}${filas}</dl>` : ''}
+    <div class="stepper">
+      <button type="button" id="menos" aria-label="Uno menos">−</button>
+      <div style="text-align:center"><output id="n" aria-live="polite">${nIngreso}</output><div style="font-size:12px;color:var(--suave)">ingresan de ${g.pases}</div></div>
+      <button type="button" id="mas" aria-label="Uno más">+</button>
+    </div>
+    <p style="margin:8px 2px 0;font-size:12.5px;color:var(--suave)">${g.ingresoPases ? `Registrado: ${g.ingresoPases} a las ${hora(g.ingresoFecha)}` : 'Aún no registra ingreso.'}</p>
+    <div class="acc">
+      <button class="btn o" id="guardar">${ico('check')} Registrar ingreso</button>
+      <div class="acc2"><button class="btn" id="cerrar">Cerrar</button>${g.ingresoPases ? '<button class="btn" id="anular" style="color:var(--mal)">Anular ingreso</button>' : `<button class="btn" id="todos">Ingresan ${c || g.pases}</button>`}</div>
+    </div></div>`;
+  const out = dlgF.querySelector('#n');
+  dlgF.querySelector('#menos').onclick = () => { nIngreso = Math.max(0, nIngreso - 1); out.textContent = nIngreso; };
+  dlgF.querySelector('#mas').onclick = () => { nIngreso = Math.min(g.pases, nIngreso + 1); out.textContent = nIngreso; };
+  dlgF.querySelector('#cerrar').onclick = () => dlgF.close();
+  dlgF.querySelector('#guardar').onclick = () => registrar(g, nIngreso);
+  dlgF.querySelector('#todos')?.addEventListener('click', () => registrar(g, c || g.pases));
+  dlgF.querySelector('#anular')?.addEventListener('click', () => registrar(g, 0));
+}
+async function registrar(g, n) {
+  const b = dlgF.querySelector('#guardar'); if (b) b.disabled = true;
+  const { data, error } = await sb.rpc('staff_ingreso', { p_proyecto: S.slug, p_codigo: g.codigo, p_pases: n });
+  if (b) b.disabled = false;
+  if (error || !data?.ok) return toast('No se pudo registrar. Revisa tu conexión.', true);
+  g.ingresoPases = data.ingresoPases; g.ingresoFecha = data.ingresoFecha;
+  dlgF.close(); pintar();
+  toast(n ? `Ingreso registrado: ${g.nombre} · ${n} ${n === 1 ? 'persona' : 'personas'}` : `Ingreso anulado: ${g.nombre}`);
+  $('#q').value = ''; S.q = ''; pintar();
+}
+
+/* ===================================================================== escáner QR */
+const dlgC = $('#dlg-cam');
+let stream = null, buscando = false;
+function cargarJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+}
+function codigoDe(txt) {
+  try { const u = new URL(txt); const t = u.searchParams.get('to'); if (t) return t.toUpperCase().replace(/[^A-Z0-9]/g, ''); } catch {}
+  const m = String(txt).toUpperCase().match(/^[A-Z0-9]{4,8}$/); return m ? m[0] : '';
+}
+function detenerCam() { buscando = false; stream?.getTracks().forEach(t => t.stop()); stream = null; if (dlgC.open) dlgC.close(); }
+dlgC.addEventListener('close', () => { buscando = false; stream?.getTracks().forEach(t => t.stop()); stream = null; });
+async function escanear() {
+  dlgC.innerHTML = `<div class="cam"><video playsinline muted></video><div class="marco"></div><p id="cam-msg">Apunta al código QR de la tarjeta</p>
+    <button class="btn cerrar" id="cam-x">Cancelar</button></div>`;
+  dlgC.querySelector('#cam-x').onclick = detenerCam;
+  dlgC.showModal();
+  const video = dlgC.querySelector('video');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    video.srcObject = stream; await video.play();
+  } catch (e) { dlgC.querySelector('#cam-msg').textContent = 'No se pudo usar la cámara. Revisa los permisos o busca por nombre.'; return; }
+  let detector = null;
+  if ('BarcodeDetector' in window) { try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch {} }
+  if (!detector) { try { await cargarJsQR(); } catch { dlgC.querySelector('#cam-msg').textContent = 'Este navegador no puede leer QR. Busca por nombre.'; return; } }
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+  buscando = true;
+  const ciclo = async () => {
+    if (!buscando || video.readyState < 2) { if (buscando) requestAnimationFrame(ciclo); return; }
+    let txt = '';
+    try {
+      if (detector) { const r = await detector.detect(video); txt = r[0]?.rawValue || ''; }
+      else { const w = 480, h = Math.round(video.videoHeight / video.videoWidth * w) || 480; cv.width = w; cv.height = h; ctx.drawImage(video, 0, 0, w, h);
+             const r = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' }); txt = r?.data || ''; }
+    } catch {}
+    const cod = txt && codigoDe(txt);
+    if (cod) { navigator.vibrate?.(60); detenerCam(); abrirFicha(cod); return; }
+    if (txt) dlgC.querySelector('#cam-msg').textContent = 'Ese QR no es de una invitación.';
+    setTimeout(() => requestAnimationFrame(ciclo), detector ? 120 : 200);
+  };
+  requestAnimationFrame(ciclo);
+}
+
+/* ===================================================================== arranque */
+if (P.SUPABASE_URL.includes('TU-PROYECTO')) $('#app').innerHTML = '<p style="padding:20px">Configura SUPABASE_URL y SUPABASE_ANON en assets/pyd-config.js.</p>';
+else sb.auth.onAuthStateChange((ev, ses) => {
+  if (ses && (ev === 'INITIAL_SESSION' || ev === 'SIGNED_IN')) setTimeout(entrar);
+  if (!ses && (ev === 'INITIAL_SESSION' || ev === 'SIGNED_OUT')) { clearInterval(S.timer); localStorage.removeItem('pyd.staff'); pantallaLogin(); }
+});
+</script>
+</body>
+</html>
