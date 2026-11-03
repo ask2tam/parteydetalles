@@ -1,0 +1,336 @@
+
+[USER]
+Authentication → Users → Add user* (Auto Confirm) 
+insert into public.miembros (email, proyecto_id, rol) values ('aris.rodriguez.faves@gmail.com', null, 'novios');
+
+[CANVA - 480]
+https://invitaciones.parteydetalles.com/ignacio-suly
+https://invitaciones.parteydetalles.com/ignacio-suly/invitacin-andrea-y-herbert
+
+
+[CLAUDE]
+
+Integrar estos elementos para reconstruir una nueva invitación en base a estos elementos de referencia o ejemplo:
+index.html -> Es el contenedor donde van a estar los elementos integrados, te estoy pasando un ejemplo de como se manejó en otro proyecto, auque algunos elementos como tips.html no se usará.
+portada.html -> es parte de otro proyecto de invitación donde quiero reciclar la forma en que se maneja el video (lo adjunto para que le des una mirada y calcules dimensiones y elementos que necesitemos) me falta la imagen inicial para que no cuando empiece el video no se vea un salto. Luego en el video aparece una tarjeta que se tiene que llenar con los datos pertinentes (ej de otro proyecto index2.html) calcular el lugar donde se debe poner una vez que termine el video y que funcione en varias resoluciones. En este caso no tengo audio auxiliar para sobre.mp4 ni musica de los novios, asi que podemos retirar los controles. Fijate todo lo referente a shadom dom y siemple mostrar animaciones independientemente de reducción de movimiento.
+invitacion.html -> es el canva propiamente del proyecto actual, sin embargo hay que trabajar los elementos que se van a animar, haz una propuesta usando animacion.js y elegiendo los elementos segun el ejemplo de index.html. Toda la sección "PBhhX8p0cd5FCSzB" debe ser reemplazado por el sistema rsvp.html ver que verdaderamente el diseño pueda correr segun el tamaño que ocupe rsvp.
+
+
+Te comparto demás elementos que faltaron en el adjunto. Dado la forma como fue hecho el video los detalles de la tarjeta deben aparecer 4 segundos antes de que termine el video (enseñame donde cambio para probar). El circulo parpadeante hacerlo un poco más grande no importa que salga fuera del sello. Toca para abrir un poco más pequeño. Los creditos hecho con amor que solo aparezca al final de la invitación porque lo siento muy invasivo. El sonido del sobre bajalo a la mitad. La fuente del timer se ve raro cambialo a la fuente por default. Permitete modificar invitación.html sobre todo creo que debemos borrar todo "confirmación de asistencia se repite porque ya lo habia considerado en el rsvp_logo, veo una franja pequeña entre la seccion de rsvp y la anterior. En aporte especial necesito hacer algo como lo que hicimos en el flip manejado por el usuario para voltear la tarjeta y mostrar el logo de regalos y a continuación estos datos:
+
+Cuenta BBVA soles
+CTA: 0011-0114-0200674421
+CCI: 011-114-000200674421-69
+Titular: Ignacio Revoredo Vargas
+DNI: 46336740
+
+CUENTA BCP DÓLARES
+CTA: 194-3936-5961-195
+CCI: 002-194-1393-6596-1195-96
+Titular: Suly Chomchey Ventura
+DNI: 47336777
+
+Agregar al costado de cada nro de cuenta un icono para copiar en portapapeles (sin guiones), generar una animación de check y regresar al icono de copiar.
+
+
+Tengo observaciones para ie cambiando en el diseño que he observado en diferentes celulares. "Ceremonia & Recepción" al momento de animar el div perdió el fondo de la imagen "7273b59b37f3991dee59c5a1f6ecf3d9.png", Regresemos al contador inicial sin usar la libreria emulando con código propio la estética inicial retirando la marca de crédito de tickcounter.com. El giro controlado de las tarjetitas tanto del RSVP y UN DETALLE no funcionan en el celular, además el giro automático de UN DETALLE en iphone se ve poco natural te explico: la tarjeta gira 180 grados todo el texto inicial gira volteando todo en espejo para recien cambiar el contenido de las cuentas, lo natural seria que ello suceda hasta 90 grados, cambie el contenido y continue el giro hasta 180 con el contenido cambiado. Al girar el RSVP la altura del canva cambia como es de esperar pero ese cambio es muy brusco lo podemos hacer más suavizado. Por cierto todas las animaciones siempre se tienen que dar al margen de la reducción de movimiento del iphone. Retiremos el texto "desliza para girar" esta sobreentendido y repetido con "voltear tarjeta". Agreguemos una opción en panel para no mostrar Primera respuesta y Ultima modificación; y otra opción para no mostrar "voltear tarjeta"; y otra opción que bloquee definitivamente que la tarjeta se voltee (algunos novios no les interesa la funcionalidad del QR y save the date porque piensan que marean al invitado). En RSVP.html el nombre de los novios se repite en el titulo y el el save the date (al mostrar QR) menor eliminemos el titulo inicial y fecha a mostrar, diercto vamos a la tarjeta. La invitación comienza con una imagen y termina con otra podemos generar el efecto "camara que se aleja lentamente" no se exactamente como se llama, paradox puede ser, si no la tenemos en libreria de animaciones agregarla. Te comparto todo lo que venimos trabajando por si se te perdió los archivos.
+
+
+Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Retiremos completamente el sonido de la animación del sobre. Una vez que aparece la invitación por primera vez que aparezca en la parte inferior un gesto para indicar que se debe hacer scroll para mayor detalle. La cuenta regresiva reemplacemos el actual por el original en invitación.html que es más limpio y sensillo que el actual. El diseño canva (invitacion.html) cambio ligeramente verifica si hay elementos que no existen en las animaciones para retirarlas y las nuevas incorporalas en las animaciones. El giro de las tarjetas se siente raro verificar el sentido de giro. Si me jalo del extremo derecha o jalo del extremo izquierdo el giro debe ser acorde. En la tarjeta "UN DETALLE" además hay un problema que al girar 90 grados se queda proyectada la cara de UN DETALLE, lo mismo desde la cara de las cuentas bancarias, mientras esta girando se ve estampada la cara "UN DETALLE". Verificar si logo_portada_hd.png podemos mejorarlo porque con el fondo la transparencia de suaviza bien, el & se ve delgado.
+
+
+Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Veo que el timer tiene una T de los creditos de tickcounter podemos retirar el iframe de invitacion.html y poner un equivalente propio. El toca para abrir y el circulo mejor en vez de dorado que sea negro para que combine con la paleta de colores de la invitación. Me preocupa la velocidad de carga poner en el promise lo indispensable para que la carga inicial sea rápida. Ver como se puede reducir espacio algunas imagenes pesadas png tal vez se puedan convertir a jpg o bajarles el height x weight a escala siempre que no cambie la estética.
+
+
+Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Me aparecen luego de guardar el rsvp comando como "¡Listo! Actualizamos tu respuesta. 💛" y "Tu respuesta ya estaba guardada" cambiar por algo más formal sin emoticones como "Actualizamos tu respuesta" y "Tu respuesta ya estaba guardada" (igual) cambiar el tono verde por uno correspondiente a la configuración. En rsvp.html hay como un pequeño glitch en lo que carga la configuración inicial del proyecto. Hacer una mejora a panel.html para que importar excel y exportar excel sea un verdadero backup de todos los invitados del proyecto.
+
+
+[USUARIOS]
+sulycv@gmail.com
+Irevoredov@gmail.com
+
+
+[PASO 1]
+
+
+(() => {
+  // 1. Sobrescribir estilos que ocultan contenido fuera de pantalla
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * { 
+      content-visibility: visible !important; 
+      animation: none !important; 
+      transition: none !important; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Simular un contenedor con scroll de altura completa
+  document.body.style.overflow = 'visible';
+  document.documentElement.style.overflow = 'visible';
+  // document.body.style.height = 'auto';
+
+  console.log('Fuerza bruta aplicada. Por favor, haz scroll manual hasta el final de la página.');
+})();
+
+
+[PASO 2]
+
+
+(async () => {
+  console.log('🔍 Analizando solo fuentes e imágenes ACTIVAS en pantalla...');
+
+  const downloads = [];
+  const deduplicacion = new Map();
+
+  const getExactFileName = (urlStr, contentType = '') => {
+    try {
+      const parsed = new URL(urlStr, document.baseURI);
+      let filename = parsed.pathname.split('/').pop().split('?')[0];
+      filename = decodeURIComponent(filename);
+      if (filename && filename.includes('.') && filename.length > 3) {
+        return filename;
+      }
+    } catch {}
+
+    let ext = 'asset';
+    if (contentType.includes('image/png')) ext = 'png';
+    else if (contentType.includes('image/jpeg')) ext = 'jpg';
+    else if (contentType.includes('image/webp')) ext = 'webp';
+    else if (contentType.includes('image/svg')) ext = 'svg';
+    else if (contentType.includes('video/mp4')) ext = 'mp4';
+    else if (contentType.includes('font/woff2')) ext = 'woff2';
+    else if (contentType.includes('font/woff')) ext = 'woff';
+
+    let hash = 0;
+    for (let i = 0; i < urlStr.length; i++) {
+      hash = (hash << 5) - hash + urlStr.charCodeAt(i);
+      hash |= 0;
+    }
+    return `file_${Math.abs(hash)}.${ext}`;
+  };
+
+  const fetchResource = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || '';
+      return { blob, contentType };
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Identificar familias de fuentes verdaderamente usadas en el DOM
+  const activeFontFamilies = new Set();
+  document.querySelectorAll('*').forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent.trim().length > 0) {
+      const fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim().toLowerCase();
+      if (fontFamily) activeFontFamilies.add(fontFamily);
+    }
+  });
+
+  console.log('✏️ Fuentes realmente usadas en el texto:', Array.from(activeFontFamilies));
+
+  // 2. Clonar el DOM y limpiar scripts/srcset
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
+  clone.querySelectorAll('img').forEach((img) => img.removeAttribute('srcset'));
+
+  // 3. Procesar imágenes <img> visibles
+  const liveImages = Array.from(document.querySelectorAll('img'));
+  for (const liveImg of liveImages) {
+    const style = window.getComputedStyle(liveImg);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+    const srcAttr = liveImg.getAttribute('src') || liveImg.src;
+    if (srcAttr && !srcAttr.startsWith('data:')) {
+      const absUrl = new URL(srcAttr, document.baseURI).href;
+
+      if (!deduplicacion.has(absUrl)) {
+        const data = await fetchResource(absUrl);
+        if (data) {
+          const fileName = getExactFileName(absUrl, data.contentType);
+          const localPath = `assets/${fileName}`;
+          deduplicacion.set(absUrl, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+      }
+
+      const matchingCloneImg = clone.querySelector(`img[src="${srcAttr}"]`) || clone.querySelectorAll('img')[liveImages.indexOf(liveImg)];
+      if (matchingCloneImg && deduplicacion.has(absUrl)) {
+        matchingCloneImg.src = deduplicacion.get(absUrl);
+      }
+    }
+  }
+
+  // 4. Procesar Vídeo activo
+  const liveVideo = document.querySelector('video');
+  if (liveVideo) {
+    let raw = liveVideo.src || liveVideo.querySelector('source')?.src || '';
+    if (raw) {
+      const parsedUrl = new URL(raw, document.baseURI);
+      let startTrim = 0;
+      let endTrim = null;
+      const hashMatch = parsedUrl.hash.match(/#t=([\d.]+),?([\d.]*)/);
+      if (hashMatch) {
+        startTrim = parseFloat(hashMatch[1]) || 0;
+        if (hashMatch[2]) endTrim = parseFloat(hashMatch[2]);
+      }
+
+      const data = await fetchResource(parsedUrl.href);
+      if (data) {
+        const fileName = getExactFileName(parsedUrl.href, data.contentType);
+        const localPath = `assets/${fileName}`;
+
+        if (!deduplicacion.has(parsedUrl.href)) {
+          deduplicacion.set(parsedUrl.href, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+
+        const videoClonado = clone.querySelector('video');
+        if (videoClonado) {
+          videoClonado.removeAttribute('controls');
+          videoClonado.setAttribute('playsinline', 'true');
+          videoClonado.setAttribute('autoplay', 'true');
+          videoClonado.setAttribute('muted', 'true');
+          videoClonado.setAttribute('data-start', startTrim);
+          if (endTrim !== null) videoClonado.setAttribute('data-end', endTrim);
+          videoClonado.innerHTML = '';
+          videoClonado.src = localPath;
+        }
+      }
+    }
+  }
+
+  // 5. Filtrar CSS: Mantener solo fuentes usadas (priorizando .woff2) y descartar redundancias
+  console.log('🎨 Filtrando reglas CSS y tipografías activas...');
+  let cssIncrustado = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      const sheetBase = sheet.href || document.baseURI;
+
+      for (const rule of Array.from(rules)) {
+        // Si es una regla @font-face, verificar si pertenece a una fuente activa
+        if (rule.type === CSSRule.FONT_FACE_RULE) {
+          const fontFamily = rule.style.fontFamily.replace(/['"]/g, '').trim().toLowerCase();
+          if (!activeFontFamilies.has(fontFamily)) {
+            continue; // Omitir fuentes que no se usan en ningún texto
+          }
+        }
+
+        let cssText = rule.cssText;
+        const matches = [...cssText.matchAll(/url\((['"]?)(?!data:)([^'"]+)\1\)/g)];
+
+        for (const match of matches) {
+          const rawUrl = match[2];
+          const absUrl = new URL(rawUrl, sheetBase).href;
+
+          // Filtrar formatos obsoletos de fuentes (.eot, .ttf si existe woff2)
+          if (absUrl.match(/\.(eot|ttf)(\?.*)?$/i) && !absUrl.includes('fontawesome')) {
+            continue; 
+          }
+
+          if (absUrl.match(/\.(woff2?|otf|png|jpe?g|svg|webp|gif)(\?.*)?$/i)) {
+            if (!deduplicacion.has(absUrl)) {
+              const data = await fetchResource(absUrl);
+              if (data) {
+                const fileName = getExactFileName(absUrl, data.contentType);
+                const localPath = `assets/${fileName}`;
+                deduplicacion.set(absUrl, localPath);
+                downloads.push({ fileName, blob: data.blob });
+              }
+            }
+
+            if (deduplicacion.has(absUrl)) {
+              cssText = cssText.replace(match[0], `url("${deduplicacion.get(absUrl)}")`);
+            }
+          }
+        }
+        cssIncrustado += cssText + '\n';
+      }
+    } catch {}
+  }
+
+  // 6. Controlador de vídeo
+  const customVideoControllerScript = `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.querySelector('video');
+      if (!video) return;
+
+      const start = parseFloat(video.getAttribute('data-start')) || 0;
+      const end = parseFloat(video.getAttribute('data-end'));
+
+      const applyStartTime = () => {
+        if (start > 0) video.currentTime = start;
+      };
+
+      if (video.readyState >= 1) {
+        applyStartTime();
+      } else {
+        video.addEventListener('loadedmetadata', applyStartTime, { once: true });
+      }
+
+      video.addEventListener('timeupdate', () => {
+        if (end && video.currentTime >= end) {
+          video.currentTime = start;
+        }
+      });
+
+      video.muted = true;
+      video.play().catch(() => {});
+
+      document.addEventListener('click', (e) => {
+        if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      });
+    });
+  </script>
+  `;
+
+  // 7. Generar HTML final
+  const htmlFinal = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${document.title}</title>
+  <style>
+${cssIncrustado}
+video { cursor: pointer; }
+  </style>
+</head>
+${clone.outerHTML}
+${customVideoControllerScript}
+</html>`;
+
+  // Descargar HTML
+  const htmlBlob = new Blob([htmlFinal], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'invitacion_optimizada.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Descargar conjunto limpio
+  console.log(`⬇️ Descargando exclusivamente ${downloads.length} archivos indispensables para assets/...`);
+  for (const item of downloads) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(item.blob);
+    link.download = item.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    await new Promise((r) => setTimeout(r, 300));
+    URL.revokeObjectURL(link.href);
+  }
+
+  console.log('✅ ¡Proceso completado! Archivos reducidos drásticamente.');
+})();
+

@@ -105,15 +105,15 @@ function hace(iso) {
 }
 
 /* ------------------------------------------------------------------ valores por defecto (iguales a assets/rsvp.js) */
-const DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, mostrar_saludo: true, mostrar_nombre_codigo: true, sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, preguntas: [] };
+const DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, mostrar_saludo: true, mostrar_nombre_codigo: true, mostrar_fechas: true, mostrar_voltear: true, permitir_giro: true, sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, escala_fuente: 100, preguntas: [] };
 const DEF_TEXTOS = { etiqueta_pendiente: 'Save the date', etiqueta_si: 'Te esperamos', etiqueta_no: 'Gracias',
   mensaje_pendiente: 'Confirma tu asistencia antes del {fecha_limite}',
   mensaje_si: '¡Gracias por confirmar! Nos hace muy felices celebrar este día contigo.',
   mensaje_no: 'Gracias por avisarnos. Te tendremos presente en nuestro día.' };
 const DEF_TARJETA = {
   titulo: '', fecha: '', lugar: '', logo_qr: '',
-  colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100,
-  qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF' },
+  colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100, escala_texto: 100,
+  qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF', escala: 100 },
   fondos: { pagina: { tipo: 'color', color: '#F1ECE4' }, formulario: { tipo: 'color', color: '#FFFFFF' }, tarjeta: { tipo: 'color' } },
   textos: DEF_TEXTOS, evento: { titulo: '', inicio: '', fin: '', lugar: '', detalle: '' }
 };
@@ -869,11 +869,39 @@ function urlWhatsapp(numero, texto) {
   const q = (numero ? 'phone=' + numero + '&' : '') + 'text=' + encodeURIComponent(texto);
   return (esMovil() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + q;
 }
-async function whatsapp(i) {
+/* Mensajes que se pueden enviar: el predeterminado (el guardado en Configuración › WhatsApp), las plantillas sugeridas y "Mis plantillas" */
+function opcionesWa() {
+  const mias = (S.p.plantillas_wa || []).map((x, k) => x && x.texto ? { k: 'm' + k, g: 'mias', nombre: x.nombre || `${t('Mensaje')} ${k + 1}`, texto: x.texto } : null).filter(Boolean);
+  return [{ k: 'def', g: 'def', nombre: t('Predeterminado (guardado en Configuración)'), texto: S.p.mensaje_whatsapp || '' },
+    ...PLANTILLAS_WA.map(x => ({ k: 's:' + x.id, g: 'sug', nombre: t(x.nombre), texto: x.texto })), ...mias];
+}
+const claveWa = () => 'panel.wa.' + (S.p?.id ?? '');
+function whatsapp(i) {
+  const ops = opcionesWa(), n = numeroWa(i.telefono), est = telInfo(i.telefono).estado;
+  let sel = localStorage.getItem(claveWa()); if (!ops.some(o => o.k === sel)) sel = 'def';   // recuerda la última elegida
+  const grupo = (g, titulo) => { const l = ops.filter(o => o.g === g); return l.length ? `<optgroup label="${esc(t(titulo))}">${l.map(o => `<option value="${esc(o.k)}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; };
+  const aviso = !n ? t('Sin número: elige el contacto en WhatsApp') : est === 'dudoso' ? `${t('Revisa el número: no parece un celular válido.')} ${esc(i.telefono)}` : `${t('Se enviará a')} +${n}`;
+  modal(`${cabecera(t('Enviar por WhatsApp'), `<span data-notr>${esc(i.nombre)}</span>${i.whatsapp_enviado ? ` · <span class="text-emerald-700">${t('Ya enviado · enviar de nuevo')}</span>` : ''}`)}${cuerpo(`<div class="grid gap-3">
+      <div><label class="${lbl}" for="wa-sel">${t('Mensaje a enviar')}</label>
+        <select id="wa-sel" class="${campo}">${ops.filter(o => o.g === 'def').map(o => `<option value="${o.k}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}${grupo('sug', 'Plantillas sugeridas')}${grupo('mias', 'Mis plantillas')}</select></div>
+      <p id="wa-prev" data-notr class="max-h-72 overflow-y-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-[#e7ffdb] p-3 text-sm text-stone-800"></p>
+      <p id="wa-aviso" class="min-h-4 text-xs text-amber-700"></p>
+      <p class="text-xs ${!n || est === 'dudoso' ? 'text-amber-700' : 'text-stone-500'}" data-notr>${aviso}</p></div>`)}
+    ${pie(`<button type="button" class="${btnS}" data-cerrar>${t('Cancelar')}</button><button type="button" id="wa-ir" class="${btnP}">${ico('wa')} <span>${t('Enviar por WhatsApp')}</span></button>`)}`, d => {
+    const elegido = () => ops.find(o => o.k === d.querySelector('#wa-sel').value) || ops[0];
+    const pintar = () => {
+      const o = elegido(); localStorage.setItem(claveWa(), o.k);
+      d.querySelector('#wa-prev').textContent = mensajeWa(i, o.texto);
+      d.querySelector('#wa-aviso').textContent = /\{link\}|\{link_rsvp\}/.test(o.texto) ? '' : t('Este mensaje no incluye {link}: el invitado no recibirá su invitación.');
+    };
+    d.querySelector('#wa-sel').addEventListener('change', pintar); pintar();
+    d.querySelector('#wa-ir').onclick = () => { const o = elegido(); cerrarModal(); enviarWa(i, o.texto); };
+    d.querySelector('#wa-ir').focus();
+  });
+}
+async function enviarWa(i, plantilla) {
   const n = numeroWa(i.telefono);
-  window.open(urlWhatsapp(n, mensajeWa(i)), '_blank', 'noopener');
-  if (!n) toast(t('Sin número: elige el contacto en WhatsApp'), 'info');
-  else if (telInfo(i.telefono).estado === 'dudoso') toast(t('Revisa el número: no parece un celular válido.') + ' ' + i.telefono, 'info');
+  window.open(urlWhatsapp(n, mensajeWa(i, plantilla)), '_blank', 'noopener');
   const { data, error } = await sb.from('invitados').update({ whatsapp_enviado: new Date().toISOString() }).eq('id', i.id).select().single();
   if (!error) { upsertLocal(data); refrescar(); }
 }
@@ -941,6 +969,10 @@ function configurar(pestana = 'general') {
   const ejemplo = S.lista[0] || { nombre: 'Juan Pérez', tratamiento: 'Señor', codigo: 'AB12', pases_asignados: 2, mesa: '5' };
   const horas = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${c.reporte_hora === h ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
   const inp = (id, label, val, extra = '') => `<div><label class="${lbl}" for="${id}">${label}</label><input id="${id}" class="${campo}" value="${esc(val)}" ${extra}></div>`;
+  /* Barra de tamaño: 100 % por defecto, de 50 % a 200 % */
+  const esc100 = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.max(50, Math.min(200, n)) : 100; };
+  const barraEscala = (id, v, etiqueta) => `<div class="flex items-center gap-2 text-sm"><input id="${id}" data-escala type="range" min="50" max="200" step="5" value="${esc100(v)}" class="w-32 accent-oro-600 sm:w-40" aria-label="${esc(etiqueta)}"><output id="${id}-v" class="w-12 text-right tabular-nums">${esc100(v)}%</output>
+      <button type="button" data-escala-reset="${id}" class="${enlace} text-xs" title="${esc(t('Restablecer 100 %'))}">100%</button></div>`;
   const cajaChk = (id, v, html) => `<label class="flex items-start gap-2 text-sm"><input id="${id}" type="checkbox" ${v ? 'checked' : ''} class="${chk}"><span>${html}</span></label>`;
 
   const panelGeneral = `<div class="grid gap-4 sm:grid-cols-2">
@@ -960,11 +992,6 @@ function configurar(pestana = 'general') {
       <div><label class="${lbl}" for="c-pais">País por defecto de los teléfonos</label><select id="c-pais" class="${campo}">${opcionesPais(c.pais_tel || 'PE')}</select>
         <p class="mt-1 text-xs text-stone-500">Se usa para los WhatsApp escritos sin código de país (945 709 988 → +51 945 709 988) al importar, editar y enviar.</p></div>
       <button type="button" id="c-tel-fix" class="${btnS}">${ico('wa')} <span>Revisar teléfonos guardados</span></button></div>
-    <div class="grid gap-2 rounded-xl bg-stone-50 p-3 sm:col-span-2">
-      <p class="text-sm font-medium">Respaldo</p>
-      <p class="text-xs text-stone-500">${admin ? 'Descarga un archivo .json con todos los eventos (invitados, historial, accesos y ajustes) o solo este evento. El respaldo diario automático se configura con GitHub (ver LEEME).' : 'Descarga un archivo .json con los invitados, respuestas e historial de este evento.'}</p>
-      <div class="flex flex-wrap gap-2"><button type="button" data-respaldo="evento" class="${btnS}">${ico('down')} <span>Respaldo de este evento</span></button>
-        ${admin ? `<button type="button" data-respaldo="todo" class="${btnS}">${ico('down')} <span>Respaldo completo</span></button>` : ''}</div></div>
     <div class="sm:col-span-2"><label class="${lbl}" for="c-credito">Crédito “Hecho con amor por Parte y Detalles” en el RSVP</label>
       <select id="c-credito" class="${campo}" ${bloq}>${CREDITOS.map(([v, n]) => `<option value="${v}" ${(c.credito || 'flotante') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     ${admin ? `<div class="sm:col-span-2">${cajaChk('c-activo', c.activo, 'Evento activo · si se desactiva, el RSVP queda cerrado (solo lectura) y se conservan todos los datos')}</div>` : ''}</div>`;
@@ -976,10 +1003,18 @@ function configurar(pestana = 'general') {
       ${cajaChk('f-pases', F.preguntar_pases, 'Preguntar cuántos asistirán (si se desactiva, se confirman todos los pases asignados)')}
       ${cajaChk('f-acomp', F.pedir_acompanantes, 'Pedir los nombres de los acompañantes (separados por comas)')}
       ${cajaChk('f-msg', F.permitir_mensaje, 'Permitir dejar un mensaje a los novios')}
-      ${cajaChk('f-sugerir', F.sugerir_nombres, 'Sugerir nombres parecidos al buscar (si se desactiva, solo se encuentra el nombre exacto: más privado)')}</div>
+      ${cajaChk('f-sugerir', F.sugerir_nombres, 'Sugerir nombres parecidos al buscar (si se desactiva, solo se encuentra el nombre exacto: más privado)')}
+      ${cajaChk('f-fechas', F.mostrar_fechas, 'Mostrar al invitado “Primera respuesta”, “Última modificación” y “Ediciones”')}</div>
+    <div class="grid gap-2 rounded-xl bg-stone-50 p-3">
+      <p class="text-sm font-medium">Tarjeta con QR (Save the Date) al reverso del formulario</p>
+      ${cajaChk('f-giro', F.permitir_giro, 'Permitir que el invitado voltee la tarjeta (con el dedo, el botón o al enviar su respuesta). Si lo desactivas, la tarjeta y el QR no se muestran nunca')}
+      ${cajaChk('f-voltear', F.mostrar_voltear, 'Mostrar el botón “Voltear tarjeta” (si lo desactivas, la tarjeta solo se alcanza con el dedo o al enviar la respuesta)')}</div>
     <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:grid-cols-[1fr_auto]">
       ${cajaChk('f-logo', F.logo.mostrar, 'Mostrar el logo del evento arriba del formulario')}
       <label class="flex items-center gap-2 text-sm"><span>Ancho</span><input id="f-logo-ancho" type="range" min="60" max="320" step="10" value="${esc(F.logo.ancho || 140)}" class="w-32 accent-oro-600" aria-label="Ancho del logo"><output id="f-logo-v" class="w-14 text-right tabular-nums">${esc(F.logo.ancho || 140)} px</output></label></div>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:grid-cols-[1fr_auto]">
+      <div><p class="text-sm font-medium">Tamaño de las letras del formulario</p><p class="text-xs text-stone-500">Mueve todos los textos del formulario a la vez. 100 % = tamaño original.</p></div>
+      ${barraEscala('f-escala', F.escala_fuente, 'Tamaño de las letras del formulario')}</div>
     <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-semibold">Preguntas adicionales</h3>
       <div class="flex min-w-0 flex-wrap gap-2"><select id="f-preset" class="${campoA} py-1.5" aria-label="Agregar pregunta sugerida"><option value="">Sugeridas…</option>${PRESETS_PREG.map((p, k) => `<option value="${k}">${esc(t(p.etiqueta))}</option>`).join('')}</select>
         <button type="button" id="f-add" class="${btnS}">${ico('plus')} Pregunta</button></div></div>
@@ -1002,6 +1037,9 @@ function configurar(pestana = 'general') {
     ${inp('t-e-si', 'Etiqueta · asistirá', X.etiqueta_si)}${inp('t-m-si', 'Mensaje · asistirá', X.mensaje_si)}
     ${inp('t-e-no', 'Etiqueta · no asistirá', X.etiqueta_no)}${inp('t-m-no', 'Mensaje · no asistirá', X.mensaje_no)}
     <p class="-mt-2 text-xs text-stone-500 sm:col-span-2">Usa {fecha_limite} en el mensaje sin responder para mostrar la fecha de cierre. Si dejas los textos sugeridos, en inglés se usan sus equivalentes.</p>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto]">
+      <div><p class="text-sm font-medium">Tamaño de las letras de la tarjeta</p><p class="text-xs text-stone-500">Mueve todos los textos de la tarjeta a la vez (etiqueta, nombres, fecha, lugar, mensaje y código). Si el texto no deja sitio para un QR legible, se limita solo.</p></div>
+      ${barraEscala('t-escala', T.escala_texto, 'Tamaño de las letras de la tarjeta')}</div>
     <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Colores</h3></div>
     <div class="grid grid-cols-3 gap-3 sm:col-span-2">${[['tinta', 'Texto'], ['acento', 'Acento'], ['suave', 'Texto suave']].map(([k, n]) =>
       `<label class="flex items-center gap-2 rounded-xl bg-stone-50 p-2 text-sm"><input type="color" id="t-c-${k}" value="${esc(C[k])}" class="size-9 cursor-pointer rounded-lg border-0 bg-transparent p-0"><span>${n}</span></label>`).join('')}</div>
@@ -1019,7 +1057,9 @@ function configurar(pestana = 'general') {
         <div>${inp('t-logo', 'Iniciales al centro', T.logo_qr, 'maxlength="5" placeholder="I&S"')}<p class="mt-1 text-xs text-stone-500">Vacío = QR sin logo en el centro.</p></div>
         <div><label class="${lbl}" for="q-forma">Forma del logo</label><select id="q-forma" class="${campo}">${[['circulo', 'Círculo'], ['redondeado', 'Cuadrado redondeado'], ['cuadrado', 'Cuadrado']].map(([v, n]) => `<option value="${v}" ${(T.qr.logo_forma || 'circulo') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label class="${lbl}" for="q-lfondo">Fondo del logo</label><input type="color" id="q-lfondo" value="${esc(T.qr.logo_fondo || C.acento)}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div>
-        <div><label class="${lbl}" for="q-ltexto">Letras del logo</label><input type="color" id="q-ltexto" value="${esc(T.qr.logo_texto || '#FFFFFF')}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div></div>
+        <div><label class="${lbl}" for="q-ltexto">Letras del logo</label><input type="color" id="q-ltexto" value="${esc(T.qr.logo_texto || '#FFFFFF')}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div>
+        <div class="grid items-center gap-2 sm:col-span-2 sm:grid-cols-[1fr_auto]"><div><p class="${lbl} mb-0">Tamaño del código QR</p><p class="text-xs text-stone-500">100 % = el más grande que cabe en la tarjeta. Menos de 100 % lo reduce; para agrandarlo más, reduce antes las letras.</p></div>
+          ${barraEscala('q-escala', T.qr.escala, 'Tamaño del código QR')}</div></div>
       <div class="flex flex-col items-center gap-1"><canvas id="q-prev" width="360" height="360" class="size-36 rounded-xl bg-white ring-1 ring-stone-200" aria-label="Vista previa del QR"></canvas>
         <p class="text-center text-xs text-stone-500">Vista previa</p></div></div>
     <p class="text-xs text-stone-500 sm:col-span-2">Usa colores con buen contraste (QR oscuro sobre fondo claro) para que se lea sin problemas.</p>
@@ -1103,9 +1143,8 @@ function configurar(pestana = 'general') {
     q('#f-cfg').addEventListener('input', e => { if (zonaEditable(e)) marcarSucio(); });
     q('#f-cfg').addEventListener('change', e => { if (zonaEditable(e)) marcarSucio(); });
 
-    /* --- teléfonos y respaldo --- */
+    /* --- teléfonos --- */
     q('#c-tel-fix').onclick = () => revisarTelefonos(q('#c-pais').value);
-    d.querySelectorAll('[data-respaldo]').forEach(b => b.onclick = () => descargarRespaldo(b.dataset.respaldo === 'todo' ? null : c.id, b));
 
     /* --- fondos --- */
     d.querySelectorAll('[data-fondo-tipo]').forEach(s => s.addEventListener('change', () => {
@@ -1116,8 +1155,12 @@ function configurar(pestana = 'general') {
 
     /* --- logo, casillas y QR (vista previa en vivo) --- */
     q('#f-logo-ancho').addEventListener('input', e => { q('#f-logo-v').textContent = e.target.value + ' px'; });
+    const giroOpc = () => { const g = q('#f-giro').checked; q('#f-voltear').disabled = !g; q('#f-voltear').closest('label').classList.toggle('opacity-50', !g); };
+    q('#f-giro').addEventListener('change', giroOpc); giroOpc();
+    d.querySelectorAll('[data-escala]').forEach(r => r.addEventListener('input', () => { q('#' + r.id + '-v').textContent = r.value + '%'; }));
+    d.querySelectorAll('[data-escala-reset]').forEach(b => b.onclick = () => { const r = q('#' + b.dataset.escalaReset); r.value = 100; r.dispatchEvent(new Event('input', { bubbles: true })); });
     q('#t-campo-alfa').addEventListener('input', e => { q('#t-campo-v').textContent = e.target.value + '%'; });
-    const leerQR = () => ({ estilo: q('#q-estilo').value, color: q('#q-color').value, logo_forma: q('#q-forma').value, logo_fondo: q('#q-lfondo').value, logo_texto: q('#q-ltexto').value });
+    const leerQR = () => ({ estilo: q('#q-estilo').value, color: q('#q-color').value, logo_forma: q('#q-forma').value, logo_fondo: q('#q-lfondo').value, logo_texto: q('#q-ltexto').value, escala: esc100(q('#q-escala').value) });
     const previewQR = () => { if (!window.QR) return; const Q = leerQR(), L = q('#t-logo').value.trim();
       QR.dibujar(q('#q-prev'), c.url_rsvp + '?to=AB12', { ecc: 'M', estilo: Q.estilo, color: Q.color,
         logo: { activo: !!L, tipo: 'texto', texto: L, colorTexto: Q.logo_texto, fondo: Q.logo_fondo, forma: Q.logo_forma, fuente: 'italic 600 {px}px Georgia, serif', halo: .1, tamano: 'max', ladoMax: .3, ecc: 'H', reservaECC: .5 } }); };
@@ -1233,11 +1276,12 @@ function configurar(pestana = 'general') {
         fecha_limite: lim ? new Date(lim).toISOString() : null, idioma: q('#c-idioma').value,
         pases_max: Math.max(1, Math.min(50, parseInt(q('#c-max').value, 10) || 10)), permitir_nuevos: q('#c-nuevos').checked, pais_tel: q('#c-pais').value,
         formulario: { mostrar_saludo: q('#f-saludo').checked, mostrar_nombre_codigo: q('#f-nombre').checked,
-                      logo: { mostrar: q('#f-logo').checked, ancho: parseInt(q('#f-logo-ancho').value, 10) || 140 }, preguntar_pases: q('#f-pases').checked, pedir_acompanantes: q('#f-acomp').checked,
-                      permitir_mensaje: q('#f-msg').checked, sugerir_nombres: q('#f-sugerir').checked, preguntas: preguntasOut },
+                      logo: { mostrar: q('#f-logo').checked, ancho: parseInt(q('#f-logo-ancho').value, 10) || 140 }, escala_fuente: esc100(q('#f-escala').value), preguntar_pases: q('#f-pases').checked, pedir_acompanantes: q('#f-acomp').checked,
+                      permitir_mensaje: q('#f-msg').checked, sugerir_nombres: q('#f-sugerir').checked,
+                      mostrar_fechas: q('#f-fechas').checked, permitir_giro: q('#f-giro').checked, mostrar_voltear: q('#f-voltear').checked, preguntas: preguntasOut },
         tarjeta: { titulo: v('#t-titulo'), logo_qr: v('#t-logo'), fecha: v('#t-fecha'), lugar: v('#t-lugar'),
           colores: { papel: d.querySelector('[data-fondo="tarjeta"] [data-fondo-color]').value, tinta: q('#t-c-tinta').value, acento: q('#t-c-acento').value, suave: q('#t-c-suave').value, campo: q('#t-c-campo').value },
-          campo_alfa: parseInt(q('#t-campo-alfa').value, 10), qr: leerQR(),
+          campo_alfa: parseInt(q('#t-campo-alfa').value, 10), escala_texto: esc100(q('#t-escala').value), qr: leerQR(),
           fondos: { pagina: fondo('pagina'), formulario: fondo('formulario'), tarjeta: fondo('tarjeta') },
           textos: { etiqueta_pendiente: texto('#t-e-pend', 'etiqueta_pendiente'), etiqueta_si: texto('#t-e-si', 'etiqueta_si'), etiqueta_no: texto('#t-e-no', 'etiqueta_no'),
                     mensaje_pendiente: texto('#t-m-pend', 'mensaje_pendiente'), mensaje_si: texto('#t-m-si', 'mensaje_si'), mensaje_no: texto('#t-m-no', 'mensaje_no') },
@@ -1426,18 +1470,6 @@ function revisarTelefonos(iso) {
     await recargar(); dlg2.close(); toast(`${data.actualizados} ${t('teléfonos corregidos')}`);
   };
 }
-async function descargarRespaldo(proyecto, b) {
-  b.disabled = true;
-  try {
-    const { data, error } = await sb.rpc('admin_respaldo', { p_proyecto: proyecto });
-    if (error) return toast(t(errorAmigable(error)), 'error');
-    const nombre = `respaldo_${proyecto ? S.p.slug : 'parteydetalles'}_${sello()}.json`;
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })); a.download = nombre; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast(`${t('Respaldo descargado')} · ${data.invitados?.length ?? 0} ${t('invitados')}`);
-  } finally { b.disabled = false; }
-}
-
 /* =====================================================================================
    EXCEL: exportar, plantilla e importar
    ===================================================================================== */

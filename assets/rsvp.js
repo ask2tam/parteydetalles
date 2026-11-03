@@ -1,4 +1,4 @@
-/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles · v3.4.1
+/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles · v3.9.0
  * Autosuficiente: dibuja su propio HTML/CSS dentro de <div id="rsvp"></div> (Shadow DOM).
  * Lo usan la invitación (index.html) y la página directa rsvp.html (destino del QR).
  * Todo lo configurable (preguntas, textos, colores, fondos, idioma) viene del proyecto en Supabase.
@@ -28,7 +28,7 @@
       msgLbl: 'Déjanos un mensajito', opcional: '(opcional)', msgAria: 'Mensaje para los novios', respNovios: 'Respuesta de los novios',
       enviar: 'Enviar', actualizar: 'Actualizar', voltear: 'Voltear tarjeta', confirmar: 'Confirmar asistencia',
       volver: 'Volver al formulario', cal: 'Agregar al calendario', compartir: 'Compartir', copiar: 'Guardar o copiar imagen', imprimir: 'Imprimir',
-      calIcs: 'Apple / Outlook / otros (.ics)', pista: 'Desliza la tarjeta para girarla',
+      calIcs: 'Apple / Outlook / otros (.ics)',
       soloYo: '1 (solo yo)', yoMas: function (v) { return v.n + ' (yo + ' + v.k + (v.k === 1 ? ' acompañante)' : ' acompañantes)'); },
       pasesRes: function (v) { return v.n + (v.n === 1 ? ' pase reservado' : ' pases reservados'); },
       pasesConf: function (v) { return v.n + (v.n === 1 ? ' pase confirmado' : ' pases confirmados'); },
@@ -67,7 +67,7 @@
       msgLbl: 'Leave us a message', opcional: '(optional)', msgAria: 'Message for the couple', respNovios: 'A note from the couple',
       enviar: 'Send', actualizar: 'Update', voltear: 'Flip card', confirmar: 'RSVP now',
       volver: 'Back to the form', cal: 'Add to calendar', compartir: 'Share', copiar: 'Save or copy image', imprimir: 'Print',
-      calIcs: 'Apple / Outlook / other (.ics)', pista: 'Swipe the card to flip it',
+      calIcs: 'Apple / Outlook / other (.ics)',
       soloYo: '1 (just me)', yoMas: function (v) { return v.n + ' (me + ' + v.k + (v.k === 1 ? ' guest)' : ' guests)'); },
       pasesRes: function (v) { return v.n + (v.n === 1 ? ' seat reserved' : ' seats reserved'); },
       pasesConf: function (v) { return v.n + (v.n === 1 ? ' seat confirmed' : ' seats confirmed'); },
@@ -111,11 +111,12 @@
 
   /* ================================================================ valores por defecto */
   var DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, mostrar_saludo: true, mostrar_nombre_codigo: true,
-                   sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, preguntas: [] };
+                   mostrar_fechas: true, mostrar_voltear: true, permitir_giro: true,
+                   sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, escala_fuente: 100, preguntas: [] };
   var DEF_TARJETA = {
     titulo: '', fecha: '', lugar: '', logo_qr: '',
-    colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100,
-    qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF' },
+    colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100, escala_texto: 100,
+    qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF', escala: 100 },
     fondos: { pagina: { tipo: 'color', color: '' }, formulario: { tipo: 'color', color: '#FFFFFF' }, tarjeta: { tipo: 'color' } },
     textos: {}, evento: { titulo: '', inicio: '', fin: '', lugar: '', detalle: '' }
   };
@@ -134,7 +135,17 @@
   function urlEvento(archivo) {
     return PYD.RAIZ && PYD.slug ? PYD.RAIZ + PYD.slug + '/assets/' + archivo : new URL('assets/' + archivo, location.href).href;
   }
-  function urlFondo(k) { return urlEvento('rsvp_fondo_' + k + '.png'); }
+  /* Fondos: se prefiere .jpg (más liviano) y, si no existe, .png. Se comprueba una sola vez por fondo. */
+  var _fondos = {}, _fondosImg = [];
+  function resolverFondo(k) {
+    if (!_fondos[k]) _fondos[k] = new Promise(function (ok) {
+      var im = new Image(), j = urlEvento('rsvp_fondo_' + k + '.jpg');
+      im.onload = function () { _fondosImg.push(im); ok(j); }; im.onerror = function () { ok(urlEvento('rsvp_fondo_' + k + '.png')); }; im.src = j;   /* se conserva: el fondo CSS reutiliza esta descarga */
+    });
+    return _fondos[k];
+  }
+  /* Porcentaje (50–200) → factor. Vacío o inválido = 100 % */
+  function escala(v) { var n = parseFloat(v); return isFinite(n) && n > 0 ? Math.max(.5, Math.min(2, n / 100)) : 1; }
   function rgba(hex, alfa) {
     var m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
     var n = parseInt(m[1], 16), a = Math.max(0, Math.min(100, alfa == null ? 100 : +alfa)) / 100;
@@ -148,51 +159,50 @@
  --texto:#1c1c1c;--suave:#7a7066;--error:#b3402f;--ok:#4d7a4a;position:relative;padding:var(--rsvp-relleno,0 22px 40px);\
  font-family:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.4;color:var(--texto);text-align:left;-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}\
 .rsvp-raiz *,.rsvp-raiz *::before,.rsvp-raiz *::after{box-sizing:border-box}.rsvp-raiz [hidden]{display:none!important}\
-.escena{position:relative;perspective:1600px;touch-action:pan-y}.escena.arrastrando{cursor:grabbing;-webkit-user-select:none;user-select:none}\
-.giro{display:grid;align-items:start;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;--shade:0;transition:transform var(--dur,600ms) cubic-bezier(.2,.75,.25,1);will-change:transform}\
-.arrastrando .giro{transition:none}\
-.cara{grid-area:1/1;position:relative;min-width:0;display:flex;flex-direction:column;backface-visibility:hidden;-webkit-backface-visibility:hidden}\
-.reverso{transform:rotateY(180deg)}\
+.escena{position:relative;touch-action:pan-y}.escena.arrastrando{cursor:grabbing;-webkit-user-select:none;user-select:none}\
+.giro{display:grid;align-items:start}\
+.cara{grid-area:1/1;position:relative;min-width:0;display:flex;flex-direction:column;--shade:0;transform-origin:50% 50%;will-change:transform}\
+.reverso{visibility:hidden}\
 .cara::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:8px;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,0) 65%);opacity:var(--shade)}\
 .caja{flex:1;zoom:var(--rsvp-zoom,1);width:100%;max-width:420px;margin:0 auto;background:#fff;border-radius:8px;padding:26px 24px;display:flex;flex-direction:column;justify-content:center;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;box-shadow:var(--sombra);-webkit-user-select:text;user-select:text}\
 .saludo{margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid rgba(0,0,0,.08);text-align:center}\
-.saludo .nombres{font:400 30px/1.1 "Titulo Boda","Snell Roundhand","Brush Script MT",cursive;margin:0}\
-.saludo .linea{margin:6px 0 0;font-size:12px;letter-spacing:.06em;color:var(--suave)}\
-.plazo{margin:0 0 18px;text-align:center;font-size:12.5px;color:var(--suave)}\
-.aviso-cierre{margin:0 0 18px;padding:12px 14px;border-radius:12px;background:#f6eeee;color:#7a3328;font-size:13px;line-height:1.45;text-align:center}\
-form{margin:0;padding:0}label,.lbl{display:block;margin:0 0 9px;font-weight:700;font-size:16px;line-height:1.25}\
+.saludo .nombres{font:400 calc(30px*var(--fz,1))/1.1 "Titulo Boda","Snell Roundhand","Brush Script MT",cursive;margin:0}\
+.saludo .linea{margin:6px 0 0;font-size:calc(12px*var(--fz,1));letter-spacing:.06em;color:var(--suave)}\
+.plazo{margin:0 0 18px;text-align:center;font-size:calc(12.5px*var(--fz,1));color:var(--suave)}\
+.aviso-cierre{margin:0 0 18px;padding:12px 14px;border-radius:12px;background:#f6eeee;color:#7a3328;font-size:calc(13px*var(--fz,1));line-height:1.45;text-align:center}\
+form{margin:0;padding:0}label,.lbl{display:block;margin:0 0 9px;font-weight:700;font-size:calc(16px*var(--fz,1));line-height:1.25}\
 .campo{margin-bottom:22px}\
-input[type=text],select,textarea{display:block;width:100%;margin:0;border:1px solid transparent;border-radius:14px;background-color:var(--campo);font:500 16px/1.3 Montserrat,system-ui,sans-serif;color:var(--texto);padding:0 14px;height:42px;outline:none;box-shadow:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}\
+input[type=text],select,textarea{display:block;width:100%;margin:0;border:1px solid transparent;border-radius:14px;background-color:var(--campo);font:500 calc(16px*var(--fz,1))/1.3 Montserrat,system-ui,sans-serif;color:var(--texto);padding:0 14px;height:calc(42px*var(--fz,1));outline:none;box-shadow:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}\
 select{padding-right:38px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'9\' viewBox=\'0 0 14 9\'%3E%3Cpath d=\'M1 1l6 6 6-6\' fill=\'none\' stroke=\'%237a7066\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}\
-textarea{height:96px;padding:12px 14px;resize:vertical}textarea.corto{height:70px}\
+textarea{height:calc(96px*var(--fz,1));padding:12px 14px;resize:vertical}textarea.corto{height:calc(70px*var(--fz,1))}\
 input:focus,select:focus,textarea:focus{border-color:var(--boton);box-shadow:0 0 0 3px color-mix(in srgb,var(--boton) 25%,transparent)}\
 input[readonly]{color:#6b6258;cursor:not-allowed;filter:brightness(.97)}\
 .logo-rsvp{display:block;margin:0 auto 18px;max-width:100%;height:auto}:disabled{opacity:.7;cursor:not-allowed}\
 .invalido{border-color:var(--error)!important}.grupo.invalido{border:1px solid var(--error);border-radius:14px;padding:6px}\
 .opciones{display:flex;flex-wrap:wrap;gap:8px}\
-.opciones label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 14px;border-radius:999px;background:var(--campo);font-weight:500;font-size:14px;cursor:pointer;border:1px solid transparent}\
-.opciones input{accent-color:var(--boton);width:16px;height:16px;margin:0}\
+.opciones label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 14px;border-radius:999px;background:var(--campo);font-weight:500;font-size:calc(14px*var(--fz,1));cursor:pointer;border:1px solid transparent}\
+.opciones input{accent-color:var(--boton);width:calc(16px*var(--fz,1));height:calc(16px*var(--fz,1));margin:0}\
 .opciones label:has(input:checked){border-color:var(--boton);background:color-mix(in srgb,var(--boton) 12%,#fff)}\
 details.mensaje{display:block;margin:0 0 22px}\
-details.mensaje>summary{list-style:none;cursor:pointer;font-weight:700;font-size:16px;line-height:1.25;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;-webkit-user-select:none;user-select:none}\
+details.mensaje>summary{list-style:none;cursor:pointer;font-weight:700;font-size:calc(16px*var(--fz,1));line-height:1.25;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;-webkit-user-select:none;user-select:none}\
 details.mensaje>summary::-webkit-details-marker{display:none}details.mensaje>summary::marker{content:""}\
-details.mensaje>summary .opc{font-weight:500;font-size:12px;color:var(--suave)}\
+details.mensaje>summary .opc{font-weight:500;font-size:calc(12px*var(--fz,1));color:var(--suave)}\
 details.mensaje>summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--suave);border-bottom:2px solid var(--suave);transform:rotate(45deg);transition:transform .2s;margin:-4px 4px 0 auto;flex:none}\
 details.mensaje[open]>summary::after{transform:rotate(-135deg);margin-top:4px}\
-.contador{margin-top:5px;text-align:right;font-size:11px;color:var(--suave)}\
-.ayuda{margin:8px 2px 0;font-size:12.5px;line-height:1.45;color:var(--suave)}.ayuda.error{color:var(--error)}\
+.contador{margin-top:5px;text-align:right;font-size:calc(11px*var(--fz,1));color:var(--suave)}\
+.ayuda{margin:8px 2px 0;font-size:calc(12.5px*var(--fz,1));line-height:1.45;color:var(--suave)}.ayuda.error{color:var(--error)}\
 .acciones-nombre{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 16px}\
-.enlace{background:none;border:0;padding:0;margin:0;cursor:pointer;font:600 12.5px/1.4 Montserrat,sans-serif;color:var(--boton-osc);text-decoration:underline;text-underline-offset:3px}\
+.enlace{background:none;border:0;padding:0;margin:0;cursor:pointer;font:600 calc(12.5px*var(--fz,1))/1.4 Montserrat,sans-serif;color:var(--boton-osc);text-decoration:underline;text-underline-offset:3px}\
 .candidatos{margin-top:8px;display:grid;gap:6px}\
-.candidatos button{display:block;width:100%;text-align:left;border:1px solid #eadfd5;background:#fff;border-radius:12px;padding:9px 12px;color:var(--texto);font:500 13px/1.3 Montserrat,sans-serif;cursor:pointer}\
+.candidatos button{display:block;width:100%;text-align:left;border:1px solid #eadfd5;background:#fff;border-radius:12px;padding:9px 12px;color:var(--texto);font:500 calc(13px*var(--fz,1))/1.3 Montserrat,sans-serif;cursor:pointer}\
 .resp-novios{margin:0 0 22px;padding:14px 16px;border-radius:14px;background:#fbf6ea;border:1px solid #efe3c6}\
-.resp-novios .t{margin:0 0 6px;font-weight:700;font-size:13px;letter-spacing:.04em;color:var(--boton-osc)}\
-.resp-novios .c{margin:0;font-size:14px;line-height:1.5;white-space:pre-wrap}\
+.resp-novios .t{margin:0 0 6px;font-weight:700;font-size:calc(13px*var(--fz,1));letter-spacing:.04em;color:var(--boton-osc)}\
+.resp-novios .c{margin:0;font-size:calc(14px*var(--fz,1));line-height:1.5;white-space:pre-wrap}\
 .enviar-fila{display:flex;justify-content:center}\
-.btn-enviar{width:216px;height:38px;border:0;border-radius:999px;background:var(--boton);color:#fff;cursor:pointer;font:500 14.5px/1 Montserrat,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:background .2s,transform .15s}\
+.btn-enviar{width:min(100%,calc(216px*var(--fz,1)));height:calc(38px*var(--fz,1));border:0;border-radius:999px;background:var(--boton);color:#fff;cursor:pointer;font:500 calc(14.5px*var(--fz,1))/1 Montserrat,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;transition:background .2s,transform .15s}\
 .btn-enviar:hover{background:var(--boton-osc)}.btn-enviar:active{transform:scale(.98)}.btn-enviar:disabled{opacity:.6;cursor:wait}\
-.estado{margin:14px 0 0;min-height:1.4em;text-align:center;font-size:13px;line-height:1.45}.estado.ok{color:var(--ok);font-weight:600}.estado.error{color:var(--error)}\
-.meta{margin:12px 0 0;text-align:center;font-size:11.5px;line-height:1.6;color:var(--suave)}\
+.estado{margin:14px 0 0;min-height:1.4em;text-align:center;font-size:calc(13px*var(--fz,1));line-height:1.45}.estado.ok{color:var(--ok);font-weight:600}.estado.error{color:var(--error)}\
+.meta{margin:12px 0 0;text-align:center;font-size:calc(11.5px*var(--fz,1));line-height:1.6;color:var(--suave)}\
 .ver-tarjeta{display:flex;justify-content:center;margin-top:14px}.ver-tarjeta .enlace{display:inline-flex;align-items:center;gap:6px;text-decoration:none}\
 .trampa{position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none}\
 button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);outline-offset:3px}\
@@ -206,8 +216,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
 .menu-cal{display:grid;gap:8px;width:100%;max-width:300px;padding:12px;background:#fff;border-radius:14px;box-shadow:var(--sombra)}\
 .menu-cal button{border:1px solid #eadfd5;background:#fff;border-radius:12px;padding:11px 12px;cursor:pointer;font:600 13px/1.2 Montserrat,sans-serif;color:var(--texto);text-align:left}\
 .aviso-std{min-height:1.3em;margin:0;text-align:center;font-size:13px;color:var(--ok)}\
-.pista{margin:12px 0 0;text-align:center;font-size:12px;color:var(--suave);transition:opacity .4s}.pista.oculta{opacity:0}\
-' + (window.PYD_SIEMPRE_ANIMAR ? '' : '@media (prefers-reduced-motion:reduce){.pista,input,select,textarea{transition:none}}');
+'; /* sin @media (prefers-reduced-motion): las animaciones corren siempre */
 
   var I = {
     giro: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
@@ -251,7 +260,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
         ib('btn-compartir', 'compartir', 'compartir', '', ' hidden') + ib('btn-copiar', 'copiar', 'copiar') + ib('btn-imprimir', 'imprimir', 'imprimir') + '</div>' +
       '<div class="menu-cal" id="menu-cal" hidden><button type="button" id="cal-ics" data-t="calIcs"></button><button type="button" id="cal-google">Google Calendar</button></div>' +
       '<p class="aviso-std" id="aviso-std" role="status" aria-live="polite"></p>' +
-    '</div></section></div></div><p class="pista" id="pista" data-t="pista"></p></div>';
+    '</div></section></div></div></div>';
 
   var RAIZ = HOST.shadowRoot || (HOST.attachShadow ? HOST.attachShadow({ mode: 'open' }) : HOST);
   RAIZ.innerHTML = HTML;
@@ -265,7 +274,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   ['form', 'logo-rsvp', 'campo-nombre', 'nombre', 'asistencia', 'pases', 'mensaje', 'det-mensaje', 'contador', 'saludo', 'saludo-nombre', 'saludo-linea',
    'ayuda-nombre', 'candidatos', 'btn-buscar', 'btn-cambiar', 'btn-enviar', 'estado', 'meta', 'resp-novios', 'resp-novios-txt',
    'web', 'campo-pases', 'ayuda-pases', 'campo-acomp', 'acompanantes', 'ayuda-acomp', 'extras', 'plazo', 'aviso-cierre', 'caja',
-   'escena', 'giro', 'frente', 'reverso', 'tarjeta', 'pista', 'btn-ver-tarjeta', 'btn-volver', 'btn-cal', 'menu-cal', 'cal-ics',
+   'escena', 'giro', 'frente', 'reverso', 'tarjeta', 'btn-ver-tarjeta', 'btn-volver', 'btn-cal', 'menu-cal', 'cal-ics',
    'cal-google', 'btn-compartir', 'btn-copiar', 'btn-imprimir', 'btn-confirmar', 'aviso-std']
     .forEach(function (id) { el[id.replace(/-(\w)/g, function (_, c) { return c.toUpperCase(); })] = $(id); });
 
@@ -335,11 +344,12 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   function aplicarFondos() {
     var F = cfg.tarjeta.fondos, fo = F.formulario || {}, ft = F.tarjeta || {}, caja = el.caja;
     caja.style.backgroundColor = fo.tipo === 'transparente' ? 'transparent' : fo.tipo === 'imagen' ? '#fff' : (fo.color || '#fff');
-    caja.style.backgroundImage = fo.tipo === 'imagen' ? 'url("' + urlFondo('formulario') + '")' : 'none';   /* cover · 50% 50% en el CSS */
+    if (fo.tipo === 'imagen') resolverFondo('formulario').then(function (u) { caja.style.backgroundImage = 'url("' + u + '")'; }); else caja.style.backgroundImage = 'none';   /* cover · 50% 50% en el CSS */
     caja.style.boxShadow = fo.tipo === 'transparente' ? 'none' : '';
     el.tarjeta.style.background = ft.tipo === 'color' ? cfg.tarjeta.colores.papel : 'transparent';
     el.tarjeta.style.boxShadow = ft.tipo === 'transparente' ? 'none' : '';
     RAIZ.querySelector('.rsvp-raiz').style.setProperty('--campo', rgba(cfg.tarjeta.colores.campo || '#F9F5F2', cfg.tarjeta.campo_alfa));
+    RAIZ.querySelector('.rsvp-raiz').style.setProperty('--fz', escala(cfg.form.escala_fuente));   /* tamaño de todas las letras del formulario (50–200 %) */
     var L = cfg.form.logo || {};
     el.logoRsvp.hidden = !L.mostrar;
     if (L.mostrar) {
@@ -363,6 +373,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     var raiz = RAIZ.querySelector('.rsvp-raiz'), ac = cfg.tarjeta.colores.acento;
     raiz.style.setProperty('--boton', ac); raiz.style.setProperty('--boton-osc', oscurecer(ac, .14));
     el.detMensaje.hidden = !cfg.form.permitir_mensaje;
+    aplicarGiro();
     aplicarFondos();
     lang = elegirIdioma(); HOST.setAttribute('lang', lang); aplicarTextos();
     renderPreguntas();
@@ -460,7 +471,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.saludoLinea.textContent = T('pasesRes', { n: estado.pases }) + mesa;
   }
   function pintarMeta(g) {
-    if (!g || !g.primera) { el.meta.hidden = true; return; }
+    if (!g || !g.primera || cfg.form.mostrar_fechas === false) { el.meta.hidden = true; return; }
     var partes = [T('primera') + ': ' + fechaLarga(g.primera)];
     if (g.ultima) partes.push(T('ultima') + ': ' + fechaLarga(g.ultima));
     partes.push(T('ediciones') + ': ' + (g.ediciones || 1));
@@ -570,7 +581,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
           var u = new URL(location.href); u.searchParams.delete('pase'); u.searchParams.set('to', r.invitado.codigo); history.replaceState(null, '', u.toString());
         }
         mensajeEstado(r.cambio === false ? T('yaGuardada') : yaTenia ? T('actualizada') : T('recibida'), 'ok');
-        if (GIRO.autoGirar) setTimeout(function () { girarA('reverso'); }, 900);
+        if (GIRO.autoGirar && puedeGirar()) setTimeout(function () { girarA('reverso'); }, 900);
         return;
       }
       var e = r.error;
@@ -618,14 +629,13 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   var imgFondo = { url: '', img: null, prom: null };
   function cargarFondoTarjeta() {
     if ((cfg.tarjeta.fondos.tarjeta || {}).tipo !== 'imagen') return Promise.resolve(null);
-    var u = urlFondo('tarjeta');
-    if (imgFondo.url === u && imgFondo.prom) return imgFondo.prom;
-    imgFondo.url = u;
-    imgFondo.prom = new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = u; });
+    if (imgFondo.prom) return imgFondo.prom;
+    imgFondo.prom = resolverFondo('tarjeta').then(function (u) { return new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = u; }); });
     return imgFondo.prom;
   }
   var pintando = null, repintar = false;
   function pintarTarjeta() {
+    if (!puedeGirar()) return Promise.resolve();   /* giro bloqueado: la tarjeta ni se dibuja */
     if (pintando) { repintar = true; return pintando; }
     pintando = dibujarTarjeta().catch(function (e) { console.warn('[RSVP] tarjeta:', e); }).then(function () {
       pintando = null; if (repintar) { repintar = false; return pintarTarjeta(); }
@@ -635,6 +645,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   function dibujarTarjeta() {
     var cv = el.tarjeta, ctx = cv.getContext('2d'), W = cv.width, H = cv.height, Tj = cfg.tarjeta, C = Tj.colores, s = situacion(), g = estado.g || {};
     var titulo = Tj.titulo || cfg.nombre || '', tipoF = (Tj.fondos.tarjeta || {}).tipo || 'color';
+    var K = escala(Tj.escala_texto), KQ = escala((Tj.qr || {}).escala), f = function (v) { return Math.round(v * K); };   /* K: letras y separaciones · KQ: código QR */
     var fuentes = document.fonts ? Promise.all([document.fonts.load('100px ' + FUENTES.titulo, titulo || 'A'), document.fonts.load('40px ' + FUENTES.texto)]).catch(function () {}) : Promise.resolve();
     return Promise.all([fuentes, cargarFondoTarjeta()]).then(function (res) {
       var fondo = res[1];
@@ -647,36 +658,50 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
         ctx.strokeStyle = C.acento; ctx.lineWidth = 4; ctx.strokeRect(48, 48, W - 96, H - 96);
         ctx.lineWidth = 1.5; ctx.strokeRect(64, 64, W - 128, H - 128);
       }
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      var y = 200, etq = textoTarjeta({ pendiente: 'etiqueta_pendiente', si: 'etiqueta_si', no: 'etiqueta_no' }[s]);
-      ctx.fillStyle = C.acento; ctx.font = '600 36px ' + FUENTES.texto; espaciado(ctx, String(etq).toUpperCase(), W / 2, y, 12);
-      y += 150; ctx.fillStyle = C.tinta; ctx.font = '400 116px ' + FUENTES.titulo; y = envolver(ctx, titulo, W / 2, y, W - 240, 120, 2);
-      y += 56; ctx.strokeStyle = C.acento; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(W / 2 - 130, y); ctx.lineTo(W / 2 + 130, y); ctx.stroke();
-      ctx.fillStyle = C.acento; ctx.beginPath(); ctx.arc(W / 2, y, 7, 0, Math.PI * 2); ctx.fill();
-      if (Tj.fecha) { y += 84; ctx.fillStyle = C.tinta; ctx.font = '500 52px ' + FUENTES.texto; espaciado(ctx, Tj.fecha, W / 2, y, 6); }
-      if (Tj.lugar) { y += 56; ctx.fillStyle = C.suave; ctx.font = '34px ' + FUENTES.texto; ctx.fillText(Tj.lugar, W / 2, y); }
-      if (g.nombre) { y += 92; ctx.fillStyle = C.tinta; ctx.font = 'italic 46px ' + FUENTES.texto; y = envolver(ctx, conTrato(g), W / 2, y, W - 260, 54, 2); }
-      var linea = s === 'si' ? T('pasesConf', { n: g.pasesConfirmados || g.pases }) + (g.mesa ? '  \u00b7  ' + T('mesa') + ' ' + g.mesa : '')
+      var codigo = estado.codigo, linea = s === 'si' ? T('pasesConf', { n: g.pasesConfirmados || g.pases }) + (g.mesa ? '  \u00b7  ' + T('mesa') + ' ' + g.mesa : '')
                 : s === 'pendiente' && g.nombre ? T('pasesRes', { n: g.pases }) : '';
-      if (linea) { y += 64; ctx.fillStyle = C.acento; ctx.font = '600 32px ' + FUENTES.texto; espaciado(ctx, linea.toUpperCase(), W / 2, y, 4); }
       var msg;
       if (s === 'pendiente') {
         msg = textoTarjeta('mensaje_pendiente');
         if (/\{fecha_limite\}/.test(msg)) msg = estado.fechaLimite ? msg.replace(/\{fecha_limite\}/g, fechaCorta(estado.fechaLimite)) : T('msgEscanear');
       } else msg = g.respuestaNovios || textoTarjeta(s === 'si' ? 'mensaje_si' : 'mensaje_no');
-      ctx.fillStyle = C.suave; ctx.font = 'italic 36px ' + FUENTES.texto;
-      if (s === 'no') { y = Math.max(y + 140, H / 2 + 40); envolver(ctx, msg, W / 2, y, W - 300, 50, 8); return; }
-      y += 74; y = envolver(ctx, msg, W / 2, y, W - 280, 46, 3);
-      /* QR: lo más grande posible (máx. 600) y centrado verticalmente en el espacio libre bajo el texto */
-      var codigo = estado.codigo, arriba = y + 50, abajo = H - (codigo ? 150 : 100), libre = abajo - arriba;
-      var qs = Math.round(Math.max(300, Math.min(600, libre - 24))), qx = (W - qs) / 2, qy = Math.round(arriba + Math.max(12, (libre - qs) / 2));
+      /* Texto de la tarjeta con el factor K (letras y separaciones). Devuelve la y donde termina. Se usa también como medición (en un lienzo aparte). */
+      function trazar(c, K) {
+        var f = function (v) { return Math.round(v * K); }, y = 200, etq = textoTarjeta({ pendiente: 'etiqueta_pendiente', si: 'etiqueta_si', no: 'etiqueta_no' }[s]);
+        c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+        c.fillStyle = C.acento; c.font = '600 ' + f(36) + 'px ' + FUENTES.texto; espaciado(c, String(etq).toUpperCase(), W / 2, y, 12 * K);
+        y += f(150); c.fillStyle = C.tinta; c.font = '400 ' + f(116) + 'px ' + FUENTES.titulo; y = envolver(c, titulo, W / 2, y, W - 240, f(120), K > 1.4 ? 3 : 2);
+        y += f(56); c.strokeStyle = C.acento; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(W / 2 - 130, y); c.lineTo(W / 2 + 130, y); c.stroke();
+        c.fillStyle = C.acento; c.beginPath(); c.arc(W / 2, y, 7, 0, Math.PI * 2); c.fill();
+        if (Tj.fecha) { y += f(84); c.fillStyle = C.tinta; c.font = '500 ' + f(52) + 'px ' + FUENTES.texto; espaciado(c, Tj.fecha, W / 2, y, 6 * K); }
+        if (Tj.lugar) { y += f(56); c.fillStyle = C.suave; c.font = f(34) + 'px ' + FUENTES.texto; y = envolver(c, Tj.lugar, W / 2, y, W - 240, f(40), K > 1.4 ? 3 : 2); }
+        if (g.nombre) { y += f(92); c.fillStyle = C.tinta; c.font = 'italic ' + f(46) + 'px ' + FUENTES.texto; y = envolver(c, conTrato(g), W / 2, y, W - 260, f(54), 2); }
+        if (linea) { y += f(64); c.fillStyle = C.acento; c.font = '600 ' + f(32) + 'px ' + FUENTES.texto; espaciado(c, linea.toUpperCase(), W / 2, y, 4 * K); }
+        c.fillStyle = C.suave; c.font = 'italic ' + f(36) + 'px ' + FUENTES.texto;
+        if (s === 'no') { y = Math.max(y + f(140), H / 2 + 40); return envolver(c, msg, W / 2, y, W - 300, f(50), 8); }
+        y += f(74); return envolver(c, msg, W / 2, y, W - 280, f(46), K > 1.4 ? 5 : 3);
+      }
+      /* Si con el tamaño pedido (> 100 %) el texto no deja lugar para un QR legible, se reduce hasta que quepa */
+      var Kf = K;
+      if (K > 1 && s !== 'no') {
+        var med = document.createElement('canvas'); med.width = W; med.height = H;
+        var mc = med.getContext('2d'), limite = H - (codigo ? 98 + Math.round(26 * K) + 24 : 70) - 290;   /* deja siempre sitio para un QR legible (≈ 260 px) */
+        while (Kf > 1 && trazar(mc, Kf) > limite) Kf = Math.round((Kf - .05) * 100) / 100;
+      }
+      f = function (v) { return Math.round(v * Kf); };
+      var y = trazar(ctx, Kf);
+      if (s === 'no') return;
+      /* QR: al 100 % es lo más grande posible (máx. 600) y centrado en el espacio libre bajo el texto; la barra lo reduce o lo agranda (hasta donde cabe en la tarjeta) */
+      var arriba = y + 50, abajo = H - (codigo ? 150 : 100), libre = abajo - arriba;
+      var base = Math.round(Math.max(Kf > 1 ? 200 : 300, Math.min(600, libre - 24))), tope = Math.max(base, Math.min(W - 140, H - (codigo ? 98 + f(26) + 24 : 60) - arriba - 24));
+      var qs = KQ <= 1 ? Math.max(120, Math.round(base * KQ)) : Math.min(Math.round(base * KQ), tope), qx = (W - qs) / 2, qy = Math.round(arriba + Math.max(12, (libre - qs) / 2));
       ctx.save(); ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = 'rgba(0,0,0,.08)'; ctx.shadowBlur = 24; ctx.fillRect(qx - 12, qy - 12, qs + 24, qs + 24); ctx.restore();
       var logo = (Tj.logo_qr || '').trim(), Q = Tj.qr || {};
       return QR.dibujarEn(ctx, urlQR(), qx, qy, qs, { ecc: 'M', estilo: Q.estilo || 'redondeado', color: Q.color || C.tinta,
         logo: { activo: !!logo, tipo: 'texto', texto: logo, colorTexto: Q.logo_texto || '#FFFFFF', fondo: Q.logo_fondo || C.acento, forma: Q.logo_forma || 'circulo',
                 fuente: 'italic 600 {px}px Georgia, serif', halo: .1, tamano: 'max', ladoMax: .3, ecc: 'H', reservaECC: .5 } }).then(function () {
-        if (codigo) { ctx.fillStyle = C.suave; ctx.font = '26px ' + FUENTES.texto; espaciado(ctx, codigo, W / 2, H - 98, 10); }
+        if (codigo) { ctx.fillStyle = C.suave; ctx.font = f(26) + 'px ' + FUENTES.texto; espaciado(ctx, codigo, W / 2, H - 98, 10 * Kf); }
       });
     }).then(function () { actualizarAcciones(); });
   }
@@ -757,66 +782,101 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
 
   /* Alto mínimo del formulario = alto de la tarjeta (5×7): al girar ambas caras se ven del mismo tamaño.
      Si hay muchas preguntas, el formulario crece normalmente. */
-  function altoMinimo() { var w = el.caja.offsetWidth; if (w) el.caja.style.minHeight = Math.round(w * 7 / 5) + 'px'; }
+  function altoMinimo() { var w = el.caja.offsetWidth; if (w && puedeGirar()) el.caja.style.minHeight = Math.round(w * 7 / 5) + 'px'; else el.caja.style.minHeight = ''; }
   if (window.ResizeObserver) new ResizeObserver(altoMinimo).observe(el.caja); else window.addEventListener('resize', altoMinimo);
   altoMinimo();
 
-  /* ================================================================ giro controlado por el dedo */
-  /* window.PYD_SIEMPRE_ANIMAR = true (antes de cargar este archivo): se anima igual aunque el sistema pida reducir movimiento */
-  var reducido = !window.PYD_SIEMPRE_ANIMAR && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var rot = 0, actual = 0, ini = null, arrastrando = false;
-  function aplicar(ang, dur) {
-    el.giro.style.setProperty('--dur', (reducido ? Math.min(dur, 150) : dur) + 'ms');
-    el.giro.style.transform = 'rotateY(' + ang + 'deg)';
-    el.giro.style.setProperty('--shade', (Math.abs(Math.sin(ang * Math.PI / 180)) * .9).toFixed(3));
-    actual = ang;
+  /* ================================================================ giro de la tarjeta */
+  /* El giro se dibuja con JS (requestAnimationFrame), no con transiciones CSS: funciona igual en iPhone y Android y aunque el sistema pida «reducir movimiento».
+       · La tarjeta es un objeto rígido que gira sobre su eje vertical y «ang» es ese ángulo (grados). Arrastrar el dedo hacia la DERECHA suma ángulo y hacia
+         la IZQUIERDA lo resta, desde cualquier punto: la superficie sigue al dedo (la orilla derecha jalada hacia la izquierda se acerca a ti; la orilla
+         izquierda jalada hacia la derecha también). Desde el reverso pasa lo mismo.
+       · No usa backface-visibility (Safari la ignora dentro de contenedores con recortes): la cara se cambia justo a los 90°, así el contenido nunca se ve en espejo.
+       · La altura de la sección cambia poco a poco junto con el giro (sin saltos). */
+  var ang = 0, atras = false, ini = null, arrastrando = false, raf = 0, medidas = null;
+  var PERSP = 'perspective(1600px) rotateY(';
+  var norm = function (a) { return ((a % 360) + 540) % 360 - 180; };                  /* (-180, 180] */
+  function puedeGirar() { return cfg.form.permitir_giro !== false; }
+  function aplicarGiro() {
+    var pg = puedeGirar();
+    el.reverso.hidden = !pg;                                                        /* giro bloqueado: sin tarjeta */
+    el.btnVerTarjeta.parentNode.hidden = !pg || cfg.form.mostrar_voltear === false;  /* botón "Voltear tarjeta" */
+    el.escena.style.touchAction = pg ? '' : 'auto';
+    altoMinimo();
   }
-  /* La cara oculta no aporta altura: tras el giro, la página se ajusta a la cara visible */
-  var altoT;
-  function liberarAltura() { clearTimeout(altoT); [el.frente, el.reverso].forEach(function (c) { c.style.maxHeight = ''; c.style.overflow = ''; }); }
+  function pintarAng(a) {
+    var n = norm(a), abs = Math.abs(n), c2 = abs > 90, rad = a * Math.PI / 180, sh = (Math.abs(Math.sin(rad)) * .9).toFixed(3);
+    el.frente.style.visibility = c2 ? 'hidden' : 'visible'; el.reverso.style.visibility = c2 ? 'visible' : 'hidden';
+    el.frente.style.setProperty('--shade', sh); el.reverso.style.setProperty('--shade', sh);
+    el.frente.style.transform = c2 || abs < .01 ? 'none' : PERSP + n + 'deg)';
+    el.reverso.style.transform = !c2 ? 'none' : PERSP + (n - (n > 0 ? 180 : -180)) + 'deg)';
+    if (medidas) el.escena.style.height = Math.round(medidas.f + (medidas.b - medidas.f) * (1 - Math.cos(rad)) / 2) + 'px';
+  }
+  /* Cada cara por separado ocupa su alto natural; el de la sección pasa del uno al otro mientras gira */
+  function liberarAltura() { [el.frente, el.reverso].forEach(function (c) { c.style.maxHeight = ''; c.style.overflow = ''; }); }
   function ajustarAltura() {
-    var atras = lado() === 'reverso', vis = atras ? el.reverso : el.frente, oc = atras ? el.frente : el.reverso;
+    var vis = atras ? el.reverso : el.frente, oc = atras ? el.frente : el.reverso;
     vis.style.maxHeight = ''; vis.style.overflow = ''; oc.style.maxHeight = vis.offsetHeight + 'px'; oc.style.overflow = 'hidden';
   }
-  function lado() { return ((Math.round(rot / 180) % 2) + 2) % 2 === 1 ? 'reverso' : 'frente'; }
-  function asentar(destino) {
-    var dur = Math.max(180, GIRO.duracion * Math.abs(destino - actual) / 180);
-    liberarAltura();
-    rot = destino; aplicar(destino, dur);
-    altoT = setTimeout(ajustarAltura, dur + 30);
-    var atras = lado() === 'reverso';
+  function medir() { liberarAltura(); medidas = { f: el.frente.offsetHeight, b: el.reverso.offsetHeight }; }
+  function fin(destino) {
+    medidas = null; el.escena.style.height = '';
+    ang = destino - 360 * Math.round(destino / 360); pintarAng(ang);                /* 0 (frente) o ±180 (reverso) */
     el.frente.inert = atras; el.reverso.inert = !atras;
     el.frente.setAttribute('aria-hidden', String(atras)); el.reverso.setAttribute('aria-hidden', String(!atras));
-    if (destino !== 0) el.pista.classList.add('oculta');
+    ajustarAltura();
     if (!atras) el.menuCal.hidden = true;
   }
-  function girarA(destino) { if (lado() !== destino) { actual = rot; asentar(rot - 180); } }
+  function animar(destino) {                 /* destino: 0 · ±180 · ±360 (grados) */
+    cancelAnimationFrame(raf);
+    if (!medidas) medir();
+    var desde = ang, dur = Math.max(280, GIRO.duracion * Math.abs(destino - desde) / 180) + Math.min(550, Math.abs(medidas.b - medidas.f) * .9), t0 = performance.now();   /* más lento si cambia mucho de altura */
+    atras = Math.abs(norm(destino)) > 90;
+    (function paso(ahora) {
+      var p = Math.min(1, (ahora - t0) / dur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;   /* easeInOutCubic */
+      ang = desde + (destino - desde) * e; pintarAng(ang);
+      if (p < 1) raf = requestAnimationFrame(paso); else fin(destino);
+    })(t0);
+  }
+  function girarA(destino) {
+    if (!puedeGirar()) return;
+    var quiere = destino === 'reverso';
+    if (quiere === atras && !medidas) return;
+    animar(quiere ? (ang > 1 ? 180 : -180) : 0);       /* al reverso con los botones: como pasar una hoja (la orilla derecha viene hacia ti) */
+  }
   window.RSVP_TARJETA = { girar: girarA, repintar: pintarTarjeta };
   el.escena.addEventListener('pointerdown', function (e) {
-    if (e.button !== 0 || e.target.closest('input,textarea,select,button,a,label,summary,.candidatos,.opciones,[data-no-giro]')) return;
-    ini = { x: e.clientX, y: e.clientY, id: e.pointerId, w: el.escena.getBoundingClientRect().width || 1 };
+    if (!puedeGirar() || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('input,textarea,select,button,a,label,summary,.candidatos,.opciones,[data-no-giro]')) return;
+    ini = { x: e.clientX, y: e.clientY, id: e.pointerId, w: el.escena.getBoundingClientRect().width || 1, base: 0, lx: e.clientX, lt: performance.now(), v: 0 };
   });
   el.escena.addEventListener('pointermove', function (e) {
     if (!ini || e.pointerId !== ini.id) return;
-    var dx = e.clientX - ini.x, dy = e.clientY - ini.y;
+    var dx = e.clientX - ini.x, dy = e.clientY - ini.y, ahora = performance.now();
     if (!arrastrando) {
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-      if (Math.abs(dy) > Math.abs(dx)) { ini = null; return; }
-      arrastrando = true; el.escena.classList.add('arrastrando'); el.escena.setPointerCapture(e.pointerId); liberarAltura();
+      if (Math.abs(dy) > Math.abs(dx)) { ini = null; return; }       /* movimiento vertical: es para desplazar la página */
+      arrastrando = true; el.escena.classList.add('arrastrando');
+      cancelAnimationFrame(raf); medir(); ini.x = e.clientX; ini.lx = e.clientX; ini.lt = ahora; ini.base = Math.round(ang / 180) * 180;
+      try { el.escena.setPointerCapture(e.pointerId); } catch (x) {}
+      return;
     }
     e.preventDefault();
-    aplicar(rot + Math.max(-180, Math.min(180, dx / ini.w * 180)), 0);
+    var d = Math.max(-180, Math.min(180, (e.clientX - ini.x) / ini.w * 180 * 1.1));
+    ang = ini.base + d; pintarAng(ang);
+    if (ahora - ini.lt > 16) { ini.v = (e.clientX - ini.lx) / (ahora - ini.lt); ini.lx = e.clientX; ini.lt = ahora; }
   });
   function soltar(e) {
     if (!ini || e.pointerId !== ini.id) return;
-    ini = null; if (!arrastrando) return;
-    arrastrando = false; el.escena.classList.remove('arrastrando');
-    var delta = actual - rot;
-    asentar(Math.abs(delta) > GIRO.umbral ? rot + Math.sign(delta) * 180 : rot);
+    var era = arrastrando, i = ini, delta = ang - i.base; ini = null; arrastrando = false; el.escena.classList.remove('arrastrando');
+    if (!era) return;
+    var rapido = Math.abs(i.v) > .5 && Math.abs(delta) > 18 && (i.v > 0) === (delta > 0);      /* un gesto rápido también completa el giro */
+    animar(Math.abs(delta) > GIRO.umbral || rapido ? i.base + (delta > 0 ? 180 : -180) : i.base);
   }
   el.escena.addEventListener('pointerup', soltar);
   el.escena.addEventListener('pointercancel', soltar);
-  el.escena.addEventListener('lostpointercapture', soltar);
+  /* OJO (celulares): al llamar setPointerCapture, el navegador dispara 'lostpointercapture' sobre el elemento que tenía la captura
+     implícita del toque y el evento sube hasta aquí. Solo cuenta si la captura se pierde en la propia escena. */
+  el.escena.addEventListener('lostpointercapture', function (e) { if (e.target === el.escena) soltar(e); });
   el.btnVerTarjeta.addEventListener('click', function () { girarA('reverso'); });
   el.btnVolver.addEventListener('click', function () { girarA('frente'); });
   el.btnConfirmar.addEventListener('click', function () { girarA('frente'); setTimeout(function () { (el.nombre.readOnly ? el.asistencia : el.nombre).focus({ preventScroll: true }); }, GIRO.duracion); });

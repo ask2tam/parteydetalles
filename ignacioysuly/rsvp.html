@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta name="robots" content="noindex">
+<title>RSVP</title>
+<!-- Página directa del RSVP (destino del QR). Genérica: cópiala tal cual en la carpeta de cada evento.
+     El evento se toma del nombre de la carpeta (/ignacioysuly/rsvp.html). Para forzarlo: ?p=slug o
+     descomenta la línea window.BODA_PROYECTO de abajo.
+     Fondos opcionales (Panel › Configuración › Tarjeta): assets/rsvp_fondo_background, rsvp_fondo_formulario y
+     rsvp_fondo_tarjeta en .jpg (recomendado: pesa ~10× menos) o .png, dentro de la carpeta del evento. -->
+<!-- <script>window.BODA_PROYECTO = 'ignacioysuly';</script> -->
+<script src="../assets/pyd-config.js"></script>   <!-- incluye la redirección del rol staff -->
+<script src="../assets/boda-api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  :root { --papel: #FBF8F3; --tinta: #2B2622; --acento: #B08D57; --suave: #8A7F75; --fondo: #F1ECE4; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100dvh; background: var(--fondo); color: var(--tinta); font-family: Georgia, "Times New Roman", serif;
+         display: flex; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom)); }
+  body.con-imagen { background: var(--fondo) top center / cover no-repeat; }
+  .pagina { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; }
+  /* Sin título ni fecha arriba: la tarjeta y el formulario ya llevan los nombres. Solo queda el selector de idioma (si el evento es bilingüe). */
+  .cab { width: 100%; display: flex; justify-content: flex-end; padding: 0 16px 10px; }
+  .cab[hidden] { display: none; }
+  .idiomas { display: flex; border: 1px solid color-mix(in srgb, var(--acento) 50%, transparent); border-radius: 999px; overflow: hidden; }
+  .idiomas button { border: 0; background: transparent; color: var(--acento); font: 600 11px/1 system-ui, sans-serif; letter-spacing: .08em; padding: 7px 10px; cursor: pointer; }
+  .idiomas button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+  #rsvp { width: 100%; --rsvp-relleno: 0 16px 8px; }
+  .ver { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 12px 22px; border-radius: 999px;
+         border: 1.5px solid var(--acento); color: var(--acento); background: #fff; text-decoration: none;
+         font: 600 13px/1 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  .ver:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+  .ver svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pagina { padding-bottom: 64px; }   /* espacio para el crédito flotante */
+</style>
+</head>
+<body>
+<main class="pagina">
+  <header class="cab" id="cab" hidden>
+    <div class="idiomas" id="idiomas" role="group" aria-label="Idioma / Language">
+      <button type="button" data-l="es" aria-pressed="false">ES</button><button type="button" data-l="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <div id="rsvp"></div>
+
+  <a class="ver" id="ver" href="#" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H5.2L4 17.2z"/><path d="M8 8h8M8 12h5"/></svg>
+    <span id="ver-txt">Ver invitación completa</span>
+  </a>
+  <div data-credito style="width:100%"></div>
+</main>
+<script>
+  (function () {
+    var TX = { es: ['Confirmación de asistencia', 'Ver invitación completa', 'Confirma tu asistencia'],
+               en: ['RSVP', 'View full invitation', 'RSVP'] };
+    var urlInv = '', nombre = '', $ = function (id) { return document.getElementById(id); };
+    function enlace() {
+      var cod = new URLSearchParams(location.search).get('to'), u;
+      try { u = new URL(urlInv, location.href); } catch (e) { return; }
+      if (cod) u.searchParams.set('to', cod);
+      if (window.RSVP_IDIOMA && RSVP_IDIOMA.actual() !== 'es') u.searchParams.set('lang', RSVP_IDIOMA.actual());
+      $('ver').href = u.toString();
+    }
+    function idioma(l) {
+      var t = TX[l] || TX.es;
+      document.documentElement.lang = l; $('ver-txt').textContent = t[1];
+      document.title = t[2] + (nombre ? ' · ' + nombre : '');
+      document.querySelectorAll('#idiomas button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.l === l)); });
+      enlace();
+    }
+    idioma('es');
+    $('idiomas').addEventListener('click', function (e) { var b = e.target.closest('[data-l]'); if (b && window.RSVP_IDIOMA) RSVP_IDIOMA.cambiar(b.dataset.l); });
+    window.addEventListener('rsvp:idioma', function (e) { idioma(e.detail); });
+    window.addEventListener('rsvp:proyecto', function (e) {
+      var p = e.detail || {}, t = p.tarjeta || {}, c = t.colores || {}, f = ((t.fondos || {}).pagina) || {}, r = document.documentElement.style;
+      ['papel', 'tinta', 'acento', 'suave'].forEach(function (k) { if (c[k]) r.setProperty('--' + k, c[k]); });
+      if (f.tipo === 'transparente') r.setProperty('--fondo', 'transparent');
+      else if (f.tipo === 'imagen') { document.body.classList.add('con-imagen'); var fb = new Image(); fb.onload = function () { document.body.style.backgroundImage = 'url("assets/rsvp_fondo_background.jpg")'; };
+        fb.onerror = function () { document.body.style.backgroundImage = 'url("assets/rsvp_fondo_background.jpg")'; }; fb.src = 'assets/rsvp_fondo_background.jpg'; }   /* .jpg (liviano) o .png */
+      else if (f.color) r.setProperty('--fondo', f.color);
+      nombre = t.titulo || p.nombre || '';
+      urlInv = p.urlInvitacion || ''; $('ver').hidden = !urlInv;
+      $('cab').hidden = String(p.idioma || 'es').split(',').length < 2;
+      enlace();
+    });
+    window.addEventListener('rsvp:invitado', enlace);
+  })();
+</script>
+<script src="../assets/qr.js" defer></script>
+<script src="../assets/rsvp.js" defer></script>
+</body>
+</html>

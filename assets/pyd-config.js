@@ -12,7 +12,7 @@ window.PYD = Object.assign({
   INSTAGRAM: 'https://www.instagram.com/parteydetalles/',
   TIKTOK: 'https://www.tiktok.com/@parteydetalles',
   WHATSAPP: '51907954996',                            // sin "+" ni espacios
-  VERSION_PANEL: 'v1.04'
+  VERSION_PANEL: 'v1.05'
 }, window.PYD || {});
 
 (function () {
@@ -95,7 +95,6 @@ window.PYD = Object.assign({
       'border:1px solid var(--pc-l);box-shadow:0 6px 18px rgba(0,0,0,.1);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transform-origin:100% 100%;transition:transform .3s,opacity .3s}' +
     '.pc-disc:not(.abierto) .pc-linea{transform:scale(.9) translateY(6px);opacity:0;pointer-events:none}' +
     '@media (max-width:359px){.pc-flota .pc-redes{display:none}}' +
-    '@media (prefers-reduced-motion:reduce){.pc-cor{animation:none}.pc-flota,.pc-disc .pc-linea{transition:none}}' +
     '@media print{.pc{display:none!important}}';
 
   P.credito = function (opc) {

@@ -1,4 +1,4 @@
-# Parte y Detalles · Invitaciones + RSVP + Panel · v3.4 (versión completa)
+# Parte y Detalles · Invitaciones + RSVP + Panel · v3.9 (versión completa)
 
 Esta carpeta reemplaza **todo** lo anterior. No hace falta ningún archivo previo.
 
@@ -19,6 +19,105 @@ Esta carpeta reemplaza **todo** lo anterior. No hace falta ningún archivo previ
 /respaldo-github/                       NO se sube al hosting: va a un repositorio PRIVADO de GitHub (respaldo diario)
 ```
 Funciona en un dominio propio o en una subcarpeta (p. ej. `usuario.github.io/repo/`): las rutas se calculan solas.
+
+## Novedades v3.9 y cómo actualizar desde v3.8
+No hay cambios de SQL ni de panel. **Sube** (reemplazando): `assets/rsvp.js` (compartido) y, en la carpeta del evento, `index.html`, `invitacion.html`, `rsvp.html` y **toda la carpeta `assets/`** (trae los archivos ya optimizados; `logo_portada_hd.png` y `rsvp_logo.png` son los tuyos, sin tocar). Luego **borra** del hosting los archivos viejos que ya no se usan (los `.png` que ahora son `.webp`/`.jpg`, y los `.woff`).
+
+| Cambio | Dónde |
+|---|---|
+| **Carga rápida: solo lo indispensable bloquea el sobre.** El anillo de carga ahora espera únicamente: las imágenes del sobre, las 2 tipografías de la portada y los datos del invitado (con tope de 2.5 s). La invitación de Canva, las imágenes, `qr.js` y `rsvp.js` se cargan **después**, en segundo plano, mientras el invitado ve el sobre. Si toca «Ver invitación» antes de que termine, el botón parpadea y entra apenas está lista (si no carga, dice «Reintentar»). | `index.html` (`PESO`, `iniciarInvitacion`) |
+| **Menos bytes al abrir:** solo las 2 primeras secciones bajan de inmediato (el resto con `loading="lazy"`); las tipografías de Canva se declaraban una vez por peso y el navegador bajaba el mismo archivo hasta 11 veces: ahora una regla por archivo; las imágenes de Canva ya no se bajan dos veces (se quitó `crossorigin`); `rsvp.js` va al final. | `index.html` |
+| **Imágenes y tipografías más livianas** (carpeta assets del evento: 12.0 MB → 2.6 MB, −78 %) con `optimizar_assets.py`: fotos y papeles opacos PNG → JPG; PNG con transparencia y textura (papel, sello, piezas del sobre) → WebP de alta calidad; iconos de línea → PNG de 256 colores **sin pérdida**; imágenes más grandes de lo que se llega a ver → a su escala; tipografías → woff2 solo con letras latinas (de ~280 KB a ~42 KB). Cada conversión se midió (PSNR/SSIM) y, si no cumple, el archivo se deja igual. | `optimizar_assets.py` |
+| **Cuenta regresiva propia** (sin la «T» de tickcounter): se quitó el iframe de `invitacion.html`; `index.html` dibuja los números en la fuente serif predeterminada, con «:» y etiquetas DÍAS · HORAS · MINUTOS · SEGUNDOS (DAYS · HOURS… en inglés) en el mismo recuadro. La fecha está en `CONFIG.contador.fecha`. | `index.html`, `invitacion.html` |
+| **«TOCA PARA ABRIR» y el círculo pulsante en negro** (`#1E1B18`, el de la paleta). | `index.html` |
+| **Fondos del RSVP** (`rsvp_fondo_background/formulario/tarjeta`): ahora pueden ser `.jpg` (recomendado, ~10× más livianos) o `.png`; se usa el que exista. | `rsvp.js`, `rsvp.html` |
+| El idioma de la portada se decide con los datos del invitado (antes lo fijaba `rsvp.js`, que ahora carga después). | `index.html` |
+
+#### Medición (Chromium, red simulada; servidor con gzip)
+| | v3.8 | v3.9 |
+|---|---|---|
+| Sobre visible · 4G (~9 Mbps) | 12.1 s · 12.1 MB | **2.3 s · 0.39 MB** |
+| Sobre visible · 3G (1.6 Mbps) | 26.8 s (llegó al tope de 25 s) | **3.5 s** |
+| Invitación visible tras tocar «Ver invitación» (desde que se abre el enlace) · 4G | 16.7 s | **7.0 s** |
+| Ídem · 3G | 31.5 s | **9.6 s** (espera ~1.6 s si toca de inmediato) |
+
+#### Cómo usar `optimizar_assets.py`
+`pip install pillow numpy scipy fonttools brotli beautifulsoup4 lxml` y luego `python optimizar_assets.py ignacioysuly` (tarda ~1.5 min). Hace una copia en `ignacioysuly_originales/`, convierte lo que corresponda, **corrige las referencias** en `invitacion.html`, `index.html` y `rsvp.html`, y escribe en `index.html` las tipografías de la portada (entre `@@FUENTES-PORTADA@@`). Es repetible: **ejecútalo cada vez que vuelvas a exportar el Canva o regeneres el sobre con `generar_sobre.py`**. No toca `logo_portada*` ni `rsvp_logo*`.
+- Las piezas del sobre pasan de PNG a **WebP** (PSNR 45–52 dB: no se distingue a simple vista; pesan ~15–50 KB en vez de ~400 KB). Requiere Safari/iOS 14 o más nuevo (2020). Si prefieres PNG para el sobre, no ejecutes el optimizador sobre esas piezas (o cambia las extensiones en `index.html`): el sobre vuelve a pesar ~2.4 MB.
+- Umbrales (arriba del script): `PSNR_WEBP`, `SSIM_PNG_A_JPG`, `ESCALERA_JPG`, `Q_WEBP`. Para ver el aspecto sin riesgo, compara con tu copia `_originales`.
+
+## Novedades v3.8 y cómo actualizar desde v3.7
+No hay cambios de SQL ni de panel. **Sube** (reemplazando): `assets/rsvp.js` (compartido) y, en la carpeta del evento, `index.html` y `assets/logo_portada_hd.png`. `generar_sobre.py` es opcional (solo cambia la función del título).
+**Puedes borrar** de `ignacioysuly/assets/`: `sobre.m4a` (el sobre ya no tiene sonido) y `file_795346059.svg` si aún está (el ícono de regalos ahora es `file_1842718777.svg`, que ya viene en tu Canva nuevo).
+
+| Cambio | Dónde |
+|---|---|
+| **Sin sonido** en el sobre: se quitó el audio, su precarga y el ajuste `CONFIG.sobre.sonido`. | `index.html` |
+| **Gesto «DESLIZA»** (con flechas que bajan) al abrirse la invitación por primera vez. Aparece a los ~2 s, se apoya en la parte baja de la foto (no tapa «¡NOS CASAMOS!») y se va cuando el invitado empieza a desplazarse (o a los 16 s). No vuelve a aparecer. Funciona aunque el iPhone tenga «Reducir movimiento». | `pistaScroll()`, `#pista-scroll` |
+| **Cuenta regresiva**: vuelve la de Canva (el iframe de `invitacion.html`); se retiró el contador propio. | `index.html` |
+| **Canva nuevo**: se retiraron de las animaciones los ids que ya no existen (dress code anterior, íconos vestido/traje sueltos, adorno de los nombres y todo lo de la playlist: texto, tarjeta, ícono y botón) y se incorporaron los nuevos: imagen **SULY** (`LBJwzxTQBllZYLfm`), círculo del dress code (`LBwj3JQxmZNyCnKg`) y el grupo vestido + traje (`LB9252XSfyRKyW88`). Los fondos de papel (`71f2bd…`) no se animan. | `CONFIG.anim` |
+| **Sentido del giro** de las tarjetas (RSVP y UN DETALLE): la tarjeta es un objeto rígido y la superficie sigue al dedo, venga de la orilla derecha o de la izquierda, y también desde el reverso. Antes el signo estaba invertido y, desde el reverso, ambos lados giraban igual. Con los botones, la tarjeta gira como una hoja (la orilla derecha viene hacia ti) y «Volver» deshace el giro. Un gesto rápido también completa el giro. | `rsvp.js`, `index.html` |
+| **«UN DETALLE» ya no queda estampado** al girar: `animacion.js` deja `visibility:visible` en cada letra animada y esas letras seguían viéndose aunque la cara estuviera oculta. Ahora la cara oculta se esconde con opacidad. | `index.html` |
+| **Título de la portada**: el «&» se sustituye por el de Canva (nítido, con más cuerpo) y se ajusta el contraste del texto. | `logo_portada_hd.png`, `generar_sobre.py` |
+
+## Novedades v3.7 (portada) y cómo actualizar desde v3.6
+Solo cambia la portada del sobre (`index.html` de cada evento y sus imágenes). **No hay cambios de SQL, panel, RSVP ni librerías compartidas.**
+
+1. **Sube** `ignacioysuly/index.html` y, en `ignacioysuly/assets/`, estas 7 imágenes: `sobre_fondo.png`, `sobre_adelante.png`, `solapa_frontal.png`, `solapa_reverso.png`, `tarjeta.png`, `sello.png`, `logo_portada_hd.png`.
+2. **Puedes borrar**: `sobre_fondo.webp`, `sobre_adelante.webp`, `solapa_frontal.webp`, `solapa_reverso.webp`, `tarjeta.webp`, `sello.webp`, `sobre.mp4`, `LEEME_index2.md` y `generar_sobre.py` anterior (ya no se usan). `logo_portada.png` (tu archivo original) se conserva: de él sale `logo_portada_hd.png`.
+
+| Cambio | Dónde |
+|---|---|
+| **WebP → PNG** y mayor calidad: piezas de 1200 px de ancho (nítidas en pantallas 3×) con grano de papel nacarado, bordes biselados y sombras suaves. El sobre cerrado es un «euro flap» de punta redondeada, tomado de `288633…png` (colores medidos sobre esa imagen). | `assets/*.png`, `generar_sobre.py` |
+| **Título** = `logo_portada.png` (se le quitó el fondo crema y se amplió ×4 con bordes nítidos: `logo_portada_hd.png`). Aparece de izquierda a derecha con una máscara que se desliza. | `.cab-logo`, `CONFIG.sobre.tiempos` (`d-titulo`, `t-titulo`) |
+| **Tarjeta** nueva: papel de algodón con doble marco en relieve, como las tarjetas de la invitación (`3137f8…png`), en lugar de la hoja rasgada. Aspecto 1.30. | `tarjeta.png`, `.tarjeta` |
+| Solapa al 73 % del cuerpo con punta redondeada y sombra que cae abajo a la derecha. | `.solapa`, `.solapa-rev` |
+
+### Peso
+Las 7 imágenes suman unos 2.5 MB (antes ~0.1 MB). Se descargan mientras corre el anillo de carga, antes de mostrar la portada. Para aligerarlas: en `generar_sobre.py` baja `S` (1.5 → 1.25) o reduce el grano (`fino` en `papel()`).
+
+### Cambiar el título, los colores o la forma del sobre
+- **Título**: reemplaza `logo_portada.png` (tinta oscura sobre fondo liso) y ejecuta `python generar_sobre.py logo_portada`. El texto alternativo sale de `CONFIG.sobre.nombres` y de `TXT.cab`.
+- **Colores / forma / tarjeta**: `PALETA` y la geometría al inicio de `generar_sobre.py`. Requiere `pip install numpy pillow scipy`. Sin argumentos genera todo en `./salida/`; con nombres (`fondo`, `frente`, `solapa_frontal`, `solapa_reverso`, `tarjeta`, `sello`, `logo_portada`) genera solo esas piezas. Tarda ~1 minuto.
+- Si cambias la altura de la solapa (`FH`), cambia también `top` y `height` de `.solapa` y `.solapa-rev` (FH / 556 = 73 %). Si cambias la tarjeta (`CARD_W`, `CARD_H`), mantén su aspecto en `.tarjeta` (`width` / `height`).
+
+## Novedades v3.6 y cómo actualizar desde v3.5
+1. **SQL**: no cambia nada (las opciones nuevas se guardan dentro de la columna `formulario`).
+2. **Sitio** (sube estos archivos): `panel.html`, `assets/rsvp.js`, `assets/panel-i18n.js`, `assets/pyd-config.js` (ya trae tus llaves; solo cambia `VERSION_PANEL` y quita el bloque de «reducir movimiento» del crédito) y, en cada evento, `index.html`, `rsvp.html` y `assets/animacion.js`.
+3. `assets/flip.min.js` y `assets/flip.min.css` del evento ya no se usan: puedes borrarlos.
+
+| Cambio | Dónde |
+|---|---|
+| **Giro con el dedo en celulares**: en el RSVP el navegador avisaba «se perdió la captura» al empezar a arrastrar y cancelaba el giro; en la tarjeta de regalos faltaba el CSS del giro (un selector quedaba pegado al anterior). Ya se verificó con toques reales. | `rsvp.js`, `index.html` |
+| **Giro sin efecto espejo (iPhone)**: ya no se usa `backface-visibility`; la cara se cambia a los 90° y sigue girando hasta 180° con el contenido nuevo. Vale para la tarjeta de regalos y para el RSVP. | `rsvp.js`, `index.html` |
+| **Altura suave al girar el RSVP**: la sección pasa del alto del formulario al de la tarjeta (y al revés) junto con el giro, más despacio cuanto mayor sea la diferencia. | `rsvp.js` |
+| **Animaciones siempre activas**, aunque el iPhone tenga «Reducir movimiento»: también en `rsvp.html` y en el crédito. | `rsvp.js`, `pyd-config.js` |
+| **Sin «Desliza la tarjeta para girarla»** (queda «Voltear tarjeta»). | `rsvp.js` |
+| **Opciones nuevas** en Configuración › Formulario RSVP: mostrar «Primera respuesta / Última modificación / Ediciones», mostrar el botón «Voltear tarjeta» y **permitir que se voltee la tarjeta** (si se desactiva, la tarjeta y el QR no se muestran ni se dibujan). | `panel.html`, `rsvp.js` |
+| **rsvp.html** abre directo con el formulario/tarjeta: sin título ni fecha arriba (solo el selector ES/EN si el evento es bilingüe). | `rsvp.html` |
+| **«Ceremonia & Recepción»**: `animacion.js` forzaba la opacidad final a 1 y el velo (54 %) tapaba la foto. Ahora cada elemento termina en su opacidad original de Canva. | `animacion.js` |
+| **Contador propio** (tarjetas con bisagra, sin librería ni marca). | `index.html` |
+| **Cámara que se aleja lentamente** (`alejar`): nueva animación de `animacion.js`, usada en la foto inicial y en la final. Parámetros: `alejarZoom`, `alejarDuracion`, `alejarUmbral`. | `animacion.js`, `index.html` |
+
+## Novedades v3.5 y cómo actualizar desde v3.4
+1. **SQL**: no cambia nada. Los tamaños se guardan dentro de las columnas `formulario` y `tarjeta` que ya existen.
+2. **Sitio**: sube `panel.html`, `assets/rsvp.js` y `assets/panel-i18n.js`. **No reemplaces tu `assets/pyd-config.js`** (si quieres, cambia solo `VERSION_PANEL: 'v1.05'`).
+3. **Un solo `boda-api.js`**: el de `/assets/` lo usan todos los eventos. Si hay una copia dentro de `/<evento>/assets/` (idéntica), bórrala: ninguna página la carga.
+
+| Cambio | Dónde |
+|---|---|
+| **Elegir el mensaje al enviar por WhatsApp**: al pulsar el icono de WhatsApp de un invitado se abre una ventana con el mensaje a usar (*Predeterminado*, una *sugerida* o una de *Mis plantillas*), la vista previa para ese invitado y el aviso si falta `{link}`. Recuerda la última elección. | Panel › lista de invitados |
+| **Tamaño de las letras del formulario**: una sola barra (50 %–200 %, por defecto 100 %) mueve todos los textos, casillas y botón a la vez. | Configuración › Formulario RSVP |
+| **Tamaño de las letras de la tarjeta**: una sola barra (50 %–200 %) mueve etiqueta, nombres, fecha, lugar, mensaje y código. Si el texto no deja sitio para un QR legible, se limita solo. | Configuración › Tarjeta |
+| **Tamaño del código QR**: barra 50 %–200 %. 100 % = el más grande que cabe; para agrandarlo más, reduce antes las letras. | Configuración › Tarjeta › Código QR |
+| **Respaldo** retirado de Configuración. El respaldo diario con GitHub Actions y `admin_respaldo` (SQL) siguen disponibles para el administrador. | Configuración › General |
+
+### Punto de restauración con Excel (exportar todo → importar)
+Sirve para recuperar los **datos de los invitados**, no es una restauración completa:
+- **Se restaura**: nombre, tratamiento, código (los links siguen funcionando), categoría, asistencia, pases asignados y confirmados, acompañantes, respuesta de los novios, mesa y WhatsApp.
+- **No se restaura** (el Excel los exporta, pero la importación los ignora): respuestas de las preguntas adicionales (menú, alergias…), mensaje a los novios, marca de WhatsApp enviado, ingresos de recepción, vistas, fechas y ediciones, e historial.
+- **Invitados creados después** del Excel no se borran al importar. Para volver exactamente a esa lista: *Borrar todo* y luego importar.
+- **Para volver a «pendiente»** a quien ya respondió, marca *Las celdas vacías borran el valor actual* al importar; si no, las celdas vacías se ignoran y se conserva lo que había.
 
 ## Novedades v3.4 y cómo actualizar desde v3.3
 1. **SQL**: vuelve a ejecutar `01_esquema.sql` completo. Es idempotente: agrega columnas y funciones nuevas y **no borra datos**. (`02_reporte_diario.sql` no cambia.)

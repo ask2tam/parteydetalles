@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="es" class="bloqueado">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ignacio &amp; Suly</title>
+<meta property="og:title" content="Ignacio &amp; Suly · Nos casamos">
+<meta property="og:description" content="Te invitamos a nuestra boda — 05 de diciembre de 2026.">
+<meta property="og:image" content="https://bodas.parteydetalles.com/ignacioysuly/miniatura.jpg">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#FFFBF4">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<!-- Antes de pyd-config.js: el crédito se muestra al abrir la invitación (no encima del sobre)
+     y las animaciones corren aunque el sistema pida "reducir movimiento". -->
+<script>window.PYD_SIN_CREDITO = true; window.PYD_SIEMPRE_ANIMAR = true;</script>
+<script src="../assets/pyd-config.js"></script>   <!-- llaves de Supabase + redirección del rol staff -->
+<script src="../assets/boda-api.js"></script>     <!-- una sola lectura del invitado, compartida por la tarjeta del sobre y el RSVP -->
+<link rel="preconnect" href="https://oydjnnbdwtbyufsqrqyh.supabase.co">   <!-- cambia por tu Project URL -->
+<!-- Precarga de lo indispensable para mostrar el sobre (empieza a bajar desde el <head>, sin esperar al script) -->
+<link rel="preload" as="image" href="assets/portada_fondo.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="assets/logo_portada_hd.png">
+<link rel="preload" as="image" href="assets/sobre_fondo.webp"><link rel="preload" as="image" href="assets/sobre_adelante.webp">
+<link rel="preload" as="image" href="assets/solapa_frontal.webp"><link rel="preload" as="image" href="assets/solapa_reverso.webp">
+<link rel="preload" as="image" href="assets/tarjeta.webp"><link rel="preload" as="image" href="assets/sello.webp">
+<!-- @@FUENTES-PORTADA@@ (lo escribe optimizar_assets.py) -->
+<link rel="preload" as="font" type="font/woff2" href="assets/77fbf36c56a33ec9d32065083bba3023.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="assets/71ae65d828bb9376b7c5efddfb6967b9.woff2" crossorigin>
+<style id="fuentes-portada">
+@font-face{font-family:"YAFdJhX-538_0";font-weight:400;font-style:normal;font-display:block;src:url(assets/77fbf36c56a33ec9d32065083bba3023.woff2) format("woff2")}
+@font-face{font-family:"YAFdJi-0PQg_0";font-weight:400;font-style:normal;font-display:block;src:url(assets/71ae65d828bb9376b7c5efddfb6967b9.woff2) format("woff2")}
+@font-face{font-family:"YAFdJi-0PQg_0";font-weight:500;font-style:normal;font-display:block;src:url(assets/71ae65d828bb9376b7c5efddfb6967b9.woff2) format("woff2")}
+</style>
+<!-- @@/FUENTES-PORTADA@@ -->
+<style id="fuentes-canva"></style><!-- @font-face de Canva: dentro de un Shadow DOM Chrome los ignora, por eso viven aquí -->
+<style>
+  :root { --crema: #FFFBF4; --tinta: #1E1B18; --gris: #BCB8B5; --suave: #7E7A76;
+          --ancho-canva: min(100vw, 700px); --esc: 1; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--crema); }
+  html { scrollbar-gutter: stable; }
+  html.bloqueado, html.bloqueado body { overflow: hidden !important; }
+  html.bloqueado body { touch-action: none; }
+
+  /* ---------- Invitación: Canva (parte A) · RSVP nativo · Canva (parte B) ---------- */
+  #invitacion { position: relative; visibility: hidden; }        /* maquetada desde el inicio; se pinta al abrir */
+  #invitacion.visible { visibility: visible; }
+  .canva-host { display: block; position: relative; }
+
+  /* La sección del RSVP ocupa el ancho del lienzo escalado y crece con el formulario */
+  #rsvp-seccion { position: relative; width: var(--ancho-canva); margin: -1px auto; overflow: hidden;
+                  background: rgb(255, 251, 244); padding: calc(46px * var(--esc)) 0 calc(40px * var(--esc)); }
+  /* opacity .6 = igual que el papel de las secciones de Canva; el 3 % vertical oculta la franja gris plana que trae el borde superior de la imagen */
+  #rsvp-seccion .textura { position: absolute; inset: 0; z-index: 0; background: center 3% / cover no-repeat; opacity: .6; pointer-events: none; }
+  #rsvp-seccion > :not(.textura) { position: relative; z-index: 1; }
+  .rsvp-cab { text-align: center; padding: 0 calc(24px * var(--esc)); }
+  .rsvp-idiomas { display: inline-flex; margin-bottom: calc(14px * var(--esc)); border: 1px solid #b9b3ad; border-radius: 999px; overflow: hidden; }
+  .rsvp-idiomas[hidden] { display: none; }
+  .rsvp-idiomas button { border: 0; background: transparent; color: #4a4540; font: 600 11px/1 system-ui, sans-serif; letter-spacing: .08em; padding: 7px 11px; cursor: pointer; }
+  .rsvp-idiomas button[aria-pressed="true"] { background: #4a4540; color: #fff; }
+  #rsvp { width: 100%; --rsvp-relleno: 0 calc(18px * var(--esc)) 0; }
+  /* Entrada de la cabecera del RSVP (misma curva que animacion.js) */
+  .rsvp-anim { opacity: 0; transform: translateY(-24px); transition: opacity 1.4s cubic-bezier(.16, 1, .3, 1), transform 1.4s cubic-bezier(.16, 1, .3, 1); }
+  .rsvp-anim.visible { opacity: 1; transform: none; }
+  .rsvp-anim.d2 { transition-delay: .35s; }
+
+  /* ---------- Gesto «desliza» (aparece una vez, cuando se abre la invitación) ---------- */
+  #pista-scroll { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 4px;
+                  padding: 11px 20px 7px; border-radius: 22px; transform: translateX(-50%); pointer-events: none; opacity: 0; transition: opacity .9s ease; color: #fff;
+                  background: rgba(34, 30, 26, .46); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 22px rgba(0,0,0,.18); }   /* fondo translúcido: se lee sobre la foto y sobre el papel claro */
+  #pista-scroll[hidden] { display: none; }
+  #pista-scroll.ver { opacity: 1; }
+  #pista-scroll .ps-txt { font: 500 11px/1 'YAFdJi-0PQg_0', Georgia, serif; letter-spacing: .34em; text-indent: .34em; text-transform: uppercase; }
+  #pista-scroll .ps-fl { position: relative; display: block; width: 22px; height: 26px; }
+  #pista-scroll .ps-fl i { position: absolute; left: 50%; top: 0; width: 11px; height: 11px; margin-left: -5.5px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+                           transform: rotate(45deg); opacity: 0; animation: ps-baja 1.9s ease-in-out infinite; }
+  #pista-scroll .ps-fl i:nth-child(2) { animation-delay: .28s; }
+  @keyframes ps-baja { 0% { opacity: 0; transform: translateY(-5px) rotate(45deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(13px) rotate(45deg); } }
+
+  /* ---------- Portada (sobre en HTML/CSS/JS) ---------- */
+  #portada-host { position: fixed; inset: 0; z-index: 100; display: block; background: #f3f0ea; }
+
+  /* ---------- Pantalla de carga ---------- */
+  #cargador { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+              transition: opacity .9s ease, visibility 0s linear .9s; }
+  #cargador.fuera { opacity: 0; visibility: hidden; pointer-events: none; }
+  .anillo { position: relative; width: 104px; height: 104px; }
+  .anillo svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+  .anillo circle { fill: none; stroke-width: 3; }
+  .anillo .riel { stroke: rgba(255,251,244,.14); }
+  .anillo .avance { stroke: #d8cfc3; stroke-linecap: round; }
+  .anillo .pct { position: absolute; inset: 0; display: grid; place-items: center; color: var(--crema); font: 500 18px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .04em; }
+  .cargador-txt { color: rgba(255,251,244,.55); font: 400 11px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .3em; text-transform: uppercase; text-align: center; padding: 0 24px; }
+</style>
+</head>
+<body>
+
+<div id="invitacion" aria-hidden="true">
+  <div id="inv-a" class="canva-host"></div>
+  <section id="rsvp-seccion" aria-label="RSVP">
+    <div class="textura" id="rsvp-textura" aria-hidden="true"></div>
+    <header class="rsvp-cab">
+      <div class="rsvp-idiomas rsvp-anim d2" id="rsvp-idiomas" role="group" aria-label="Idioma / Language" hidden>
+        <button type="button" data-l="es" aria-pressed="true">ES</button><button type="button" data-l="en" aria-pressed="false">EN</button>
+      </div>
+    </header>
+    <div id="rsvp"></div>
+  </section>
+  <div id="inv-b" class="canva-host"></div>
+  <div data-credito></div>
+</div>
+
+<div id="pista-scroll" aria-hidden="true" hidden><span class="ps-txt" id="ps-txt">Desliza</span><span class="ps-fl"><i></i><i></i></span></div>
+
+<div id="portada-host"></div>
+
+<div id="cargador" role="status" aria-live="polite">
+  <div class="anillo">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="riel" cx="50" cy="50" r="46"/><circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"/></svg>
+    <div class="pct" id="anillo-pct">0%</div>
+  </div>
+  <div class="cargador-txt" id="cargador-txt">Preparando tu invitaci&oacute;n</div>
+</div>
+
+<!-- =====================================================================================
+     PORTADA EN SHADOW DOM: ningún estilo de Canva ni del RSVP la alcanza (ni ella a ellos).
+     El sobre se arma con imágenes PNG + CSS + JS (sin video). El escenario (#stage) mide 640 × 1392 de referencia:
+     cabecera, sobre, sello y pista se ubican en % de ese escenario, así quedan alineados en cualquier pantalla.
+     El sobre sigue el esquema del proyecto de ejemplo: capas (fondo · tarjeta · frente) + solapa que gira (exterior→interior)
+     + sello que se despega + tarjeta que sube; más un «movimiento de cámara» (la cabecera sube y el sobre baja y se acerca).
+     ===================================================================================== -->
+<template id="portada-plantilla">
+<style>
+  :host { all: initial; display: block; position: fixed; inset: 0; }
+  .gate { position: absolute; inset: 0; overflow: hidden; background: #f3f0ea url('assets/portada_fondo.jpg') center / cover no-repeat; font-synthesis: none;
+          -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+          /* tiempos de la apertura (los pone CONFIG.sobre.tiempos) */
+          --t-solapa: .9s; --t-reverso: .9s; --d-tarjeta: 1.8s; --t-tarjeta: 1.2s; --d-camara: 1.7s; --t-camara: 1.9s; --d-cab: .6s; --t-cab: 1.5s; --d-boton: 3s; --d-titulo: .35s; --t-titulo: 2.4s; }
+  .gate *, .gate *::before, .gate *::after { box-sizing: border-box; }
+  #stage { position: absolute; left: 0; top: 0; container-type: inline-size; }
+
+  /* ---------- Cabecera: imagen «NUESTRA BODA · IGNACIO & SULY» (assets/logo_portada_hd.png, fondo transparente) ----------
+     Aparece de izquierda a derecha con una máscara que se desliza (-webkit-mask para Safari/iPhone). La imagen mide 74 % del ancho del escenario. */
+  .cab { position: absolute; inset: 0; pointer-events: none; transform: translateY(0);
+         transition: transform var(--t-cab) cubic-bezier(.45,.05,.25,1) var(--d-cab); }
+  .gate.abierto .cab { transform: translateY(-42.5cqw); }
+  .cab-h { position: absolute; left: 50%; top: 28.6%; width: 74%; margin: 0; transform: translateX(-50%); }
+  .cab-logo { display: block; width: 100%; height: auto; -webkit-user-drag: none;
+              -webkit-mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+                      mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+              -webkit-mask-size: 300% 100%; mask-size: 300% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+              -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  .gate.lista .cab-logo { -webkit-mask-position: 0 0; mask-position: 0 0;
+              transition: -webkit-mask-position var(--t-titulo) cubic-bezier(.45,.05,.2,1) var(--d-titulo), mask-position var(--t-titulo) cubic-bezier(.45,.05,.2,1) var(--d-titulo); }
+
+  /* ---------- El sobre ---------- */
+  .cam-pos { position: absolute; left: 9.0625%; width: 81.5625%; top: 41.164%; }
+  .cam { transform-origin: 50% 100%; opacity: 0;
+         transition: opacity 1.2s ease, transform var(--t-camara) cubic-bezier(.45,.05,.25,1) var(--d-camara); }
+  .gate.lista .cam { opacity: 1; }
+  .gate.abierto .cam { transform: translateY(47%) scale(1.21); }            /* la «cámara» baja y se acerca: 170 px de referencia y 121 % */
+  .env { position: relative; width: 100%; aspect-ratio: 1.44 / 1; }
+  .env.listo { animation: latido 2.5s infinite ease-in-out; }
+  @keyframes latido { 0% { transform: scale(1); } 15% { transform: scale(1.02); } 30% { transform: scale(1); } 45% { transform: scale(1.02); } 60% { transform: scale(1); } 100% { transform: scale(1); } }
+
+  .capa { position: absolute; left: 0; top: -66%; width: 100%; height: 166%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
+  .fondo  { background-image: url('assets/sobre_fondo.webp'); z-index: 1; }
+  .frente { background-image: url('assets/sobre_adelante.webp'); z-index: 4; filter: drop-shadow(0 6px 9px rgba(70,60,45,.20)); }
+
+  /* Solapa: exterior (cerrada, hacia abajo) → de canto a los 90° → interior (abierta, hacia arriba) */
+  .solapa, .solapa-rev { position: absolute; left: 0; width: 100%; top: -73%; height: 73%; background-size: 100% 100%; background-repeat: no-repeat; transform-origin: 50% 100%; pointer-events: none; }
+  .solapa { background-image: url('assets/solapa_frontal.webp'); z-index: 5; filter: drop-shadow(3px -4px 4px rgba(46,36,22,.42));   /* el filtro se aplica antes del giro (rotateX 180°): el desplazamiento vertical va invertido → la sombra cae abajo a la derecha */
+            transform: perspective(1500px) rotateX(180deg); opacity: 1;
+            transition: transform var(--t-solapa) cubic-bezier(.4,0,.2,1), opacity .1s linear calc(var(--t-solapa) - .05s); }
+  .gate.abierto .solapa { transform: perspective(1500px) rotateX(90deg); opacity: 0; }
+  .solapa-rev { background-image: url('assets/solapa_reverso.webp'); z-index: 2; filter: drop-shadow(0 4px 6px rgba(60,45,30,.18));
+                transform: perspective(1500px) rotateX(90deg) scaleY(.86); opacity: 0;
+                transition: transform var(--t-reverso) cubic-bezier(.4,0,.2,1) var(--t-solapa), opacity .1s linear var(--t-solapa); }
+  .gate.abierto .solapa-rev { transform: perspective(1500px) rotateX(0deg) scaleY(.86); opacity: 1; }
+
+  /* Sello: se despega, se levanta un poco y cae a la esquina inferior derecha del sobre */
+  .sello-caja { position: absolute; left: 51.34%; top: 65.5%; width: 22.4%; z-index: 6; transform: translate(-50%, -50%); pointer-events: none; }
+  .sello-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 5px rgba(60,45,30,.28)); }
+  .gate.abierto .sello-caja { animation: romper-caja .95s cubic-bezier(.25,1,.5,1) forwards; }
+  .gate.abierto .sello-img { animation: romper-img .95s cubic-bezier(.25,1,.5,1) forwards; }
+  @keyframes romper-caja {
+    0%   { transform: translate(-50%, -50%); }
+    30%  { transform: translate(-50%, -62%); }
+    100% { transform: translate(calc(-50% + 164%), calc(-50% + 117%)); }
+  }
+  @keyframes romper-img {
+    0%   { transform: scale(1) rotate(0deg); }
+    30%  { transform: scale(1.16) rotate(-7deg); filter: drop-shadow(0 12px 12px rgba(60,45,30,.38)); }
+    100% { transform: scale(.84) rotate(22deg); filter: drop-shadow(0 3px 5px rgba(60,45,30,.28)); }
+  }
+
+  /* Área táctil sobre el sello + «TOCA PARA ABRIR» */
+  #sello { position: absolute; z-index: 8; transform: translate(-50%, -50%); aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%;
+           background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  #sello::after { content: ""; position: absolute; inset: 9%; border-radius: 50%; pointer-events: none;
+                  border: 1px solid rgba(30,27,24,.92); box-shadow: 0 0 9px rgba(30,27,24,.30);
+                  animation: onda 2.2s ease-out infinite; }
+  @keyframes onda { from { transform: scale(1); opacity: .95; } to { transform: scale(1.45); opacity: 0; } }
+  #sello:focus-visible { outline: 2px solid #1E1B18; outline-offset: 4px; }
+  .pista { position: absolute; z-index: 8; left: 50%; transform: translate(-50%, -50%); margin: 0; padding: .8em 1.2em; cursor: pointer;
+           font: 500 2.6cqw/1 'YAFdJi-0PQg_0', Georgia, serif; letter-spacing: .3em; text-indent: .3em; white-space: nowrap;
+           background: linear-gradient(105deg, transparent 36%, rgba(118,112,104,.85) 45%, #8a847b 50%, rgba(118,112,104,.85) 55%, transparent 64%),
+                       linear-gradient(105deg, #1E1B18 0%, #1E1B18 100%);
+           background-size: 200% 100%, 100% 100%; background-repeat: no-repeat;
+           -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+           filter: drop-shadow(0 1px 2px rgba(30,27,24,.14));
+           animation: reluce 2.6s linear infinite; transition: opacity .3s; }
+  @keyframes reluce { from { background-position: 125% 0, 0 0; } to { background-position: -25% 0, 0 0; } }
+  #sello, .pista { opacity: 0; transition: opacity .9s ease .5s; }
+  .gate.lista #sello, .gate.lista .pista { opacity: 1; }
+  .gate.abriendo #sello, .gate.abriendo .pista { opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .gate.abriendo #sello::after, .gate.abriendo .pista { animation: none; }
+
+  /* ---------- La tarjeta: sube del sobre y trae los datos del invitado ---------- */
+  .tarjeta { position: absolute; z-index: 3; left: 12%; width: 76%; top: 13%; height: 84%; container-type: inline-size;
+             background: url('assets/tarjeta.webp') 0 0 / 100% 100% no-repeat; filter: drop-shadow(0 6px 8px rgba(60,46,32,.16));
+             display: flex; flex-direction: column; align-items: center; justify-content: center;
+             padding: 6.6% 7.6% 6.8%; text-align: center; color: #2a2622; cursor: pointer;
+             transition: transform var(--t-tarjeta) cubic-bezier(.25,1,.5,1) var(--d-tarjeta); }
+  .gate.abierto .tarjeta { transform: translateY(-108%); }
+  .tarjeta > * { opacity: 0; transform: translateY(6px); transition: opacity 1s ease, transform 1.1s cubic-bezier(.16,1,.3,1); }
+  .gate.abierto .tarjeta > * { opacity: 1; transform: none; }
+  .gate.abierto .tarjeta > :nth-child(1) { transition-delay: calc(var(--d-tarjeta) + .35s); } .gate.abierto .tarjeta > :nth-child(2) { transition-delay: calc(var(--d-tarjeta) + .5s); }
+  .gate.abierto .tarjeta > :nth-child(3) { transition-delay: calc(var(--d-tarjeta) + .65s); } .gate.abierto .tarjeta > :nth-child(4) { transition-delay: calc(var(--d-tarjeta) + .8s); }
+  .gate.abierto .tarjeta > :nth-child(5) { transition-delay: calc(var(--d-tarjeta) + .9s); } .gate.abierto .tarjeta > :nth-child(6) { transition-delay: calc(var(--d-tarjeta) + 1.1s); }
+  .t-etiqueta { font: 400 3.9cqw/1.2 'YAFdJi-0PQg_0', Georgia, serif; letter-spacing: .28em; text-indent: .28em; text-transform: uppercase; color: #7E7A76; }
+  .t-trat { margin-top: 4.4cqw; font: 400 4.8cqw/1.2 'YAFdJhX-538_0', Georgia, serif; letter-spacing: .18em; text-transform: uppercase; color: #4d4842; }
+  .t-trat:empty { display: none; }
+  .t-nombre { max-width: 100%; margin: 3cqw 0 3.2cqw; white-space: nowrap; font: 400 9.6cqw/1.12 'YAFdJhX-538_0', Georgia, serif; text-transform: uppercase; letter-spacing: .03em; color: #1E1B18; }
+  .t-trat:empty + .t-nombre { margin-top: 5cqw; }
+  .t-nombre.multilinea { white-space: normal; }
+  .t-linea { display: block; width: 26%; height: 1px; background: rgba(42,38,34,.35); }
+  .t-pases { margin-top: 3.4cqw; font: 400 4cqw/1.2 'YAFdJi-0PQg_0', Georgia, serif; letter-spacing: .2em; text-indent: .2em; text-transform: uppercase; color: #4d4842; }
+  .t-ver { margin-top: 5.6cqw; padding: 1em 2.4em; border: 0; border-radius: 999px; cursor: pointer; -webkit-appearance: none; appearance: none; pointer-events: none;
+           background: #BCB8B5; color: #1E1B18; font: 400 3.6cqw/1 'YAFdJi-0PQg_0', Georgia, serif; letter-spacing: .22em; text-indent: .22em; text-transform: uppercase;
+           box-shadow: 0 3px 10px rgba(60,50,40,.18); transition: opacity 1s ease, transform .2s ease, background .2s ease; }
+  .gate.boton .t-ver { pointer-events: auto; }
+  .t-ver:hover { background: #aea9a5; transform: scale(1.03); }
+  .t-ver:focus-visible { outline: 2px solid #4d4842; outline-offset: 3px; }
+  .t-ver.espera { pointer-events: none; animation: ver-espera 1.1s ease-in-out infinite; }
+  @keyframes ver-espera { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+</style>
+<div class="gate" id="gate">
+  <div id="stage">
+    <div class="cab">
+      <h1 class="cab-h"><img class="cab-logo" id="cab-logo" src="assets/logo_portada_hd.png" alt="Nuestra boda · Ignacio &amp; Suly" draggable="false"></h1>
+    </div>
+    <div class="cam-pos"><div class="cam" id="cam">
+      <div class="env" id="env">
+        <div class="capa fondo"></div>
+        <div class="tarjeta" id="tarjeta" role="group" aria-label="Tu invitación">
+          <span class="t-etiqueta" id="t-etiqueta">Reservado para</span>
+          <span class="t-trat" id="t-trat"></span>
+          <span class="t-nombre" id="t-nombre">Invitado especial</span>
+          <span class="t-linea"></span>
+          <span class="t-pases" id="t-pases">1 pase reservado</span>
+          <button class="t-ver" id="t-ver" type="button" tabindex="-1">Ver invitación</button>
+        </div>
+        <div class="capa frente"></div>
+        <div class="solapa"></div>
+        <div class="solapa-rev"></div>
+        <div class="sello-caja"><img class="sello-img" id="sello-img" src="assets/sello.webp" alt="" draggable="false"></div>
+      </div>
+    </div></div>
+    <button id="sello" type="button" aria-label="Abrir la invitación"></button>
+    <p class="pista" id="pista">TOCA PARA ABRIR</p>
+  </div>
+</div>
+</template>
+
+<script src="assets/responsive.js"></script>
+<script src="assets/animacion.js"></script>
+<!-- ../assets/qr.js y ../assets/rsvp.js se cargan DESPUÉS del sobre (iniciarInvitacion) -->
+<script>
+(function () {
+  'use strict';
+  history.scrollRestoration = 'manual';
+
+  /* =================================== CONFIGURACIÓN =================================== */
+  var CONFIG = {
+    invitacion: 'invitacion.html',          // export de Canva (ancho 465 px)
+    anchoCanva: 465, anchoMaximo: 700,
+    seccionRsvp: 'PBhhX8p0cd5FCSzB',        // sección de Canva que se reemplaza por el RSVP real
+    rsvp: { textura: 'LBN0FYpgmGdxBz22' },   // de esa sección solo se reutiliza el fondo de papel (el título ya viene en rsvp_logo.png)
+    /* Cuenta regresiva: reemplaza el iframe de tickcounter (con su logo «T» y publicidad) por una propia, sin librerías ni marcas.
+       Si el iframe todavía está en invitacion.html se retira al montar; si ya lo quitaste, usa el mismo contenedor. */
+    contador: { id: 'LBBv0WYtRwBKsy0Q', fecha: '2026-12-05T15:30:00-05:00',
+                etiquetas: { es: ['DÍAS', 'HORAS', 'MINUTOS', 'SEGUNDOS'], en: ['DAYS', 'HOURS', 'MINUTES', 'SECONDS'] } },
+    /* Aporte especial: la tarjeta "UN DETALLE" gira (con el dedo o con el botón) y muestra estos datos.
+       Cada CTA/CCI lleva un botón que copia el número SIN guiones. */
+    regalos: {
+      tarjeta: 'LB7jplYfMXLNndXj',             // grupo de Canva de la tarjeta de regalos
+      boton: ['LBBWBML2w1ym8b4l', 'LBjxJ6pR0RHrbcj2'],   // "APORTE ESPECIAL" (texto + fondo del botón): al tocarlos gira (con el dedo también)
+      icono: 'assets/file_1842718777.svg',     // logo de regalos (el mismo de la tarjeta)
+      papel: 'assets/f96f5271a93811620bf7562c349b90f2.webp',
+      textos: { es: { volver: 'Volver', copiar: 'Copiar', titular: 'Titular' }, en: { volver: 'Back', copiar: 'Copy', titular: 'Holder' } },
+      cuentas: [
+        { titulo: 'Cuenta BBVA soles',   cta: '0011-0114-0200674421', cci: '011-114-000200674421-69',
+          titular: 'Ignacio Revoredo Vargas', dni: '46336740' },
+        { titulo: 'Cuenta BCP dólares', cta: '194-3936-5961-195',    cci: '002-194-1393-6596-1195-96',
+          titular: 'Suly Chomchey Ventura',   dni: '47336777' }
+      ]
+    },
+    /* Botones de Canva sin enlace: pon aquí su destino (vacío = no hace nada) */
+    enlaces: [
+      { id: 'LB3323H3Q9hzzB9r', url: 'https://www.google.com/maps/search/?api=1&query=Lima+Marina+Club+Circuito+de+Playas+2012+Barranco' },   // CÓMO LLEGAR
+      { id: 'LBBWBML2w1ym8b4l', accion: 'regalos' },   // APORTE ESPECIAL → gira la tarjeta (en Canva apuntaba a #page-1)
+      { id: 'LBjxJ6pR0RHrbcj2', accion: 'regalos' }    // …y el fondo de ese botón
+    ],
+    /* Sobre (HTML/CSS/JS). Las medidas son px de un escenario de referencia de 640 × 1392 (el mismo del video anterior). */
+    sobre: {
+      ancho: 640, alto: 1392,
+      zonaSegura: [110, 1190],               // franja vertical que nunca se recorta: cabecera, sobre, tarjeta y pista
+      maxAnchoPx: 600,                       // en pantallas más anchas el escenario no crece más (queda el papel de fondo a los lados)
+      nombres: { es: ['IGNACIO', 'SULY'], en: ['IGNACIO', 'SULY'] },
+      sello: { x: 326, y: 810, d: 150 },     // área táctil sobre el sello: centro y diámetro
+      pistaY: 985,                           // «TOCA PARA ABRIR» (debajo del sobre)
+      /* Tiempos de la apertura, en segundos desde el toque (cámbialos para probar):
+         solapa = giro de la solapa (cerrada → de canto) · reverso = giro (de canto → abierta, empieza al terminar solapa)
+         d-tarjeta / t-tarjeta = inicio y duración de la subida de la tarjeta · d-camara / t-camara = el sobre baja y se acerca
+         d-cab / t-cab = la cabecera sube · d-boton = cuándo se puede pulsar «Ver invitación» */
+      tiempos: { 't-solapa': .9, 't-reverso': .9, 'd-tarjeta': 1.8, 't-tarjeta': 1.2, 'd-camara': 1.7, 't-camara': 1.9, 'd-cab': .6, 't-cab': 1.5, 'd-boton': 3.1, 'd-titulo': .35, 't-titulo': 2.4 },
+      fuentes: ['400 16px "YAFdJhX-538_0"', '400 16px "YAFdJi-0PQg_0"', '500 16px "YAFdJi-0PQg_0"'],   // tipografías de la portada (se declaran en el <head>)
+      maxMs: 9000                            // salida de seguridad si algo no avanza
+    },
+    salida: { ms: 1900, revelarEn: 0.35 },   // fundido portada → invitación y punto en que arrancan sus animaciones
+    /* Animaciones (animacion.js). Listas por parte: A = antes del RSVP, B = después. */
+    anim: {
+      a: { duracion: 9.5, umbral: 0.5,
+           /* Cámara que se aleja lentamente: la foto retrocede del 122 % al 100 % (alejarZoom / alejarDuracion / alejarUmbral) */
+           alejar: ['LBrPn1yV6klcTjt0'], alejarZoom: 1.22, alejarDuracion: 14,        // foto inicial (pareja)
+           textos: [
+             { id: 'LBGG5sq6Ym2X034F', tipo: 'letras',   velocidad: 90 },    // ¡NOS CASAMOS!
+             { id: 'LB7FnF7cbJbnjrpJ', tipo: 'letras',   velocidad: 110 },   // FALTAN
+             { id: 'LBgBNr7s0r6dR34G', tipo: 'palabras', velocidad: 260 },   // Ceremonia & Recepción
+             { id: 'LBXpFc27lngvJ73z', tipo: 'palabras', velocidad: 260 },   // Itinerario de la boda
+             { id: 'LBzNT6J1bzwmBQmB', tipo: 'letras',   velocidad: 110 },   // dress code
+             { id: 'LBHDYl0hNczlQMLx', tipo: 'letras',   velocidad: 90 },    // CON CARIÑO
+             { id: 'LBJ48n2SKlhYFT89', tipo: 'palabras', velocidad: 120 }    // Amamos a los pequeños…
+           ],
+           fundido: ['LBrPn1yV6klcTjt0',                                      // foto de portada (a sangre)
+                     'LBnkdYkHj5fYYlKG', 'LB7cd8dSP5vsbRvF',                  // imágenes grandes del bloque de nombres
+                     'LBBv0WYtRwBKsy0Q', 'LB6KDyjwfhZ2TC91',                  // cuenta regresiva y su recuadro
+                     'LBwfxhRhVV4r7s1F', 'LBBW848K0GtpWD3T',                  // tarjeta y línea del itinerario
+                     'LBwj3JQxmZNyCnKg', 'LB2ddJtLt0Wzk7gB'],                 // círculo del dress code y recuadro de "solo adultos"
+           zoom: ['LBBPQPjfQwVsMHNd', 'LB17DDMpV0387M1p', 'LBGB75y5ckMcVxpw', 'LBx1FTkPdGFsN8k2',   // sellos (adornos 76 × 74)
+                  'LB9252XSfyRKyW88'],                                             // vestido + traje (ahora son un solo grupo)
+           izquierdaADerecha: [
+             'LBjXdzNWcXg1fQsk', 'LB0PTSTzdP0P8R6z',                          // REVOREDO (texto + duplicado)
+             'LBl6rfQ6HxBWdqt6', 'LBmrPtYMdMYg2tcx',                          // foto del lugar + su marco
+             'LB9MsPWx8sjPBMfT',                                              // Lima Marina Club
+             'LBYHWjFvcGPznSb7', 'LB2lcDgXHT4Tj05H', 'LBS0G38xmm6dph6B',      // íconos columna izquierda (itinerario)
+             'LB6fG4f30QvPz477', 'LBDx3m4FkVPXCZ4R', 'LBmxYxwKKKYpTfyq'       // Ceremonia · cena · final
+           ],
+           derechaAIzquierda: [
+             'LBZvHtq1lQR2vMn5', 'LBw3ZtyPVHGQBKGR',                          // CHOMCHEY (texto + duplicado)
+             'LBZmbJDd6b1651pk',                                              // Agendar recordatorio
+             'LBPHrNYxn9SSN6ZB',                                              // dirección
+             'LB8F8H3Mf5zs1lm0', 'LBqTLMhjtBdMB7W5',                          // íconos columna derecha
+             'LBf4FlG5zy04b69j', 'LBNSZZCnTYZDnTnx'                           // coctel · sorpresa
+           ],
+           arribaAbajo: ['LBTJrZT3Mg3Ckkjq', 'LBs1Dt0WSKt3rxRy', 'LBJwzxTQBllZYLfm',   // «&» · IGNACIO · SULY (imágenes de los nombres)
+                         'LB70QHhGzFVtb3bf'],                                       // elegante
+           abajoArriba: ['LBPZjtbpMms5SM26',                                  // bloque de fecha (05 DICIEMBRE 2026)
+                         'LB3323H3Q9hzzB9r',                                  // CÓMO LLEGAR
+                         'LBdFyGM0mvxyhb3V', 'LBm6DXBd3qPQJt56'] },           // Vestido largo… · El blanco…
+      b: { duracion: 9.5, umbral: 0.5,
+           alejar: ['PB5hwHSHQ6lPndXt'], alejarZoom: 1.22, alejarDuracion: 14,        // foto final (sección completa)
+           textos: [
+             { id: 'LBW4p0ZVyBT4QGYr', tipo: 'letras',   velocidad: 110 },   // UN DETALLE
+             { id: 'LBWmyCs1bcFS21jb', tipo: 'palabras', velocidad: 110 }    // Su presencia es…
+           ],
+           izquierdaADerecha: ['LB7jplYfMXLNndXj'],                          // tarjeta de regalos
+           zoom: ['LBw2Pb9FlBSSTYqs', 'LBQx2tsCYY16f06G'],                   // ícono regalo · sello
+           abajoArriba: ['LBhPRbWqkCtrfZT3', 'LBh2yJZK7Lmr0rh2',             // botón lista de regalos
+                         'LBjxJ6pR0RHrbcj2', 'LBBWBML2w1ym8b4l'] }           // botón aporte especial
+    }
+  };
+  /* CARGA EN DOS TIEMPOS.
+     1) INDISPENSABLE (bloquea el anillo): imágenes del sobre, las 2 tipografías de la portada y los datos del invitado (con tope de tiempo).
+     2) EN SEGUNDO PLANO (después de mostrar el sobre): la invitación de Canva (HTML + imágenes + tipografías), qr.js y rsvp.js.
+        «Ver invitación» espera a que termine solo si el invitado llega antes (en la práctica el sobre tarda ~4 s en abrir). */
+  var PESO = { sobre: 72, fuentes: 12, datos: 16 };   // suman 100
+  var MIN_MS = 700, LIMITE_MS = 15000, DATOS_MAX_MS = 2500;
+  /* ===================================================================================== */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var E = CONFIG.sobre, raices = {}, ajustes = {}, P = window.PYD || {};
+
+  /* ---------------------------------------------------------------- progreso */
+  var T = {}; Object.keys(PESO).forEach(function (k) { T[k] = { w: PESO[k], p: 0 }; });
+  function avance(k, p) { if (T[k]) T[k].p = Math.max(T[k].p, Math.min(1, p)); }
+  function total() { var s = 0; for (var k in T) s += T[k].w * T[k].p; return s / 100; }
+
+  /* ---------------------------------------------------------------- PORTADA (Shadow DOM) */
+  var hostP = $('portada-host'), raizP = hostP.attachShadow({ mode: 'open' });
+  raizP.appendChild($('portada-plantilla').content.cloneNode(true));
+  var p$ = function (id) { return raizP.getElementById(id); };
+  var gate = p$('gate'), stage = p$('stage'), cam = p$('cam'), env = p$('env');
+  var sello = p$('sello'), pista = p$('pista'), tarjeta = p$('tarjeta'), btnVer = p$('t-ver');
+  var pct = function (v, base) { return (v / base * 100) + '%'; };
+  Object.keys(E.tiempos).forEach(function (k) { gate.style.setProperty('--' + k, E.tiempos[k] + 's'); });
+  sello.style.left = pct(E.sello.x, E.ancho); sello.style.top = pct(E.sello.y, E.alto); sello.style.width = pct(E.sello.d, E.ancho);
+  pista.style.top = pct(E.pistaY, E.alto);
+
+  /* Encuadre: el escenario conserva su proporción (sin deformar) y nunca recorta la zona segura; el papel del fondo cubre toda la pantalla. */
+  function encuadre() {
+    var gw = gate.clientWidth, gh = gate.clientHeight; if (!gw || !gh) return;
+    var vw = Math.min(gw, E.maxAnchoPx), seg = E.zonaSegura, hSeg = seg[1] - seg[0];
+    var k = Math.min(Math.max(vw / E.ancho, gh / E.alto), gh / hSeg);
+    var w = E.ancho * k, h = E.alto * k;
+    var top = gh / 2 - (seg[0] + hSeg / 2) * k;                      // centra la zona segura…
+    top = h >= gh ? Math.min(0, Math.max(gh - h, top)) : (gh - h) / 2; // …sin dejar huecos arriba/abajo si el escenario alcanza
+    stage.style.width = w + 'px'; stage.style.height = h + 'px';
+    stage.style.left = (gw - w) / 2 + 'px'; stage.style.top = top + 'px';
+  }
+  new ResizeObserver(encuadre).observe(gate);
+  if (window.visualViewport) visualViewport.addEventListener('resize', encuadre);
+
+  /* ---------------------------------------------------------------- datos del invitado */
+  var q0 = new URLSearchParams(location.search);
+  var CODIGO = (q0.get('to') || q0.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  var datos = { encontrado: false, nombre: '', tratamiento: '', pases: 1, asistencia: '', pasesConfirmados: null };
+  var lang = 'es';
+  var TXT = {
+    es: { cab: 'Nuestra boda', etq: 'Reservado para', anon: 'Invitado especial', ver: 'Ver invitación', abrir: 'TOCA PARA ABRIR', abrirOtra: 'TOCA DE NUEVO',
+          pases: function (n, c) { return c ? n + (n === 1 ? ' pase confirmado' : ' pases confirmados') : n + (n === 1 ? ' pase reservado' : ' pases reservados'); },
+          t1: 'Confirmación', t2: 'tu asistencia', desliza: 'Desliza', reintentar: 'Reintentar' },
+    en: { cab: 'Our wedding', etq: 'Reserved for', anon: 'Special guest', ver: 'Open invitation', abrir: 'TAP TO OPEN', abrirOtra: 'TAP AGAIN',
+          pases: function (n, c) { return n + (n === 1 ? ' seat ' : ' seats ') + (c ? 'confirmed' : 'reserved'); },
+          t1: 'Kindly', t2: 'respond', desliza: 'Scroll', reintentar: 'Retry' }
+  };
+  function tx(k) { return (TXT[lang] || TXT.es)[k]; }
+  function cargarDatos() {
+    var porUrl = function () {
+      var n = parseInt(q0.get('pase') || q0.get('pases'), 10);
+      datos.pases = n > 0 ? Math.min(n, 50) : 1;
+    };
+    if (!CODIGO || !window.BODA) { porUrl(); return Promise.resolve(); }
+    return window.BODA.invitado(CODIGO).then(function (j) {               // misma promesa que usará rsvp.js
+      if (j && j.ok && j.encontrado && j.invitado) {
+        var g = j.invitado;
+        datos = { encontrado: true, nombre: g.nombre, tratamiento: g.tratamiento || '', pases: g.pases || 1,
+                  asistencia: g.asistenciaCodigo || '', pasesConfirmados: g.pasesConfirmados };
+      } else porUrl();
+    }).catch(porUrl);
+  }
+  /* Idioma inicial (misma regla que rsvp.js): ?lang= · el elegido antes · si el evento es bilingüe, el del navegador */
+  function idiomaInicial() {
+    if (!window.BODA || !window.BODA.proyecto) return Promise.resolve();
+    return window.BODA.proyecto().then(function (p) {
+      var d = String((p && p.idioma) || 'es').split(',').filter(function (x) { return TXT[x]; }); if (!d.length) d = ['es'];
+      var u = (q0.get('lang') || '').toLowerCase().slice(0, 2), g = ''; try { g = sessionStorage.getItem('pyd.lang.' + P.slug) || ''; } catch (e) {}
+      var l = d.indexOf(u) >= 0 ? u : d.indexOf(g) >= 0 ? g : d.length > 1 ? (/^en/i.test(navigator.language || '') ? 'en' : d[0]) : d[0];
+      if (l !== lang) aplicarIdioma(l);
+    }).catch(function () {});
+  }
+  function pintarTarjeta() {
+    var trat = datos.encontrado ? (datos.tratamiento || '') : '';
+    if (trat && datos.nombre.toLowerCase().indexOf(trat.toLowerCase()) === 0) trat = '';
+    var nn = E.nombres[lang] || E.nombres.es; p$('cab-logo').alt = tx('cab') + ' · ' + nn.join(' & ');   // el título es una imagen: solo cambia su texto alternativo
+    p$('t-etiqueta').textContent = tx('etq');
+    p$('t-trat').textContent = trat;
+    p$('t-nombre').textContent = datos.encontrado && datos.nombre ? datos.nombre : tx('anon');
+    var conf = datos.asistencia === 'si', n = conf ? (datos.pasesConfirmados || datos.pases) : datos.pases;
+    p$('t-pases').textContent = datos.asistencia === 'no' ? '' : tx('pases')(parseInt(n, 10) || 1, conf);
+    p$('t-pases').hidden = datos.asistencia === 'no';
+    btnVer.textContent = invFallo ? tx('reintentar') : tx('ver');
+    if (!abierta) pista.textContent = tx('abrir');
+    ajustarNombre();
+  }
+  // El nombre baja de tamaño hasta caber en una línea; si aún no cabe, pasa a dos líneas
+  function ajustarNombre() {
+    var el = p$('t-nombre'); if (!el.clientWidth) return;
+    el.classList.remove('multilinea'); el.style.fontSize = '';
+    var fs = parseFloat(getComputedStyle(el).fontSize), min = fs * 0.6;
+    while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= .5; el.style.fontSize = fs + 'px'; }
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('multilinea');
+  }
+  new ResizeObserver(function () { ajustarNombre(); }).observe(tarjeta);
+
+  /* ---------------------------------------------------------------- sobre: precarga de sus imágenes (con progreso real) */
+  var PIEZAS = ['assets/portada_fondo.jpg', 'assets/sobre_fondo.webp', 'assets/sobre_adelante.webp', 'assets/solapa_frontal.webp', 'assets/solapa_reverso.webp',
+                'assets/tarjeta.webp', 'assets/sello.webp', 'assets/logo_portada_hd.png'];
+  var tareaVideo = (function () {                       // (nombre histórico) tarea de carga del sobre
+    var n = 0;
+    return Promise.all(PIEZAS.map(function (u) {
+      return new Promise(function (res) {
+        var im = new Image(), ok = function () { avance('sobre', ++n / PIEZAS.length * .9); (im.decode ? im.decode().catch(function () {}) : Promise.resolve()).then(res); };
+        im.onload = ok; im.onerror = function () { console.warn('[sobre] No se pudo cargar', u); avance('sobre', ++n / PIEZAS.length * .9); res(); }; im.src = u;
+      });
+    })).then(function () {
+      avance('sobre', 1);
+    });
+  })();
+
+  /* tipografías de la portada: @font-face en el <head> (subconjunto liviano); aquí solo se espera a que estén listas */
+  var tareaFuentes = (function () {
+    var lista = E.fuentes || [], n = 0;
+    if (!lista.length || !document.fonts || !document.fonts.load) { avance('fuentes', 1); return Promise.resolve(); }
+    return Promise.all(lista.map(function (f) {
+      return document.fonts.load(f, 'AaÁÑ0').catch(function () {}).then(function () { avance('fuentes', ++n / lista.length * .95); });
+    })).then(function () { avance('fuentes', 1); });
+  })();
+
+  /* ---------------------------------------------------------------- INVITACIÓN (Canva en dos Shadow DOM) */
+  function adaptarCss(css) {
+    return css
+      .replace(/:root/g, ':host')
+      .replace(/(^|[}{,;])\s*html(?=[\s,{.:\[])/g, '$1:host')
+      .replace(/(^|[}{,;])\s*body(?=[\s,{.:\[])/g, '$1.__body')
+      .replace(/\(prefers-reduced-motion:\s*reduce\)/g, '(min-width:99999px)');   // nunca "reducir movimiento": siempre animado
+  }
+  var reglasFuente = new Set(), familias = new Set();
+  function montar(clave, host, cuerpo, css) {
+    var raiz = $(host).attachShadow({ mode: 'open' });
+    var st = document.createElement('style');
+    st.textContent = adaptarCss(css) +
+      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}' +
+      CONFIG.enlaces.filter(function (e) { return e.url || e.accion; }).map(function (e) { return '\n#' + e.id + '{cursor:pointer}'; }).join('') +
+      '\n' + (clave === 'a' ? CSS_CONTADOR : CSS_REGALOS) + '\n';
+    raiz.appendChild(st);
+    /* Imágenes: las 2 primeras secciones (lo que se ve al abrir) bajan de inmediato y con prioridad; las demás (y toda la parte B) con
+       loading="lazy": bajan cuando el invitado se acerca. Así no compiten con lo urgente (en 3G eran ~2 MB extra antes de poder abrir).
+       Se marca ANTES de insertarlas en el documento (después ya habrían empezado a bajar). */
+    var primeras = clave === 'a' ? Array.prototype.slice.call(cuerpo.querySelectorAll('section'), 0, 2) : [];
+    Array.prototype.forEach.call(cuerpo.querySelectorAll('img'), function (i) {
+      var arriba = primeras.some(function (sec) { return sec.contains(i); });
+      i.loading = arriba ? 'eager' : 'lazy'; i.decoding = 'async'; if (arriba) i.setAttribute('fetchpriority', 'high');
+    });
+    while (cuerpo.firstChild) raiz.appendChild(document.adoptNode(cuerpo.firstChild));
+    raices[clave] = raiz;
+  }
+  /* El export de Canva declara un @font-face por cada peso (100…900) y estilo, casi todos apuntando al MISMO archivo: el navegador descargaba ese
+     archivo una vez por regla (hasta 11 veces). Aquí se unen las reglas que comparten familia, estilo y archivo en una sola con rango de pesos. */
+  function unirFuentes(reglas) {
+    var grupos = {}, orden = [];
+    reglas.forEach(function (r) {
+      var fam = (/font-family:\s*([^;]+);/.exec(r) || [])[1], est = (/font-style:\s*([^;]+);/.exec(r) || [])[1] || 'normal', pes = parseInt((/font-weight:\s*(\d+)/.exec(r) || [])[1], 10);
+      var src = (/src:\s*([^;]+);/.exec(r) || [])[1];
+      if (!fam || !src || !pes) { orden.push({ crudo: r }); return; }
+      var k = fam + '|' + est + '|' + src; if (!grupos[k]) { grupos[k] = { fam: fam, est: est, src: src, pesos: [], plantilla: r }; orden.push(grupos[k]); }
+      if (grupos[k].pesos.indexOf(pes) < 0) grupos[k].pesos.push(pes);
+    });
+    var salida = [];
+    orden.forEach(function (g) {
+      if (g.crudo) { salida.push(g.crudo); return; }
+      var p = g.pesos.sort(function (a, b) { return a - b; }), i = 0;
+      while (i < p.length) {                                    // tramos de pesos consecutivos (100, 200, 300…)
+        var j = i; while (j + 1 < p.length && p[j + 1] === p[j] + 100) j++;
+        salida.push(g.plantilla.replace(/font-weight:\s*\d+\s*;/, 'font-weight: ' + p[i] + (j > i ? ' ' + p[j] : '') + ';'));
+        i = j + 1;
+      }
+    });
+    return salida;
+  }
+  /* Separa el export en: A (secciones antes del RSVP) y B (después). La sección del RSVP se descarta,
+     pero antes se toma su papel de fondo para la sección nativa. */
+  function partirCanva(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
+    /* Canva marca sus <img> con crossorigin="anonymous": eso las baja aparte de las mismas imágenes usadas como fondo CSS (la 2.ª descarga del mismo archivo).
+       Aquí no hace falta (no se dibujan en un canvas): sin el atributo comparten la misma descarga. */
+    doc.querySelectorAll('img[crossorigin]').forEach(function (i) { i.removeAttribute('crossorigin'); });
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    (css.match(/@font-face\s*\{[^}]*\}/g) || []).forEach(function (r) { reglasFuente.add(r); });
+    css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+    (css + doc.body.innerHTML).replace(/font-family:\s*([A-Za-z0-9_-]+)/g, function (m, f) { familias.add(f); return m; });
+    var sec = doc.getElementById(CONFIG.seccionRsvp);
+    if (sec) {
+      var tex = sec.querySelector('#' + CONFIG.rsvp.textura + ' img');
+      if (tex) $('rsvp-textura').style.backgroundImage = 'url("' + tex.getAttribute('src') + '")';
+    } else console.warn('[invitación] No existe la sección', CONFIG.seccionRsvp, ': el RSVP se mostrará entre las dos mitades igualmente.');
+    var cuerpoA = doc.body, cuerpoB = doc.body.cloneNode(true);
+    var secA = Array.prototype.slice.call(cuerpoA.querySelectorAll('section')), secB = Array.prototype.slice.call(cuerpoB.querySelectorAll('section'));
+    var k = secA.findIndex(function (s) { return s.id === CONFIG.seccionRsvp; });
+    if (k < 0) k = secA.length;
+    secA.forEach(function (s, i) { if (i >= k) s.remove(); });
+    secB.forEach(function (s, i) { if (i <= k) s.remove(); });
+    return { css: css, a: cuerpoA, b: cuerpoB, hayB: secB.length > k + 1 };
+  }
+
+  /* ---------------------------------------------------------------- tarjeta de regalos: giro + copiar cuentas */
+  /* OJO: el export de Canva trae  * { animation:none !important; transition:none !important }  → todo lo animado aquí lleva !important
+     (y el giro se dibuja con JS, no con transiciones). */
+  var CSS_REGALOS = [
+    '.g-escena{position:absolute;inset:0;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:grab}',
+    '.g-escena.arr{cursor:grabbing}',
+    '.g-giro{position:absolute;inset:0}',
+    '.g-cara{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform}',
+    '.g-dorso{visibility:hidden;opacity:0;border-radius:41.88px;overflow:hidden;background:#fbf9f5;color:#1E1B18;text-align:center}',
+    '.g-papel{position:absolute;width:402.73px;height:312.567px;left:0;top:0;transform:translate(-45.0815px,45.0932px) rotate(-90deg);overflow:hidden;pointer-events:none}',   /* mismo papel y recorte que el frente de Canva */
+    '.g-papel img{position:absolute;width:626px;height:417.334px;left:-69.64px;top:-46.05px;max-width:none}',
+    '.g-int{position:relative;width:100%;height:100%;box-sizing:border-box;padding:22px 16px 14px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}',
+    '.g-logo{display:block;height:62px;width:auto;flex:none;pointer-events:none}',
+    '.g-cuentas{width:100%;display:flex;flex-direction:column;align-items:center}',
+    '.g-cta{display:grid;grid-template-columns:max-content max-content 22px;justify-content:center;align-items:center;column-gap:6px;grid-auto-rows:minmax(21px,auto)}',
+    '.g-tit{grid-column:1/-1;margin-bottom:5px;font:400 13px/1.3 "YAFdJhX-538_0",Georgia,serif;letter-spacing:.14em;text-transform:uppercase}',
+    '.g-fila{display:contents}',
+    '.g-et{justify-self:end;font:400 10px/1.3 "YAFdJi-0PQg_0",Georgia,serif;color:#7E7A76;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}',
+    '.g-num,.g-txt{justify-self:start;font:400 11px/1.4 "YAFdJi-0PQg_0",Georgia,serif;white-space:nowrap}',
+    '.g-num{letter-spacing:.01em;font-variant-numeric:tabular-nums}',
+    '.g-sep{display:block;width:34%;height:1px;margin:12px auto 11px;background:rgba(42,38,34,.28)}',
+    '.g-cp{position:relative;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:#5d5852;cursor:pointer;-webkit-appearance:none;appearance:none}',
+    '.g-cp:focus-visible{outline:1.5px solid #8a7040;outline-offset:1px}',
+    '.g-cp svg{position:absolute;left:4px;top:4px;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;',
+    ' transition:opacity .22s ease,transform .35s cubic-bezier(.3,1.5,.5,1) !important}',
+    '.g-cp .i-ok{opacity:0;transform:scale(.4);color:#4d7c47}',
+    '.g-cp .i-ok .c{stroke-dasharray:57;stroke-dashoffset:57}',
+    '.g-cp .i-ok .m{stroke-dasharray:15;stroke-dashoffset:15}',
+    '.g-cp.ok .i-cp{opacity:0;transform:scale(.4) rotate(-25deg)}',
+    '.g-cp.ok .i-ok{opacity:1;transform:none}',
+    '.g-cp.ok .i-ok .c{animation:g-trazo .45s ease-out forwards !important}',
+    '.g-cp.ok .i-ok .m{animation:g-trazo .3s ease-out .3s forwards !important}',
+    '@keyframes g-trazo{to{stroke-dashoffset:0}}',
+    '.g-volver{flex:none;padding:6px 14px;border:0;background:transparent;color:#7E7A76;cursor:pointer;-webkit-appearance:none;appearance:none;',
+    ' font:400 9.5px/1 "YAFdJi-0PQg_0",Georgia,serif;letter-spacing:.24em;text-indent:.24em;text-transform:uppercase}',
+    '.g-volver:focus-visible{outline:1.5px solid #8a7040;outline-offset:1px}'
+  ].join('\n');
+  var SVG_COPIAR = '<svg class="i-cp" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V6.2A2.2 2.2 0 0 1 7.2 4H15"/></svg>' +
+                   '<svg class="i-ok" viewBox="0 0 24 24" aria-hidden="true"><circle class="c" cx="12" cy="12" r="9"/><path class="m" d="M7.8 12.4l3 3 5.6-6.2"/></svg>';
+  function copiarTexto(txt) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(txt);
+    return new Promise(function (ok, ko) {            // respaldo para navegadores/contextos sin Clipboard API
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px';
+      document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, txt.length);
+      var r = false; try { r = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta); r ? ok() : ko(new Error('copy'));
+    });
+  }
+  function prepararRegalos(raiz) {
+    var R = CONFIG.regalos, grupo = raiz && raiz.getElementById(R.tarjeta);
+    if (!grupo || !grupo.firstElementChild) { console.warn('[regalos] No existe', R.tarjeta); return null; }
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var T = function () { return R.textos[lang] || R.textos.es; };
+    var fila = function (et, val, copiar, k) {
+      return '<div class="g-fila"><span class="g-et" data-k="' + k + '">' + esc(et) + '</span><span class="g-num">' + esc(val) + '</span>' +
+             (copiar ? '<button class="g-cp" type="button" data-v="' + esc(val.replace(/[^0-9A-Za-z]/g, '')) + '" data-et="' + esc(et) + '">' + SVG_COPIAR + '</button>' : '<span></span>') + '</div>';
+    };
+    var cuentas = R.cuentas.map(function (c) {
+      return '<div class="g-cta"><div class="g-tit">' + esc(c.titulo) + '</div>' +
+        fila('CTA:', c.cta, true, '') + fila('CCI:', c.cci, true, '') +
+        fila(T().titular + ':', c.titular, false, 'titular').replace('g-num', 'g-txt') + fila('DNI:', c.dni, false, '').replace('g-num', 'g-txt') + '</div>';
+    }).join('<span class="g-sep"></span>');
+    var escena = document.createElement('div');
+    escena.className = 'g-escena';
+    escena.innerHTML = '<div class="g-giro"><div class="g-cara g-frente"></div>' +
+      '<div class="g-cara g-dorso" inert><div class="g-papel"><img src="' + R.papel + '" alt="" draggable="false" loading="lazy" decoding="async"></div><div class="g-int"><img class="g-logo" src="' + R.icono + '" alt="" draggable="false">' +
+      '<div class="g-cuentas">' + cuentas + '</div><button class="g-volver" type="button"></button></div></div></div>';
+    escena.querySelector('.g-frente').appendChild(grupo.firstElementChild);   // el contenido de Canva pasa a ser el frente
+    grupo.appendChild(escena);
+    var frente = escena.querySelector('.g-frente'), dorso = escena.querySelector('.g-dorso');
+    var volver = escena.querySelector('.g-volver'), ang = 0, atras = false, arr = null, suprimir = false, raf = 0;
+    var PERSP = 'perspective(1100px) rotateY(';
+
+    function idioma() {
+      var t = T();
+      volver.textContent = t.volver;
+      Array.prototype.forEach.call(escena.querySelectorAll('.g-cp'), function (b) { b.setAttribute('aria-label', t.copiar + ' ' + b.dataset.et.replace(':', '')); });
+      Array.prototype.forEach.call(escena.querySelectorAll('[data-k="titular"]'), function (e) { e.textContent = t.titular + ':'; });
+    }
+    /* El giro se dibuja con JS. La tarjeta es un objeto rígido que gira sobre su eje vertical: «ang» es ese ángulo (grados).
+         · Arrastrar el dedo hacia la DERECHA suma ángulo y hacia la IZQUIERDA lo resta, en cualquier punto de la tarjeta: la superficie sigue al dedo
+           (arrastrar la orilla derecha hacia la izquierda trae esa orilla hacia ti; arrastrar la orilla izquierda hacia la derecha trae la izquierda).
+         · A los 90° (de canto) se cambia la cara visible: el texto del frente nunca se ve en espejo y no depende de backface-visibility (Safari/iPhone),
+           de transiciones CSS ni de «reducir movimiento».
+         · La cara oculta se esconde con OPACIDAD, no con visibility: animacion.js deja visibility:visible en cada letra y palabra animada
+           (UN DETALLE, «Su presencia es…»), y esas letras seguían viéndose «estampadas» encima del reverso. La opacidad del contenedor sí las oculta. */
+    var norm = function (a) { return ((a % 360) + 540) % 360 - 180; };          // (-180, 180]
+    function pintar(a) {
+      var n = norm(a), abs = Math.abs(n), c2 = abs > 90;
+      frente.style.opacity = c2 ? '0' : '1'; dorso.style.opacity = c2 ? '1' : '0';
+      frente.style.visibility = c2 ? 'hidden' : 'visible'; dorso.style.visibility = c2 ? 'visible' : 'hidden';
+      frente.style.transform = c2 || abs < .01 ? 'none' : PERSP + n + 'deg)';
+      dorso.style.transform = !c2 ? 'none' : PERSP + (n - (n > 0 ? 180 : -180)) + 'deg)';
+    }
+    function fin(destino) {
+      ang = destino - 360 * Math.round(destino / 360); pintar(ang);           // 0 (frente) o ±180 (reverso)
+      if (atras) { frente.setAttribute('inert', ''); dorso.removeAttribute('inert'); } else { dorso.setAttribute('inert', ''); frente.removeAttribute('inert'); }
+    }
+    function animar(destino) {                     // destino: 0 · ±180 · ±360 (grados)
+      cancelAnimationFrame(raf);
+      var desde = ang, dur = Math.max(300, 850 * Math.abs(destino - desde) / 180), t0 = performance.now();
+      atras = Math.abs(norm(destino)) > 90;
+      (function paso(ahora) {
+        var p = Math.min(1, (ahora - t0) / dur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;   // easeInOutCubic
+        ang = desde + (destino - desde) * e; pintar(ang);
+        if (p < 1) raf = requestAnimationFrame(paso); else fin(destino);
+      })(t0);
+    }
+    function voltear(v) { v = !!v; if (v === atras && !arr) return; animar(v ? (ang > 1 ? 180 : -180) : 0); }
+    /* Giro manejado por el usuario: sigue el dedo; al soltar, si pasó de 90° (o fue un gesto rápido) completa el giro y si no, regresa */
+    escena.addEventListener('pointerdown', function (e) {
+      if ((e.pointerType === 'mouse' && e.button !== 0) || (e.target.closest && e.target.closest('.g-cp,.g-volver'))) return;
+      arr = { id: e.pointerId, x: e.clientX, y: e.clientY, mov: false, w: escena.getBoundingClientRect().width || 300, base: 0, lx: e.clientX, lt: performance.now(), v: 0 };
+    });
+    escena.addEventListener('pointermove', function (e) {
+      if (!arr || e.pointerId !== arr.id) return;
+      var dx = e.clientX - arr.x, dy = e.clientY - arr.y, ahora = performance.now();
+      if (!arr.mov) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) { arr = null; return; }           // vertical: es para desplazar la página
+        arr.mov = true; escena.classList.add('arr'); cancelAnimationFrame(raf);
+        arr.x = e.clientX; arr.lx = e.clientX; arr.lt = ahora; arr.base = Math.round(ang / 180) * 180;
+        try { escena.setPointerCapture(e.pointerId); } catch (x) {}
+        return;
+      }
+      var d = Math.max(-180, Math.min(180, (e.clientX - arr.x) / arr.w * 180 * 1.15));
+      ang = arr.base + d; pintar(ang);
+      if (ahora - arr.lt > 16) { arr.v = (e.clientX - arr.lx) / (ahora - arr.lt); arr.lx = e.clientX; arr.lt = ahora; }
+    });
+    function soltar(e) {
+      if (!arr || e.pointerId !== arr.id) return;
+      var a = arr, delta = ang - a.base; arr = null;
+      escena.classList.remove('arr');
+      if (!a.mov) return;
+      suprimir = true; setTimeout(function () { suprimir = false; }, 80);
+      var rapido = Math.abs(a.v) > .5 && Math.abs(delta) > 18 && (a.v > 0) === (delta > 0);
+      animar(Math.abs(delta) > 90 || rapido ? a.base + (delta > 0 ? 180 : -180) : a.base);
+    }
+    escena.addEventListener('pointerup', soltar);
+    escena.addEventListener('pointercancel', soltar);
+    /* En celulares setPointerCapture dispara 'lostpointercapture' en el elemento tocado y sube hasta aquí: solo cuenta el de la propia escena */
+    escena.addEventListener('lostpointercapture', function (e) { if (e.target === escena) soltar(e); });
+    escena.addEventListener('click', function (e) { if (suprimir) { e.stopPropagation(); e.preventDefault(); } }, true);
+    escena.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    volver.addEventListener('click', function () { voltear(false); });
+
+    /* Copiar (sin guiones) + animación de check, y vuelve al icono de copiar */
+    escena.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('.g-cp');
+      if (!b || b.classList.contains('ok')) return;
+      copiarTexto(b.dataset.v).then(function () {
+        b.classList.add('ok');
+        setTimeout(function () { b.classList.remove('ok'); }, 1700);
+      }, function () { console.warn('[regalos] No se pudo copiar'); });
+    });
+    idioma();
+    return { voltear: voltear, idioma: idioma };
+  }
+
+  /* ---------------------------------------------------------------- cuenta regresiva (código propio: sin librerías ni marcas) */
+  /* Réplica de la cuenta de tickcounter: números grandes en la fuente serif predeterminada, separados por «:» y con su etiqueta debajo.
+     Se dibuja dentro del recuadro de 800 × 200 px que Canva reservó para el iframe (luego Canva lo escala), en negro. */
+  var CSS_CONTADOR = [
+    '.pyd-timer{position:absolute;inset:0;display:flex;justify-content:center;align-items:flex-start;padding-top:30px;box-sizing:border-box;',
+    ' font-family:"Times New Roman",Times,"Liberation Serif",serif;color:#000;line-height:1;white-space:nowrap}',
+    '.pyd-timer .pt-in{display:flex;align-items:flex-start;transform-origin:50% 0}',
+    '.pyd-timer .pt-g{position:relative;flex:none;text-align:center}',
+    '.pyd-timer .pt-n{display:block;font-size:120px;line-height:1;font-variant-numeric:tabular-nums;font-weight:400}',
+    '.pyd-timer .pt-l{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:21px;font-size:27px;letter-spacing:.01em;font-weight:400}',
+    '.pyd-timer .pt-c{flex:none;display:block;font-size:120px;line-height:1;padding:0 .24em .06em;font-weight:400}'
+  ].join('\n');
+  var contador = null;
+  function ponerContador() {
+    var C = CONFIG.contador, host = raices.a && raices.a.getElementById(C.id);
+    if (!host) return console.warn('[contador] No existe', C.id);
+    var caja = host.querySelector('div[style*="800px"]') || host;      // el recuadro de 800 × 200 px que escala Canva
+    caja.innerHTML = '';                                                // aquí estaba el iframe de tickcounter
+    var destino = new Date(C.fecha).getTime(), grupos = [];
+    var raiz = document.createElement('div'); raiz.className = 'pyd-timer'; raiz.setAttribute('role', 'timer');
+    var dentro = document.createElement('div'); dentro.className = 'pt-in'; raiz.appendChild(dentro);
+    for (var i = 0; i < 4; i++) {
+      if (i) { var c = document.createElement('span'); c.className = 'pt-c'; c.setAttribute('aria-hidden', 'true'); c.textContent = ':'; dentro.appendChild(c); }
+      var g = document.createElement('div'); g.className = 'pt-g';
+      var n = document.createElement('span'); n.className = 'pt-n'; n.setAttribute('aria-hidden', 'true'); n.textContent = '00';
+      var l = document.createElement('span'); l.className = 'pt-l'; l.setAttribute('aria-hidden', 'true');
+      g.appendChild(n); g.appendChild(l); dentro.appendChild(g); grupos.push({ n: n, l: l, v: '' });
+    }
+    caja.appendChild(raiz);
+    function valores() {
+      var t = Math.max(0, Math.floor((destino - Date.now()) / 1000));
+      return [Math.floor(t / 86400), Math.floor(t % 86400 / 3600), Math.floor(t % 3600 / 60), t % 60];
+    }
+    function ajustar() {                                                // si la cantidad de días o la fuente lo hacen más ancho que el recuadro, se reduce
+      dentro.style.transform = '';
+      var w = caja.clientWidth || 800, ancho = dentro.offsetWidth;
+      if (ancho > w * .96) dentro.style.transform = 'scale(' + (w * .96 / ancho).toFixed(4) + ')';
+    }
+    function pintar() {
+      var v = valores(), cambio = false;
+      grupos.forEach(function (g, i) {
+        var t = String(v[i]); if (t.length < 2) t = '0' + t;
+        if (t !== g.v) { g.n.textContent = t; g.v = t; cambio = cambio || t.length !== 2; }
+      });
+      if (cambio) ajustar();
+    }
+    function etiquetas() {
+      var et = C.etiquetas[lang] || C.etiquetas.es, v = valores();
+      grupos.forEach(function (g, i) { g.l.textContent = et[i]; });
+      raiz.setAttribute('aria-label', v.map(function (x, i) { return x + ' ' + et[i].toLowerCase(); }).join(', '));
+    }
+    function tic() { pintar(); setTimeout(tic, 1000 - (Date.now() % 1000) + 15); }
+    pintar(); etiquetas(); ajustar(); setTimeout(tic, 1000 - (Date.now() % 1000) + 15);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustar);
+    contador = { etiquetas: etiquetas, ajustar: ajustar };
+  }
+
+  /* ---------------------------------------------------------------- tarea principal: Canva */
+  function esperarImg(img) {
+    return new Promise(function (res) {
+      var ok = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(res); };
+      if (img.complete) ok(); else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', res, { once: true }); }
+    });
+  }
+  var puertas = {}, abiertaInv = false, colaInv = [], regalos = null;
+  var puertaInv = function (fn) { abiertaInv ? fn() : colaInv.push(fn); };
+  window.addEventListener('invitacion:visible', function () { abiertaInv = true; colaInv.splice(0).forEach(function (f) { f(); }); }, { once: true });
+
+  /* La invitación se carga EN SEGUNDO PLANO (cuando ya se ve el sobre). Se parte en pasos pequeños (requestIdleCallback) para no trabar
+     la animación del sobre; «Ver invitación» solo espera si el invitado llega antes de que termine. */
+  var enReposo = function (fn) { return new Promise(function (res, rej) { var f = function () { try { res(fn()); } catch (e) { rej(e); } }; window.requestIdleCallback ? requestIdleCallback(f, { timeout: 900 }) : setTimeout(f, 40); }); };
+  function cargarScripts(lista) {                      // se ejecutan en orden aunque bajen en paralelo
+    return Promise.all(lista.map(function (src) {
+      return new Promise(function (res) { var s = document.createElement('script'); s.async = false; s.src = src; s.onload = s.onerror = res; document.head.appendChild(s); });
+    }));
+  }
+  var invListo = false, invFallo = null, tareaInv = null;
+  function iniciarInvitacion() {
+    if (tareaInv) return tareaInv;
+    tareaInv = tareaCanva().then(function () {
+      invListo = true;
+      cargarScripts(['../assets/qr.js', '../assets/rsvp.js']);                  // el RSVP queda para el final: está debajo de la 1.ª pantalla y no debe competir con ella
+    }, function (e) { invFallo = e; console.error('[carga] invitación:', e); btnVer.textContent = tx('reintentar'); throw e; });
+    return tareaInv;
+  }
+  function tareaCanva() {
+    return fetch(CONFIG.invitacion).then(function (r) { if (!r.ok) throw new Error(CONFIG.invitacion + ' → HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      return enReposo(function () { var partes = partirCanva(html); montar('a', 'inv-a', partes.a, partes.css); return partes; });
+    }).then(function (partes) {
+      return enReposo(function () {
+        montar('b', 'inv-b', partes.b, partes.css);
+        ponerContador();
+        regalos = prepararRegalos(raices.b);
+        $('fuentes-canva').textContent = unirFuentes(Array.from(reglasFuente)).join('\n');
+        return new Promise(requestAnimationFrame);
+      });
+    }).then(function () {
+      /* Para abrir solo hace falta lo que se ve primero: las 2 primeras secciones y las tipografías. El resto de imágenes sigue bajando. */
+      var arriba = Array.prototype.slice.call(raices.a.querySelectorAll('section'), 0, 2), imgs = [];
+      arriba.forEach(function (sec) { imgs = imgs.concat(Array.prototype.slice.call(sec.querySelectorAll('img'))); });
+      var tImgs = Promise.all(imgs.map(esperarImg));
+      /* Solo las caras «normal»: las «italic» del export apuntan al mismo archivo y bajarlo dos veces no aporta nada (si hubiera cursiva, baja al usarse) */
+      var faces = Array.from(document.fonts).filter(function (f) { return f.style === 'normal' && familias.has(f.family.replace(/["']/g, '')); });
+      var tFuentes = Promise.all(faces.map(function (f) { return f.load().catch(function () {}); }));
+      return Promise.all([tImgs, tFuentes]);
+    }).then(function () {
+      ajustes.a = Responsive.montar(raices.a, { anchoOriginal: CONFIG.anchoCanva, anchoMaximo: CONFIG.anchoMaximo, modo: 'ancho' });
+      ajustes.b = Responsive.montar(raices.b, { anchoOriginal: CONFIG.anchoCanva, anchoMaximo: CONFIG.anchoMaximo, modo: 'ancho' });
+      ['a', 'b'].forEach(function (c) {
+        var o = soloExistentes(raices[c], CONFIG.anim[c]);
+        Animacion.montar(raices[c], Object.assign({ cuandoVisible: puertaInv }, o));
+      });
+      enlazarEventos();
+      medirRsvp();
+      return document.fonts && document.fonts.ready;
+    }).then(function () {
+      ajustes.a && ajustes.a.reajustar(); ajustes.b && ajustes.b.reajustar(); medirRsvp();
+    });
+  }
+  // Cada lista solo con los ids que existen en esa mitad (evita avisos falsos de animacion.js)
+  function soloExistentes(raiz, o) {
+    var r = {}, falt = [];
+    Object.keys(o).forEach(function (k) {
+      if (!Array.isArray(o[k])) { r[k] = o[k]; return; }
+      r[k] = o[k].filter(function (x) { var id = typeof x === 'string' ? x : x.id, ok = !!raiz.getElementById(id); if (!ok) falt.push(id); return ok; });
+    });
+    if (falt.length) console.warn('[animacion] ids que no existen en esta parte:', falt);
+    return r;
+  }
+  // El RSVP mide lo mismo que el lienzo escalado: --ancho-canva y --esc siguen al responsive
+  function medirRsvp() {
+    var w = Math.min($('inv-a').clientWidth || document.documentElement.clientWidth, CONFIG.anchoMaximo);
+    document.documentElement.style.setProperty('--ancho-canva', w + 'px');
+    document.documentElement.style.setProperty('--esc', (w / CONFIG.anchoCanva).toFixed(4));
+  }
+  window.addEventListener('resize', medirRsvp);
+
+  /* ---------------------------------------------------------------- carga: SOLO lo indispensable para mostrar el sobre */
+  var pDatos = cargarDatos().then(idiomaInicial).then(function () { pintarTarjeta(); });          // si llegan tarde, la tarjeta se actualiza sola
+  var tareaDatos = Promise.race([pDatos, new Promise(function (r) { setTimeout(r, DATOS_MAX_MS); })]).then(function () { avance('datos', 1); });
+  Promise.race([
+    Promise.all([tareaVideo, tareaFuentes, tareaDatos]),
+    new Promise(function (res) { setTimeout(res, LIMITE_MS); })
+  ]).then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); });
+
+  var circ = $('anillo-avance'), pctTxt = $('anillo-pct'), C = 2 * Math.PI * 46;
+  circ.style.strokeDasharray = C.toFixed(2); circ.style.strokeDashoffset = C.toFixed(2);
+  var t0 = Date.now(), mostrado = 0;
+  (function tick() {
+    var obj = total();
+    mostrado = Math.min(obj, mostrado + Math.max(.004, (obj - mostrado) * .08));
+    circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+    pctTxt.textContent = Math.round(mostrado * 100) + '%';
+    if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) {
+      circ.style.strokeDashoffset = '0'; pctTxt.textContent = '100%';
+      setTimeout(function () {
+        $('cargador').classList.add('fuera');
+        encuadre(); pintarTarjeta();
+        setTimeout(function () { gate.classList.add('lista'); setTimeout(function () { if (!abierta) env.classList.add('listo'); }, 1300); }, 300);
+        setTimeout(iniciarInvitacion, 450);                                   // ya se ve el sobre: ahora sí, la invitación en segundo plano
+        setTimeout(function () { var c = $('cargador'); c && c.parentNode && c.parentNode.removeChild(c); }, 1000);
+      }, 280);
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  /* ---------------------------------------------------------------- SECUENCIA: toque → apertura del sobre → tarjeta → invitación */
+  var abierta = false, tarjetaVista = false, saliendo = false;
+  gate.addEventListener('transitionend', function () {});     // (reservado)
+  function abrirSobre() {
+    if (abierta || !gate.classList.contains('lista')) return;
+    abierta = true;
+    gate.classList.add('abriendo');
+    var latido = getComputedStyle(env).transform;           // el latido se detiene suavemente (sin «salto» de escala)
+    env.classList.remove('listo');
+    if (latido && latido !== 'none') { env.style.transform = latido; void env.offsetWidth; env.style.transition = 'transform .3s ease'; env.style.transform = 'none'; }
+    gate.classList.add('abierto');                           // dispara todas las transiciones (CSS)
+    setTimeout(function () { gate.classList.add('boton'); btnVer.tabIndex = 0; tarjetaVista = true; ajustarNombre(); }, E.tiempos['d-boton'] * 1000);
+    setTimeout(function () { if (!tarjetaVista) { gate.classList.add('boton'); btnVer.tabIndex = 0; tarjetaVista = true; } }, E.maxMs);
+  }
+  sello.addEventListener('click', abrirSobre);
+  pista.addEventListener('click', abrirSobre);
+  env.addEventListener('click', function (e) { if (!abierta) abrirSobre(); });
+  tarjeta.addEventListener('click', function () { if (tarjetaVista) verInvitacion(); });
+
+  /* Fundido portada → invitación (fotograma a fotograma, opacidad en línea: nada la pisa) */
+  var suave = function (p) { return -(Math.cos(Math.PI * p) - 1) / 2; };
+  function animar(ms, paso, fin) {
+    var ini = performance.now(), hecho = false;
+    var terminar = function () { if (hecho) return; hecho = true; paso(1); fin && fin(); };
+    (function f(now) { if (hecho) return; var p = Math.min(1, (now - ini) / ms); paso(suave(p)); if (p < 1) requestAnimationFrame(f); else terminar(); })(ini);
+    setTimeout(terminar, ms + 1500);
+  }
+  var esperando = false;
+  function verInvitacion() {
+    if (saliendo) return;
+    if (invFallo) { location.reload(); return; }
+    if (!invListo) {                                          // el invitado llegó antes de que terminara la carga: se espera sin perder el toque
+      if (esperando) return; esperando = true; btnVer.classList.add('espera');
+      iniciarInvitacion().then(function () { esperando = false; btnVer.classList.remove('espera'); verInvitacion(); },
+        function () { esperando = false; btnVer.classList.remove('espera'); btnVer.textContent = tx('reintentar');
+                      console.error('No se pudo cargar la invitación. Si abriste el archivo con doble clic, ábrelo desde un servidor (http/https).'); });
+      return;
+    }
+    saliendo = true;
+    medirRsvp(); ajustes.a && ajustes.a.reajustar(); ajustes.b && ajustes.b.reajustar();
+    var inv = $('invitacion'); inv.classList.add('visible'); inv.removeAttribute('aria-hidden');
+    hostP.style.setProperty('pointer-events', 'none', 'important');
+    var revelado = false;
+    animar(CONFIG.salida.ms, function (p) {
+      hostP.style.setProperty('opacity', (1 - p).toFixed(4), 'important');
+      if (!revelado && p >= CONFIG.salida.revelarEn) { revelado = true; revelar(); }
+    }, function () {
+      if (!revelado) revelar();
+      hostP.parentNode && hostP.parentNode.removeChild(hostP);
+    });
+  }
+  function revelar() {
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, 0);
+    window.__invitacionVisible = true;
+    window.dispatchEvent(new Event('invitacion:visible'));    // arranca animacion.js en las dos mitades
+    animarCabeceraRsvp();
+    creditoAlFinal();
+    setTimeout(pistaScroll, 2200);
+  }
+  /* Gesto «desliza»: aparece una sola vez, cuando la invitación ya se ve, y se va en cuanto el invitado empieza a desplazarse (o a los 16 s) */
+  function pistaScroll() {
+    var el = $('pista-scroll'); if (!el || window.scrollY > 30) return;
+    $('ps-txt').textContent = tx('desliza');
+    el.hidden = false; void el.offsetWidth;
+    /* Si la primera foto termina antes que la pantalla (celulares altos), el gesto se apoya sobre la foto y no tapa el título que sigue */
+    var sec = raices.a && raices.a.querySelector('section'), r = sec && sec.getBoundingClientRect();
+    if (r && r.bottom < window.innerHeight - 8) { el.style.bottom = 'auto'; el.style.top = Math.max(60, r.bottom - 16 - el.offsetHeight) + 'px'; }
+    el.classList.add('ver');
+    var fin = function () {
+      window.removeEventListener('scroll', alMover); window.removeEventListener('wheel', fin); window.removeEventListener('touchmove', fin); window.removeEventListener('keydown', fin);
+      clearTimeout(t); el.classList.remove('ver'); setTimeout(function () { el.hidden = true; }, 1000);
+    };
+    var alMover = function () { if (window.scrollY > 30) fin(); };
+    var t = setTimeout(fin, 16000);
+    window.addEventListener('scroll', alMover, { passive: true }); window.addEventListener('wheel', fin, { passive: true });
+    window.addEventListener('touchmove', fin, { passive: true }); window.addEventListener('keydown', fin);
+  }
+  /* El crédito ("Hecho con amor") no aparece al abrir: se muestra solo cuando el invitado llega al final de la invitación */
+  function creditoAlFinal() {
+    var fin = document.querySelector('#invitacion [data-credito]');
+    if (!fin || !P.credito || modoCredito === 'oculto' || !window.IntersectionObserver) return;
+    fin.style.minHeight = '1px';
+    var io = new IntersectionObserver(function (en) {
+      if (!en.some(function (e) { return e.isIntersecting; })) return;
+      io.disconnect();
+      window.PYD_SIN_CREDITO = false;
+      P.credito({ modo: modoCredito, lang: lang });
+    });
+    io.observe(fin);
+  }
+
+  /* ---------------------------------------------------------------- RSVP nativo: cabecera, idioma y crédito */
+  var modoCredito = 'flotante';
+  function animarCabeceraRsvp() {
+    var els = document.querySelectorAll('#rsvp-seccion .rsvp-anim');
+    var io = new IntersectionObserver(function (en) {
+      en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+    }, { threshold: .3 });
+    els.forEach(function (e) { io.observe(e); });
+  }
+  function aplicarIdioma(l) {
+    lang = TXT[l] ? l : 'es';
+    document.documentElement.lang = lang;
+    document.querySelectorAll('#rsvp-idiomas button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.l === lang)); });
+    pintarTarjeta();
+    regalos && regalos.idioma();
+    contador && contador.etiquetas();
+    var psl = $('ps-txt'); if (psl) psl.textContent = tx('desliza');
+  }
+  window.addEventListener('rsvp:idioma', function (e) { aplicarIdioma(e.detail); });
+  window.addEventListener('rsvp:proyecto', function (e) {
+    var p = e.detail || {};
+    modoCredito = p.credito || 'flotante';
+    $('rsvp-idiomas').hidden = String(p.idioma || 'es').split(',').length < 2;
+  });
+  $('rsvp-idiomas').addEventListener('click', function (e) { var b = e.target.closest('[data-l]'); if (b && window.RSVP_IDIOMA) RSVP_IDIOMA.cambiar(b.dataset.l); });
+
+  /* ---------------------------------------------------------------- enlaces dentro de Canva */
+  function enlazarEventos() {
+    ['a', 'b'].forEach(function (c) {
+      raices[c].addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a'), h = a ? a.getAttribute('href') || '' : '';
+        var dest = CONFIG.enlaces.find(function (x) { return e.target.closest && e.target.closest('#' + x.id); });
+        if (dest) { e.preventDefault(); if (dest.accion === 'regalos' && regalos) regalos.voltear(true); else if (dest.url) window.open(dest.url, '_blank', 'noopener'); return; }
+        if (a && h.charAt(0) === '#') e.preventDefault();                 // anclas internas del export (#page-1…)
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
