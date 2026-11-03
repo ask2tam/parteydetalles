@@ -37,9 +37,15 @@
   .ver:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
   .ver svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .pagina { padding-bottom: 64px; }   /* espacio para el crédito flotante */
+  /* Pantalla de carga: tapa la página hasta que el evento tiene su configuración (colores, fondo, logo, idioma y preguntas). Se funde y desaparece. */
+  #carga { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--fondo, #F1ECE4); transition: opacity .5s ease; }
+  #carga.fuera { opacity: 0; pointer-events: none; }
+  #carga i { width: 26px; height: 26px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--acento) 28%, transparent); border-top-color: var(--acento); animation: carga-gira .9s linear infinite; }
+  @keyframes carga-gira { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+<div id="carga" role="status" aria-label="Cargando"><i></i></div>
 <main class="pagina">
   <header class="cab" id="cab" hidden>
     <div class="idiomas" id="idiomas" role="group" aria-label="Idioma / Language">
@@ -59,7 +65,7 @@
   (function () {
     var TX = { es: ['Confirmación de asistencia', 'Ver invitación completa', 'Confirma tu asistencia'],
                en: ['RSVP', 'View full invitation', 'RSVP'] };
-    var urlInv = '', nombre = '', $ = function (id) { return document.getElementById(id); };
+    var urlInv = '', nombre = '', fondoListo = Promise.resolve(), $ = function (id) { return document.getElementById(id); };
     function enlace() {
       var cod = new URLSearchParams(location.search).get('to'), u;
       try { u = new URL(urlInv, location.href); } catch (e) { return; }
@@ -81,8 +87,15 @@
       var p = e.detail || {}, t = p.tarjeta || {}, c = t.colores || {}, f = ((t.fondos || {}).pagina) || {}, r = document.documentElement.style;
       ['papel', 'tinta', 'acento', 'suave'].forEach(function (k) { if (c[k]) r.setProperty('--' + k, c[k]); });
       if (f.tipo === 'transparente') r.setProperty('--fondo', 'transparent');
-      else if (f.tipo === 'imagen') { document.body.classList.add('con-imagen'); var fb = new Image(); fb.onload = function () { document.body.style.backgroundImage = 'url("assets/rsvp_fondo_background.jpg")'; };
-        fb.onerror = function () { document.body.style.backgroundImage = 'url("assets/rsvp_fondo_background.jpg")'; }; fb.src = 'assets/rsvp_fondo_background.jpg'; }   /* .jpg (liviano) o .png */
+      else if (f.tipo === 'imagen') {
+        document.body.classList.add('con-imagen');
+        fondoListo = new Promise(function (ok) {
+          var poner = function (u) { document.body.style.backgroundImage = 'url("' + u + '")'; ok(); };
+          var im = new Image(); im.onload = function () { poner('assets/rsvp_fondo_background.jpg'); };            /* .jpg (liviano) … */
+          im.onerror = function () { var i2 = new Image(); i2.onload = function () { poner('assets/rsvp_fondo_background.png'); }; i2.onerror = ok; i2.src = 'assets/rsvp_fondo_background.png'; };   /* … o .png */
+          im.src = 'assets/rsvp_fondo_background.jpg';
+        });
+      }
       else if (f.color) r.setProperty('--fondo', f.color);
       nombre = t.titulo || p.nombre || '';
       urlInv = p.urlInvitacion || ''; $('ver').hidden = !urlInv;
@@ -90,6 +103,14 @@
       enlace();
     });
     window.addEventListener('rsvp:invitado', enlace);
+    /* Se quita la pantalla de carga cuando el formulario está listo (evento 'rsvp:listo') y el fondo de la página ya cargó; tope de 7 s */
+    var quitada = false;
+    function quitarCarga() {
+      if (quitada) return; quitada = true;
+      var c = $('carga'); c.classList.add('fuera'); setTimeout(function () { c.remove(); }, 600);
+    }
+    window.addEventListener('rsvp:listo', function () { Promise.race([fondoListo, new Promise(function (ok) { setTimeout(ok, 2500); })]).then(quitarCarga); });
+    setTimeout(quitarCarga, 7500);
   })();
 </script>
 <script src="../assets/qr.js" defer></script>

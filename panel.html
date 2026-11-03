@@ -502,7 +502,7 @@ function layout() {
     <section class="mt-3 flex flex-wrap items-center gap-2">
       <button id="b-agregar" class="${btnP}">${ico('plus')} Agregar</button>
       <button id="b-importar" class="${btnS}">${ico('up')} Importar Excel</button>
-      <button id="b-exportar" class="${btnS}">${ico('down')} Exportar</button>
+      <button id="b-exportar" class="${btnS}" title="${esc(t('Exporta todos los invitados con sus datos completos (respaldo)'))}">${ico('down')} Exportar</button>
       <button id="b-borrar-todo" class="${btn} text-rose-700 hover:bg-rose-50">${ico('trash')} Borrar todo</button>
       <p id="conteo" class="ml-auto text-sm text-stone-500"></p>
     </section>
@@ -525,7 +525,7 @@ function layout() {
   $('#v-tarjetas').addEventListener('click', () => cambiarVista('tarjetas'));
   $('#b-agregar').addEventListener('click', () => editar(null));
   $('#b-importar').addEventListener('click', () => importar());
-  $('#b-exportar').addEventListener('click', () => exportar(visibles(), 'filtrados'));
+  $('#b-exportar').addEventListener('click', exportarMenu);
   $('#b-borrar-todo').addEventListener('click', borrarTodo);
   $('#b-config').addEventListener('click', () => configurar());
   $('#b-clave').addEventListener('click', cambiarClave);
@@ -957,7 +957,7 @@ const correosValidos = tx => [...new Set(String(tx || '').split(/[,;\s]+/).map(x
 const ERRORES_REPORTE = { sin_destinatarios: 'Agrega al menos un correo destinatario válido.', sin_api_key: 'El servicio de correo aún no está configurado.' };
 const localDT = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const deLocal = v => v ? new Date(v).toISOString() : '';
-const CREDITOS = [['flotante', 'Flotante abajo · se oculta solo al desplazarse (recomendado)'], ['discreto', 'Discreto · solo un corazón pequeño en la esquina'], ['final', 'Al final de la página · fijo, sin animación de entrada'], ['oculto', 'No mostrar']];
+const CREDITOS = [['flotante', 'Flotante abajo · aparece solo al llegar al final de la página (recomendado)'], ['discreto', 'Discreto · un corazón pequeño en la esquina, solo al llegar al final'], ['final', 'Al final de la página · fijo, sin animación de entrada'], ['oculto', 'No mostrar']];
 const PESTANAS = [['general', 'General'], ['formulario', 'Formulario RSVP'], ['tarjeta', 'Tarjeta'], ['whatsapp', 'WhatsApp'], ['reporte', 'Reporte diario'], ['accesos', 'Accesos']];
 const FONDOS = [['pagina', 'Fondo de la página (rsvp.html)', 'rsvp_fondo_background.png'], ['formulario', 'Fondo del formulario', 'rsvp_fondo_formulario.png'], ['tarjeta', 'Fondo de la tarjeta', 'rsvp_fondo_tarjeta.png']];
 
@@ -1475,10 +1475,45 @@ function revisarTelefonos(iso) {
    ===================================================================================== */
 function sello() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
 const fecha = iso => iso ? new Date(iso) : null;
+/* ---- Excel como RESPALDO -----------------------------------------------------------------------------
+   El archivo trae 3 hojas:
+     · Invitados  → la vista para leer/editar en Excel (columnas con nombre legible, links, una columna por pregunta del formulario).
+     · Evento     → datos del respaldo (evento, fecha, alcance: completo o parcial, cantidad de invitados).
+     · Respaldo   → una fila por invitado con TODOS sus datos tal cual están guardados (respuestas del formulario en JSON, mensajes,
+                    WhatsApp enviado, ingresos de recepción, vistas, fechas y ediciones; fechas en ISO con hora exacta).
+   Al importar un archivo con la hoja «Respaldo» se ofrece restaurarlo completo. El historial de cambios no va en el Excel. */
+const CAMPOS_RESP = ['codigo', 'nombre', 'tratamiento', 'categoria', 'asistencia', 'pases_asignados', 'pases_confirmados', 'acompanantes', 'respuestas', 'mensaje', 'respuesta_novios', 'mesa', 'telefono',
+  'fecha_registro', 'primera_vista', 'ultima_vista', 'vistas', 'primera_respuesta', 'ultima_modificacion', 'ediciones', 'whatsapp_enviado', 'ingreso_pases', 'ingreso_fecha', 'ingreso_marca', 'origen'];
+const CAMPOS_TS = new Set(['fecha_registro', 'primera_vista', 'ultima_vista', 'primera_respuesta', 'ultima_modificacion', 'whatsapp_enviado', 'ingreso_fecha', 'ingreso_marca']);
+const CAMPOS_ENT = new Set(['pases_asignados', 'pases_confirmados', 'vistas', 'ediciones', 'ingreso_pases']);
+const ETQ_CAMPO = { codigo: 'Código', nombre: 'Nombre', tratamiento: 'Tratamiento', categoria: 'Categoría', asistencia: 'Asistencia', pases_asignados: 'Pases asignados', pases_confirmados: 'Pases confirmados',
+  acompanantes: 'Acompañantes', respuestas: 'Respuestas del formulario', mensaje: 'Mensaje del invitado', respuesta_novios: 'Respuesta de los novios', mesa: 'Mesa', telefono: 'WhatsApp',
+  fecha_registro: 'Fecha de registro', primera_vista: 'Primera vista', ultima_vista: 'Última vista', vistas: 'N.º de vistas', primera_respuesta: 'Primera respuesta', ultima_modificacion: 'Última modificación',
+  ediciones: 'N.º de ediciones', whatsapp_enviado: 'WhatsApp enviado', ingreso_pases: 'Ingresaron', ingreso_fecha: 'Hora de ingreso', ingreso_marca: 'Marca de ingreso', origen: 'Origen' };
+const ORIGENES = ['panel', 'importacion', 'invitacion'];
+const isoOrNull = v => { if (v == null || v === '') return null; const d = new Date(v); return isNaN(d) ? null : d.toISOString(); };
+const estable = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(x => [x, v[x]])) : v);
+/* Registro «normalizado» de un invitado (así se guarda en el Excel, se lee de él y se compara) */
+function regDe(i) {
+  const r = {};
+  for (const k of CAMPOS_RESP) {
+    const v = i[k];
+    r[k] = CAMPOS_TS.has(k) ? isoOrNull(v)
+      : k === 'respuestas' ? (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
+      : CAMPOS_ENT.has(k) ? (v == null ? (k === 'pases_confirmados' ? null : 0) : +v)
+      : k === 'asistencia' ? (v || null)
+      : k === 'origen' ? (ORIGENES.includes(v) ? v : 'importacion')
+      : v == null ? '' : String(v);
+  }
+  return r;
+}
+const celdaResp = (k, v) => CAMPOS_TS.has(k) ? (v || '') : k === 'respuestas' ? JSON.stringify(v) : v == null ? '' : v;
+
 function exportar(lista, sufijo) {
   if (!window.XLSX) return toast(t('La librería de Excel aún está cargando, intenta en un segundo'), 'info');
   if (!lista.length) return toast(t('No hay invitados para exportar'), 'info');
-  const pq = preguntas();
+  const pq = preguntas(), completo = lista.length === S.lista.length;
+  const fecha = iso => iso ? new Date(iso) : null;
   const filas = lista.map(i => {
     const o = { 'Nombre del invitado': i.nombre, 'Tratamiento': i.tratamiento, 'Código': i.codigo, 'Link': link(i), 'Link RSVP': linkRsvp(i), 'Categoría': i.categoria,
       'Asistencia a la boda': i.asistencia === 'si' ? 'Sí, asistiré' : i.asistencia === 'no' ? 'No podré asistir' : '',
@@ -1495,9 +1530,31 @@ function exportar(lista, sufijo) {
   ws['!cols'] = Object.keys(filas[0]).map(k => ({ wch: /Link/.test(k) ? 46 : /Mensaje|Respuesta de|Acompa/.test(k) ? 36 : /Nombre/.test(k) ? 28 : 14 }));
   ws['!autofilter'] = { ref: ws['!ref'] };
   filas.forEach((f, r) => { [3, 4].forEach(cI => { const a = XLSX.utils.encode_cell({ r: r + 1, c: cI }); if (ws[a]) ws[a].l = { Target: ws[a].v }; }); });
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
+  const wsR = XLSX.utils.json_to_sheet(lista.map(i => { const r = regDe(i); return Object.fromEntries(CAMPOS_RESP.map(k => [k, celdaResp(k, r[k])])); }), { header: CAMPOS_RESP });
+  wsR['!cols'] = CAMPOS_RESP.map(k => ({ wch: /mensaje|respuesta|acompa|respuestas/.test(k) ? 34 : /fecha|vista|ultima|primera|marca|whatsapp_env/.test(k) ? 26 : 14 }));
+  const wsE = XLSX.utils.aoa_to_sheet([['Clave', 'Valor'], ['formato', 'parteydetalles-invitados'], ['version', 2], ['evento_slug', S.p.slug], ['evento_nombre', S.p.nombre],
+    ['exportado', new Date().toISOString()], ['alcance', completo ? 'completo' : 'parcial'], ['invitados_en_el_archivo', lista.length], ['invitados_en_el_evento', S.lista.length], ['panel', P.VERSION_PANEL || ''],
+    [], ['Nota', 'La hoja «Respaldo» es técnica: no la edites. Para cambiar datos desde Excel usa la hoja «Invitados» e impórtala eligiendo «Importar solo la hoja Invitados».'],
+    ['Nota', 'Al importar este archivo en el panel puedes restaurar a cada invitado tal como estaba (respuestas, mensajes, WhatsApp enviado, ingresos y fechas). El historial de cambios no va en el Excel.']]);
+  wsE['!cols'] = [{ wch: 26 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Invitados'); XLSX.utils.book_append_sheet(wb, wsE, 'Evento'); XLSX.utils.book_append_sheet(wb, wsR, 'Respaldo');
   XLSX.writeFile(wb, `invitados_${S.p.slug}_${sufijo}_${sello()}.xlsx`);
   toast(`${lista.length} ${t('invitados exportados')}`);
+}
+/* Botón «Exportar» de la barra: sin filtros = respaldo de TODOS; con filtros se pregunta qué exportar */
+function exportarMenu() {
+  const v = visibles();
+  if (!S.lista.length) return toast(t('No hay invitados para exportar'), 'info');
+  if (v.length === S.lista.length) return exportar(S.lista, 'respaldo');
+  modal(`${cabecera('Exportar a Excel')}${cuerpo(`<p class="text-sm text-stone-600">Hay un filtro o una búsqueda activa. ¿Qué quieres exportar?</p>
+    <div class="mt-4 grid gap-2">
+      <button type="button" id="x-todos" class="${btnP} justify-center">${ico('down')} <span>Respaldo de todos los invitados</span> (<b>${S.lista.length}</b>)</button>
+      <button type="button" id="x-filtro" class="${btnS} justify-center"><span>Solo los que se ven ahora</span> (<b>${v.length}</b>)</button></div>
+    <p class="mt-3 text-xs text-stone-500">El respaldo de todos permite restaurar el evento completo; la exportación de solo algunos sirve para trabajar un grupo en Excel.</p>`)}`, d => {
+    d.querySelector('#x-todos').onclick = () => { cerrarModal(); exportar(S.lista, 'respaldo'); };
+    d.querySelector('#x-filtro').onclick = () => { cerrarModal(); exportar(v, 'parcial'); };
+  });
 }
 const COLUMNAS = [
   ['nombre', 'Nombre del invitado', true, 'Nombre único. Si se repite, agrega apellido o parentesco: “Sr. Pérez (Padre)”.', ['nombre del invitado', 'nombre', 'invitado', 'nombre completo', 'nombres', 'guest name', 'name']],
@@ -1521,7 +1578,8 @@ function plantilla() {
   const inst = XLSX.utils.aoa_to_sheet([['Columna', 'Obligatoria', 'Descripción'], ...COLUMNAS.map(c => [c[1], c[2] ? 'Sí' : 'No', c[3]]), [],
     ['Reglas'], ['• Un invitado por fila. Se reconoce por Código (si lo pones) o por Nombre.'], ['• Invitado existente: se reemplazan solo las columnas que incluyas. Nuevo: se agrega.'],
     ['• Puedes subir solo Nombre + Número de mesa (o + WhatsApp, o + Categoría) para actualizar esos datos.'], ['• WhatsApp: con código de país (+1 305…) o sin él; sin código se usa el país elegido al importar.'],
-    ['• Columnas como Link, fechas o Mensaje a los novios se ignoran (el sistema las administra).'], ['• Sirve también para re-importar un Excel exportado desde este panel.']]);
+    ['• Columnas como Link, fechas o Mensaje a los novios se ignoran (el sistema las administra).'], ['• Sirve también para re-importar un Excel exportado desde este panel.'],
+    ['• Un Excel exportado desde este panel es un respaldo: al importarlo puedes restaurar a cada invitado tal como estaba (incluye respuestas del formulario, mensajes, WhatsApp enviado, ingresos y fechas).']]);
   inst['!cols'] = [{ wch: 26 }, { wch: 12 }, { wch: 90 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Invitados'); XLSX.utils.book_append_sheet(wb, inst, 'Instrucciones');
   XLSX.writeFile(wb, 'plantilla_invitados.xlsx');
@@ -1535,6 +1593,7 @@ function importar() {
           <li>Cada fila se busca por Código (si la columna existe) o por Nombre: si existe se actualiza, si no se agrega.</li>
           <li>Solo se cambian las columnas que incluyas: para asignar mesas basta con Nombre + Número de mesa.</li>
           <li>Los WhatsApp sin código de país reciben el del país elegido abajo. Los dudosos se marcan en la vista previa.</li>
+          <li>Si el archivo es un respaldo exportado desde este panel, podrás restaurarlo completo: cada invitado vuelve a como estaba, con sus respuestas, mensajes, WhatsApp enviado e ingresos.</li>
           <li>Verás una vista previa antes de guardar nada.</li></ul></div>
       <details class="rounded-xl ring-1 ring-stone-200"><summary class="cursor-pointer px-3 py-2 text-sm font-medium">Columnas reconocidas</summary>
         <div class="overflow-x-auto px-3 pb-3"><table class="w-full text-left text-xs"><thead class="text-stone-500"><tr><th class="py-1 pr-3">Columna</th><th class="py-1 pr-3">Oblig.</th><th class="py-1">Detalle</th></tr></thead>
@@ -1557,9 +1616,17 @@ function importar() {
 async function procesarArchivo(file, vacias, pais = '') {
   const err = $('#i-err');
   if (!window.XLSX) { err.textContent = t('La librería de Excel aún está cargando, intenta en un segundo'); return; }
-  let filas;
-  try { const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, blankrows: false }); }
+  let wb;
+  try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); }
   catch { err.textContent = t('No se pudo leer el archivo. ¿Es un Excel válido?'); return; }
+  const resp = leerRespaldo(wb);                                           // ¿es un respaldo exportado desde este panel?
+  if (resp) return vistaRestaurar(resp, file.name, () => importarHoja(wb, file.name, vacias, pais, true));
+  importarHoja(wb, file.name, vacias, pais, false);
+}
+function importarHoja(wb, nombreArchivo, vacias, pais, desdeRespaldo) {
+  const err = $('#i-err') || { set textContent(v) { toast(v, 'error'); } };
+  const hoja = wb.Sheets.Invitados || wb.Sheets[wb.SheetNames[0]];
+  const filas = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: '', raw: false, blankrows: false });
   const h = filas.findIndex(r => r.some(c => COLUMNAS.some(col => col[4].includes(normCab(c)))));
   if (h < 0) { err.textContent = t('No encontramos la fila de títulos. La primera fila debe tener “Nombre del invitado” (o “Código”).'); return; }
   const mapa = {}, ignoradas = [];
@@ -1568,7 +1635,135 @@ async function procesarArchivo(file, vacias, pais = '') {
     if (col && !Object.values(mapa).includes(col[0])) mapa[k] = col[0]; else ignoradas.push(String(c).trim()); });
   const claves = Object.values(mapa);
   if (!claves.includes('nombre') && !claves.includes('codigo')) { err.textContent = t('Falta la columna “Nombre del invitado”.'); return; }
-  vistaPrevia(planificar(filas.slice(h + 1).map((r, k) => ({ r, fila: h + k + 2 })), mapa, vacias, pais), claves, ignoradas, vacias, file.name);
+  vistaPrevia(planificar(filas.slice(h + 1).map((r, k) => ({ r, fila: h + k + 2 })), mapa, vacias, pais), claves, ignoradas, vacias, nombreArchivo);
+}
+
+/* ---- RESTAURAR UN RESPALDO ----------------------------------------------------------------------------- */
+function leerRespaldo(wb) {
+  const wsR = wb.Sheets.Respaldo; if (!wsR) return null;
+  const filas = XLSX.utils.sheet_to_json(wsR, { defval: '', raw: false, blankrows: false });
+  if (!filas.length || !('nombre' in filas[0]) || !('codigo' in filas[0])) return null;
+  const meta = {};
+  if (wb.Sheets.Evento) XLSX.utils.sheet_to_json(wb.Sheets.Evento, { header: 1, defval: '', raw: false }).forEach(([k, v]) => { if (k && !(k in meta)) meta[String(k).trim()] = String(v ?? '').trim(); });
+  return { filas, meta };
+}
+/* Valida una fila de la hoja Respaldo y la lleva al mismo formato que regDe() */
+function parsearReg(r) {
+  const e = [], s = k => String(r[k] ?? '').trim(), reg = {};
+  const ent = (k, min, max, def) => { const v = s(k); if (v === '') return def; const n = Number(v); if (!Number.isInteger(n) || n < min || n > max) { e.push(`${ETQ_CAMPO[k]} fuera de rango`); return def; } return n; };
+  reg.codigo = s('codigo').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (reg.codigo && !/^[A-Z0-9]{4,8}$/.test(reg.codigo)) e.push('Código inválido');
+  reg.nombre = s('nombre').replace(/\s+/g, ' ');
+  if (reg.nombre.length < 2 || reg.nombre.length > 80) e.push('Falta el nombre (de 2 a 80 caracteres)');
+  ['tratamiento', 'categoria', 'acompanantes', 'mensaje', 'respuesta_novios', 'mesa', 'telefono'].forEach(k => { reg[k] = s(k); });
+  const a = norm(s('asistencia')); reg.asistencia = a === '' ? null : /^(si|yes|s)$/.test(a) ? 'si' : /^(no|n)$/.test(a) ? 'no' : (e.push('Asistencia no reconocida'), null);
+  reg.pases_asignados = ent('pases_asignados', 1, 50, 1);
+  reg.pases_confirmados = ent('pases_confirmados', 0, 50, null);
+  if (reg.pases_confirmados != null && reg.pases_confirmados > reg.pases_asignados) e.push('Pases confirmados mayor que los asignados');
+  reg.vistas = ent('vistas', 0, 1e6, 0); reg.ediciones = ent('ediciones', 0, 1e6, 0); reg.ingreso_pases = ent('ingreso_pases', 0, 50, 0);
+  if (reg.ingreso_pases > reg.pases_asignados) e.push('Ingresaron más pases de los asignados');
+  const rj = s('respuestas');
+  if (!rj) reg.respuestas = {};
+  else { try { const o = JSON.parse(rj); if (o && typeof o === 'object' && !Array.isArray(o)) reg.respuestas = o; else throw 0; } catch { reg.respuestas = {}; e.push('Respuestas del formulario ilegibles'); } }
+  for (const k of CAMPOS_TS) { const v = s(k); if (!v) { reg[k] = null; continue; } const d = new Date(v); if (isNaN(d)) { e.push(`${ETQ_CAMPO[k]}: fecha inválida`); reg[k] = null; } else reg[k] = d.toISOString(); }
+  reg.origen = ORIGENES.includes(s('origen')) ? s('origen') : 'importacion';
+  return { reg, e };
+}
+function planificarRespaldo(filas) {
+  const porCod = new Map(S.lista.map(i => [i.codigo, i])), porNom = new Map(S.lista.map(i => [norm(i.nombre), i]));
+  const vistos = new Set(), nombresFinales = new Map(S.lista.map(i => [norm(i.nombre), i.id])), plan = [];
+  filas.forEach((r, k) => {
+    const fila = k + 2, { reg, e } = parsearReg(r), p = { fila, reg, errores: e.slice(), cambios: [] };
+    const ex = (reg.codigo && porCod.get(reg.codigo)) || (reg.nombre && porNom.get(norm(reg.nombre))) || null;
+    p.existente = ex; p.accion = ex ? 'actualizar' : 'nuevo';
+    const clave = ex ? 'id' + ex.id : 'n' + norm(reg.nombre);
+    if (vistos.has(clave) || (reg.codigo && vistos.has('c' + reg.codigo))) p.errores.push('Repetido en el archivo'); else { vistos.add(clave); if (reg.codigo) vistos.add('c' + reg.codigo); }
+    if (reg.nombre && !p.errores.includes('Repetido en el archivo')) { const dueno = nombresFinales.get(norm(reg.nombre)); if (dueno != null && dueno !== (ex?.id ?? -1)) p.errores.push('Nombre ya usado por otro invitado'); else nombresFinales.set(norm(reg.nombre), ex?.id ?? -fila); }
+    if (ex) {
+      const antes = regDe(ex); if (!reg.codigo) reg.codigo = ex.codigo;
+      for (const c of CAMPOS_RESP) { const a = antes[c], b = reg[c]; if (c === 'respuestas' ? estable(a) !== estable(b) : String(a ?? '') !== String(b ?? '')) p.cambios.push(c); }
+      if (!p.cambios.length) p.accion = 'igual';
+    }
+    if (p.errores.length) p.accion = 'error';
+    plan.push(p);
+  });
+  return plan;
+}
+const resumenCampo = (c, v) => { const x = v == null ? '' : c === 'respuestas' ? Object.entries(v).map(([k, y]) => `${k}: ${Array.isArray(y) ? y.join('/') : y}`).join(', ') : c === 'asistencia' ? ({ si: 'Sí', no: 'No' }[v] || '') : CAMPOS_TS.has(c) ? (v ? new Date(v).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : '') : String(v); return x.length > 40 ? x.slice(0, 38) + '…' : x; };
+
+function vistaRestaurar({ filas, meta }, archivo, alternativa) {
+  const plan = planificarRespaldo(filas), c = a => plan.filter(p => p.accion === a).length;
+  const validos = plan.filter(p => p.accion === 'nuevo' || p.accion === 'actualizar'), hayErrores = c('error') > 0;
+  const completo = meta.alcance === 'completo';
+  const tocados = new Set(plan.map(p => p.existente?.id).filter(x => x != null)), extras = S.lista.filter(i => !tocados.has(i.id));
+  const otroEvento = meta.evento_slug && meta.evento_slug !== S.p.slug;
+  const etiqueta = { nuevo: ['Nuevo', 'bg-emerald-50 text-emerald-700'], actualizar: ['Actualiza', 'bg-sky-50 text-sky-700'], igual: ['Sin cambios', 'bg-stone-100 text-stone-500'], error: ['Error', 'bg-rose-50 text-rose-700'] };
+  const orden = { error: 0, nuevo: 1, actualizar: 2, igual: 3 }, mostrar = [...plan].sort((a, b) => orden[a.accion] - orden[b.accion]).slice(0, 300);
+  const cuando = meta.exportado && !isNaN(new Date(meta.exportado)) ? new Date(meta.exportado).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  modal(`${cabecera('Restaurar respaldo', `<span data-notr>${esc(archivo)}</span>`)}${cuerpo(`
+    <div class="rounded-xl bg-oro-50 p-3 text-sm text-stone-700">
+      <p><b>Respaldo exportado desde este panel</b>${meta.evento_nombre ? ` · <span data-notr>${esc(meta.evento_nombre)}</span>` : ''}${cuando ? ` · <span data-notr>${esc(cuando)}</span>` : ''} · <b>${filas.length}</b> <span>invitados</span> · <span>${completo ? 'Respaldo completo' : 'Respaldo parcial'}</span></p>
+      <p class="mt-1">Al restaurar, cada invitado vuelve a como estaba: respuestas, mensajes, WhatsApp enviado, ingresos, vistas y fechas. El historial de cambios no forma parte del Excel.</p></div>
+    ${otroEvento ? `<p class="mt-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800">⚠ <span>Este respaldo es de otro evento</span> (<span data-notr>${esc(meta.evento_slug)}</span>): <span>se importará en este evento y los códigos se conservan.</span></p>` : ''}
+    <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">${[['nuevo', 'Nuevos'], ['actualizar', 'Se actualizan'], ['igual', 'Sin cambios'], ['error', 'Con errores']].map(([a, tx]) => `<div class="rounded-xl p-3 ${etiqueta[a][1]}"><p class="text-2xl font-semibold tabular-nums">${c(a)}</p><p class="text-xs">${tx}</p></div>`).join('')}</div>
+    ${hayErrores ? `<p class="mt-2 rounded-xl bg-rose-50 p-2.5 text-xs text-rose-700">Las filas con error no se restaurarán. Corrígelas en el Excel y vuelve a subirlo, o continúa con el resto.</p>` : ''}
+    <div class="mt-4 grid gap-2 rounded-xl bg-stone-50 p-3 text-sm">
+      <label class="flex items-start gap-2"><input id="r-antes" type="checkbox" class="${chk}" checked><span>Descargar antes un respaldo del estado actual (recomendado)</span></label>
+      ${completo ? `<label class="flex items-start gap-2 ${hayErrores || !extras.length ? 'opacity-50' : ''}"><input id="r-exacto" type="checkbox" class="${chk}" ${hayErrores || !extras.length ? 'disabled' : ''}>
+        <span><span>Dejar el evento exactamente como el respaldo: eliminar los invitados que no están en el archivo</span> (<b>${extras.length}</b>)${hayErrores ? `<br><span class="text-xs text-stone-500">Corrige primero las filas con error para usar esta opción.</span>` : ''}</span></label>` : ''}
+    </div>
+    <div class="mt-3 overflow-x-auto rounded-xl ring-1 ring-stone-200"><table class="min-w-full text-xs">
+      <thead class="bg-stone-50 text-left text-stone-500"><tr><th class="px-2 py-2">Fila</th><th class="px-2 py-2">Acción</th><th class="px-2 py-2">Nombre</th><th class="px-2 py-2">Detalle</th></tr></thead>
+      <tbody class="divide-y divide-stone-100">${mostrar.map(p => `<tr class="align-top"><td class="px-2 py-1.5 tabular-nums text-stone-400">${p.fila}</td>
+        <td class="px-2 py-1.5"><span class="whitespace-nowrap rounded-full px-2 py-0.5 ${etiqueta[p.accion][1]}">${etiqueta[p.accion][0]}</span></td>
+        <td class="px-2 py-1.5 font-medium" data-notr>${esc(p.reg.nombre || p.existente?.nombre || '')}${p.existente && p.reg.nombre && norm(p.reg.nombre) !== norm(p.existente.nombre) ? `<div class="font-normal text-stone-400">← ${esc(p.existente.nombre)}</div>` : ''}</td>
+        <td class="px-2 py-1.5">${p.errores.map(e => `<div class="text-rose-700">${esc(t(e))}</div>`).join('')}${p.accion === 'actualizar' ? p.cambios.map(k => `<div class="text-sky-700"><span>${esc(t(ETQ_CAMPO[k]))}</span>: <span class="text-stone-400 line-through" data-notr>${esc(resumenCampo(k, regDe(p.existente)[k]))}</span> → <span data-notr>${esc(resumenCampo(k, p.reg[k]))}</span></div>`).join('') : ''}</td></tr>`).join('')}</tbody></table></div>
+    ${plan.length > 300 ? `<p class="mt-2 text-xs text-stone-500">300 / ${plan.length}</p>` : ''}`)}
+    ${pie(`<button type="button" id="r-hoja" class="${btnS} mr-auto">Importar solo la hoja Invitados</button><button type="button" class="${btnS}" data-cerrar>Cancelar</button>
+      <button type="button" id="r-ok" class="${btnP}" ${validos.length || extras.length ? '' : 'disabled'}><span>Restaurar</span> (${validos.length})</button>`)}`, d => {
+    const exacto = d.querySelector('#r-exacto'), antes = d.querySelector('#r-antes');
+    exacto?.addEventListener('change', () => { if (exacto.checked) { antes.checked = true; antes.disabled = true; } else antes.disabled = false; });
+    d.querySelector('#r-hoja').onclick = alternativa;
+    d.querySelector('#r-ok').onclick = () => restaurar(plan, extras, { exacto: !!exacto?.checked, antes: antes.checked, boton: d.querySelector('#r-ok') });
+  });
+}
+const registroDb = reg => ({ proyecto_id: S.p.id, ...Object.fromEntries(CAMPOS_RESP.map(k => [k, reg[k]])) });
+async function restaurar(plan, extras, { exacto, antes, boton }) {
+  const validos = plan.filter(p => p.accion === 'nuevo' || p.accion === 'actualizar'), errores = [];
+  let nuevos = 0, actualizados = 0, eliminados = 0, hecho = 0;
+  const total = validos.length + (exacto ? extras.length : 0), progreso = () => { boton.textContent = `${t('Restaurando…')} ${hecho}/${total}`; };
+  boton.disabled = true; progreso();
+  try {
+    if (antes) exportar(S.lista, 'antes_de_restaurar');                                   // copia de seguridad del estado actual
+    if (exacto) {                                                                          // primero salen los que no están en el respaldo (liberan nombres y códigos)
+      for (let k = 0; k < extras.length; k += 100) {
+        const ids = extras.slice(k, k + 100).map(i => i.id), { error } = await sb.from('invitados').delete().in('id', ids);
+        if (error) throw error; eliminados += ids.length; hecho += ids.length; progreso();
+      }
+    }
+    const lote = async (filas, existe) => {
+      for (let k = 0; k < filas.length; k += 100) {
+        const trozo = filas.slice(k, k + 100), filasDb = trozo.map(p => existe ? { id: p.existente.id, ...registroDb(p.reg) } : registroDb(p.reg));
+        const op = lista => existe ? sb.from('invitados').upsert(lista, { onConflict: 'id' }) : sb.from('invitados').insert(lista);
+        let { error } = await op(filasDb);
+        if (error) {                                                                         // el lote falló: se repite fila por fila para saber cuál es el problema
+          for (let j = 0; j < trozo.length; j++) {
+            const r = await op([filasDb[j]]);
+            if (r.error) errores.push({ fila: trozo[j].fila, nombre: trozo[j].reg.nombre, error: t(errorAmigable(r.error)) }); else existe ? actualizados++ : nuevos++;
+            hecho++; progreso();
+          }
+        } else { existe ? actualizados += trozo.length : nuevos += trozo.length; hecho += trozo.length; progreso(); }
+      }
+    };
+    await lote(validos.filter(p => p.accion === 'actualizar'), true);
+    await lote(validos.filter(p => p.accion === 'nuevo'), false);
+  } catch (e) {
+    await recargar(); boton.disabled = false; boton.textContent = t('Reintentar');
+    return toast(t(errorAmigable(e)), 'error');
+  }
+  await recargar();
+  modal(`${cabecera('Respaldo restaurado')}${cuerpo(`<p class="text-sm"><span>Nuevos</span>: <b>${nuevos}</b> · <span>Se actualizan</span>: <b>${actualizados}</b>${exacto ? ` · <span>Eliminados</span>: <b>${eliminados}</b>` : ''}</p>
+    ${errores.length ? `<p class="mt-3 text-sm font-medium text-rose-700">Hubo filas que no se pudieron restaurar:</p><ul class="mt-1 space-y-1 text-sm text-rose-700">${errores.map(e => `<li data-notr>${e.fila}${e.nombre ? ` (${esc(e.nombre)})` : ''}: ${esc(e.error)}</li>`).join('')}</ul>` : `<p class="mt-3 text-sm text-emerald-700">Todo quedó restaurado.</p>`}`)}${pie(`<button class="${btnP}" data-cerrar>Entendido</button>`)}`);
 }
 function planificar(filas, mapa, vacias, pais = '') {
   const porCod = new Map(S.lista.map(i => [i.codigo, i])), porNom = new Map(S.lista.map(i => [norm(i.nombre), i]));

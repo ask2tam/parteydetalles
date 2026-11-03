@@ -1,4 +1,4 @@
-/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles · v3.9.0
+/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles · v3.10.0
  * Autosuficiente: dibuja su propio HTML/CSS dentro de <div id="rsvp"></div> (Shadow DOM).
  * Lo usan la invitación (index.html) y la página directa rsvp.html (destino del QR).
  * Todo lo configurable (preguntas, textos, colores, fondos, idioma) viene del proyecto en Supabase.
@@ -43,7 +43,7 @@
       errBuscar: 'No pudimos buscar en este momento. Intenta de nuevo en unos segundos.',
       hintDup: 'Si hay otra persona con tu mismo nombre, agrega tu apellido o el parentesco entre paréntesis, por ejemplo: Pérez (Padre).',
       obligatorios: 'Por favor completa los campos obligatorios (*).', guardando: 'Guardando…', yaGuardada: 'Tu respuesta ya estaba guardada.',
-      actualizada: '¡Listo! Actualizamos tu respuesta. 💛', recibida: '¡Gracias! Recibimos tu respuesta. 💛', dupNombre: 'Ese nombre ya está registrado. ',
+      actualizada: 'Actualizamos tu respuesta.', recibida: 'Gracias. Recibimos tu respuesta.', dupNombre: 'Ese nombre ya está registrado. ',
       noRegistro: 'No encontramos tu registro. Vuelve a buscarlo por nombre.',
       sinRegistro: 'No encontramos tu nombre en la lista de invitados. Revisa cómo está escrito o escríbenos.',
       errGuardar: 'No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.', cargando: 'Cargando tu invitación…', reintento: '(reintento {i} de {n})',
@@ -82,7 +82,7 @@
       errBuscar: 'We couldn’t search right now. Please try again in a few seconds.',
       hintDup: 'If someone else has your same name, add your surname or relationship in brackets, e.g. Smith (Father).',
       obligatorios: 'Please complete the required fields (*).', guardando: 'Saving…', yaGuardada: 'Your reply was already saved.',
-      actualizada: 'Done! We updated your reply. 💛', recibida: 'Thank you! We received your reply. 💛', dupNombre: 'That name is already registered. ',
+      actualizada: 'We updated your reply.', recibida: 'Thank you. We received your reply.', dupNombre: 'That name is already registered. ',
       noRegistro: 'We couldn’t find your RSVP. Please search for it by name again.',
       sinRegistro: 'We couldn’t find your name on the guest list. Check the spelling or contact us.',
       errGuardar: 'We couldn’t save. Check your connection and try again.', cargando: 'Loading your invitation…', reintento: '(retry {i} of {n})',
@@ -156,8 +156,9 @@
   var ESTILOS = '\
 :host{display:block}\
 .rsvp-raiz{all:initial;display:block;box-sizing:border-box;width:100%;--sombra:0 10px 32px rgba(0,0,0,.16);--campo:#f9f5f2;--boton:#b9966f;--boton-osc:#a3825c;\
- --texto:#1c1c1c;--suave:#7a7066;--error:#b3402f;--ok:#4d7a4a;position:relative;padding:var(--rsvp-relleno,0 22px 40px);\
+ --texto:#1c1c1c;--suave:#7a7066;--error:#b3402f;--ok:#7a6240;position:relative;opacity:0;transition:opacity .45s ease;padding:var(--rsvp-relleno,0 22px 40px);\
  font-family:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.4;color:var(--texto);text-align:left;-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}\
+.rsvp-raiz.listo{opacity:1}\
 .rsvp-raiz *,.rsvp-raiz *::before,.rsvp-raiz *::after{box-sizing:border-box}.rsvp-raiz [hidden]{display:none!important}\
 .escena{position:relative;touch-action:pan-y}.escena.arrastrando{cursor:grabbing;-webkit-user-select:none;user-select:none}\
 .giro{display:grid;align-items:start}\
@@ -338,6 +339,28 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   lang = TXT[LANG_URL] ? LANG_URL : 'es';
   aplicarTextos();
 
+  /* ================================================================ revelado (sin parpadeo)
+     Mientras llega la configuración del evento el formulario está oculto (opacity 0): así no se ve primero la versión «genérica» y luego
+     el cambio de colores, fondo, logo, idioma y preguntas. Se muestra cuando la configuración, el fondo del formulario, el logo y las
+     tipografías están listos (tope de 3 s) y avisa con el evento 'rsvp:listo' (rsvp.html lo usa para quitar su pantalla de carga). */
+  var revelado = false;
+  function imgLista(im) { return new Promise(function (ok) { if (!im || !im.getAttribute('src') || im.hidden || im.complete) return ok(); im.addEventListener('load', ok, { once: true }); im.addEventListener('error', ok, { once: true }); }); }
+  function fuentesListas() {
+    var l = document.getElementById('rsvp-fuentes'), p = l && !l.sheet ? new Promise(function (ok) { l.addEventListener('load', ok, { once: true }); l.addEventListener('error', ok, { once: true }); }) : Promise.resolve();
+    return p.then(function () { return document.fonts && document.fonts.load ? Promise.all([document.fonts.load('500 16px Montserrat'), document.fonts.load('700 16px Montserrat')]).catch(function () {}) : null; });
+  }
+  function esperarRecursos() {
+    var ps = [fuentesListas()], fo = (cfg.tarjeta.fondos || {}).formulario || {};
+    if (fo.tipo === 'imagen') ps.push(resolverFondo('formulario').then(function (u) { return new Promise(function (ok) { var im = new Image(); im.onload = im.onerror = ok; im.src = u; }); }));
+    if (cfg.form.logo && cfg.form.logo.mostrar) ps.push(imgLista(el.logoRsvp));
+    return Promise.race([Promise.all(ps), new Promise(function (ok) { setTimeout(ok, 3000); })]);
+  }
+  function revelarForm() {
+    if (revelado) return; revelado = true;
+    requestAnimationFrame(function () { RAIZ.querySelector('.rsvp-raiz').classList.add('listo'); emitir('rsvp:listo'); });
+  }
+  setTimeout(revelarForm, 7000);   /* red de seguridad: nunca queda oculto */
+
   /* ================================================================ configuración del proyecto */
   /* Crédito "Hecho con amor" (modo configurable por evento). La página anfitriona puede desactivarlo con window.PYD_SIN_CREDITO = true */
   function ponerCredito() { if (window.PYD_SIN_CREDITO || !PYD.credito || !cfg.credito) return; PYD.credito({ modo: cfg.credito, lang: lang, oscuro: !!window.PYD_CREDITO_OSCURO }); }
@@ -359,7 +382,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     }
   }
   function aplicarProyecto(p) {
-    if (!p) return;
+    if (!p) return revelarForm();
     cfg.nombre = p.nombre || ''; cfg.urlRsvp = p.urlRsvp || ''; cfg.urlInvitacion = p.urlInvitacion || '';
     cfg.pasesMax = p.pasesMax || 10;
     cfg.idiomas = String(p.idioma || 'es').split(',').filter(function (x) { return TXT[x]; });
@@ -371,7 +394,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     estado.fechaLimite = p.fechaLimite || null; estado.abierto = p.abierto !== false; estado.inactivo = p.activo === false; estado.permitirNuevos = p.permitirNuevos !== false;
     if (!estado.existente) estado.pases = Math.max(1, Math.min(cfg.pasesMax, parseInt(PASE_URL, 10) || 1));
     var raiz = RAIZ.querySelector('.rsvp-raiz'), ac = cfg.tarjeta.colores.acento;
-    raiz.style.setProperty('--boton', ac); raiz.style.setProperty('--boton-osc', oscurecer(ac, .14));
+    raiz.style.setProperty('--boton', ac); raiz.style.setProperty('--boton-osc', oscurecer(ac, .14)); raiz.style.setProperty('--ok', oscurecer(ac, .3));   /* avisos «ok»: el acento del evento, más oscuro para que se lea */
     el.detMensaje.hidden = !cfg.form.permitir_mensaje;
     aplicarGiro();
     aplicarFondos();
@@ -384,6 +407,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     cfg.credito = p.credito || 'flotante'; ponerCredito();
     emitir('rsvp:proyecto', p); emitir('rsvp:idioma', lang);
     pintarTarjeta();
+    esperarRecursos().then(revelarForm);
   }
 
   /* ================================================================ preguntas configurables */
@@ -898,13 +922,14 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     d.textContent = '(' + (DIAG[c] || (e && e.message) || c) + ')'; el.estado.appendChild(d);
     console.error('[RSVP] No se pudo cargar el evento:', DIAG[c] || e, '· slug:', PYD.slug, '· Supabase:', PYD.SUPABASE_URL);
     el.form.querySelectorAll('input,select,textarea,button').forEach(function (x) { x.disabled = true; });
+    revelarForm();
   }
   var esGrave = function (e) { return e && /^(proyecto|config|llave|sql)$/.test(e.codigo); };
   function sinCodigo(clave) { reiniciarComoNuevo(true); ayuda(clave ? T(clave) + (clave === 'noCodigo' ? T('hintDup') : '') : ''); }
   if (!CODIGO_URL) {
     sinCodigo('intro');
     API.proyecto().then(function (p) { aplicarProyecto(p); sinCodigo('intro'); })
-      .catch(function (e) { if (esGrave(e)) errorProyecto(e); else { mensajeEstado(T('errForm'), 'error'); console.error('[RSVP]', e); } });
+      .catch(function (e) { if (esGrave(e)) errorProyecto(e); else { mensajeEstado(T('errForm'), 'error'); console.error('[RSVP]', e); revelarForm(); } });
   } else {
     mensajeEstado(T('cargando'));
     var alReintento = function (e) { mensajeEstado(T('cargando') + ' ' + T('reintento', { i: e.detail.i, n: e.detail.total })); };
@@ -918,7 +943,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
       window.removeEventListener('boda:reintento', alReintento); mensajeEstado('');
       if (esGrave(e)) return errorProyecto(e);
       sinCodigo('errDatos');
-      API.proyecto().then(aplicarProyecto).catch(function () {});
+      API.proyecto().then(aplicarProyecto).catch(function () { revelarForm(); });
     });
   }
 })();

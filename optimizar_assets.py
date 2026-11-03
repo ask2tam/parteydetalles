@@ -12,7 +12,7 @@ Qué hace (todo medido: si una conversión no supera el umbral de fidelidad, se 
        · con textura (papel, sello, sobre)     → WebP de alta calidad (q 95, transparencia sin pérdida). Umbral: PSNR ≥ 44 dB y ≥ 3× más liviano.
   4. Imágenes más grandes de lo que se llega a ver (calculado con el ancho de Canva, el ancho máximo y pantallas 3×) → se reducen a esa escala.
   5. Tipografías (.woff/.woff2 de Canva)       → woff2 con solo las letras latinas (es/en); suelen bajar de ~280 KB a ~25 KB.
-  6. Reescribe las referencias en invitacion.html / index.html / rsvp.html, y escribe en index.html los @font-face y los
+  6. Reescribe las referencias en invitacion.html / index.html, y escribe en index.html los @font-face y los
      <link rel="preload"> de las tipografías de la portada (entre los marcadores @@FUENTES-PORTADA@@).
 Se puede ejecutar varias veces: lo ya optimizado se deja igual. Copia de seguridad en <carpeta>/../<evento>_originales/ (omitir con --sin-respaldo).
 """
@@ -202,7 +202,7 @@ def reparar_referencias(carpeta):
     """Si un HTML apunta a assets/X.png pero solo existe X.webp / X.jpg / X.woff2 (de una ejecución anterior), corrige la referencia."""
     assets = os.path.join(carpeta, 'assets'); n = 0
     existentes = {os.path.splitext(f)[0]: f for f in os.listdir(assets)}
-    for nombre in ('invitacion.html', 'index.html', 'rsvp.html'):
+    for nombre in ('invitacion.html', 'index.html'):   # rsvp.html no se toca: sus fondos aceptan .jpg y .png
         ruta = os.path.join(carpeta, nombre)
         if not os.path.exists(ruta): continue
         s = open(ruta, encoding='utf8').read()
@@ -268,7 +268,7 @@ def main():
         elif e in ('.woff', '.woff2'):
             c = subconjunto_fuente(ruta, informe)
             if c: fonts.append(c)
-    ref = sum(reescribir(os.path.join(carpeta, x), imgs + fonts, fonts) for x in ('invitacion.html', 'index.html', 'rsvp.html'))
+    ref = sum(reescribir(os.path.join(carpeta, x), imgs + fonts, fonts) for x in ('invitacion.html', 'index.html'))   # rsvp.html no se toca: sus fondos aceptan .jpg y .png
     ref += reparar_referencias(carpeta)
     b = bloque_portada(carpeta); bl = escribir_bloque(carpeta, *b) if b else False
     print('\n%-44s %-44s %10s %10s  %s' % ('archivo', 'resultado', 'antes', 'después', 'detalle'))

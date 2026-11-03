@@ -12,7 +12,7 @@ window.PYD = Object.assign({
   INSTAGRAM: 'https://www.instagram.com/parteydetalles/',
   TIKTOK: 'https://www.tiktok.com/@parteydetalles',
   WHATSAPP: '51907954996',                            // sin "+" ni espacios
-  VERSION_PANEL: 'v1.05'
+  VERSION_PANEL: 'v1.06'
 }, window.PYD || {});
 
 (function () {
@@ -57,8 +57,8 @@ window.PYD = Object.assign({
   /* -------------------------------------------------------------------------------------
    * Crédito "Hecho con amor ♥ por Parte y Detalles"
    * P.credito({ modo, lang, oscuro, extra, contenedor })
-   *   modo: 'flotante'  píldora fija abajo: aparece unos segundos, se oculta al bajar y vuelve al final de la página
-   *         'discreto'  solo un corazón pequeño en la esquina; al tocarlo muestra el crédito
+   *   modo: 'flotante'  píldora fija abajo: aparece SOLO cuando el scroll llega al final; si se sube, desaparece hasta volver a bajar
+   *         'discreto'  solo un corazón pequeño en la esquina (también solo al llegar al final); al tocarlo muestra el crédito
    *         'final'     una línea al final del contenido (estática)
    *         'oculto'    no se muestra
    *   contenedor: para 'final', dónde insertarlo (por defecto, el elemento [data-credito] o el final del body)
@@ -70,36 +70,55 @@ window.PYD = Object.assign({
     wa: '<path d="M3 21l1.7-4.6A8.5 8.5 0 1 1 8 19.6L3 21z"/><path d="M9 9.5c.3 1.6 2.4 4 4.5 4.7l1.2-1.2 2 .9c-.2 1.3-1.2 1.9-2.4 1.8-3.3-.4-6.6-3.7-6.9-6.9-.1-1.2.6-2.2 1.8-2.4l.9 2-1.1 1.1z"/>'
   };
   var COR = '<svg class="pc-cor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.4 2.9 4.5 6.6 4.5c2.2 0 3.6 1.3 4.4 2.6.8-1.3 2.2-2.6 4.4-2.6 3.7 0 5.7 3.9 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
-  var CSS = '.pc{--pc-t:#6f655c;--pc-b:rgba(255,255,255,.88);--pc-l:rgba(43,38,34,.12);font:12.5px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--pc-t);box-sizing:border-box}' +
+  /* Todo en UNA línea: el tamaño sale de la fuente (em) y la fuente se reduce en pantallas angostas (clamp), así nada salta de línea */
+  var CSS = '.pc{--pc-t:#6f655c;--pc-b:rgba(255,255,255,.88);--pc-l:rgba(43,38,34,.12);font:clamp(9px,3vw,12.5px)/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--pc-t);box-sizing:border-box}' +
     '.pc.oscuro{--pc-t:#ece4d9;--pc-b:rgba(28,24,20,.72);--pc-l:rgba(255,255,255,.18)}' +
     '.pc *{box-sizing:border-box}.pc a{color:inherit}' +
-    '.pc-linea{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 10px}' +
-    '.pc-txt{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.pc-txt b{font-weight:600}' +
-    '.pc-cor{width:13px;height:13px;fill:#d9587c;flex:none;transform-origin:50% 60%;animation:pcLatido 2.6s ease-in-out infinite}' +
+    '.pc-linea{display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;gap:0 .75em;white-space:nowrap}' +
+    '.pc-txt{display:inline-flex;align-items:center;gap:.4em;white-space:nowrap;flex:none}.pc-txt b{font-weight:600}' +
+    '.pc-cor{width:1.05em;height:1.05em;fill:#d9587c;flex:none;transform-origin:50% 60%;animation:pcLatido 2.6s ease-in-out infinite}' +
     '@keyframes pcLatido{0%,60%,100%{transform:scale(1)}10%{transform:scale(1.22)}20%{transform:scale(1)}30%{transform:scale(1.14)}}' +
-    '.pc-redes{display:inline-flex;gap:2px}' +
-    '.pc-redes a{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;text-decoration:none;opacity:.8;transition:opacity .2s,background .2s}' +
+    '.pc-redes{display:inline-flex;flex:none;gap:.1em}' +
+    '.pc-redes a{width:2.1em;height:2.1em;display:grid;place-items:center;border-radius:50%;text-decoration:none;opacity:.8;transition:opacity .2s,background .2s}' +
     '.pc-redes a:hover,.pc-redes a:focus-visible{opacity:1;background:var(--pc-l)}.pc a:focus-visible,.pc button:focus-visible{outline:2px solid #b9966f;outline-offset:2px}' +
-    '.pc-redes svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}' +
+    '.pc-redes svg{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}' +
     '.pc-final{width:100%;padding:22px 12px calc(14px + env(safe-area-inset-bottom));text-align:center}' +
-    '.pc-final small{display:block;margin-top:4px;opacity:.7;font-size:11px}' +
+    '.pc-final small{display:block;margin-top:4px;opacity:.7;font-size:.9em}' +
+    /* flotante y discreto: ocultos salvo al final de la página (la clase .oculta la maneja vigilarFinal) */
     '.pc-flota{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));z-index:2147483000;transform:translate(-50%,0);' +
-      'max-width:calc(100vw - 16px);padding:3px 4px 3px 12px;font-size:12px;border-radius:999px;background:var(--pc-b);border:1px solid var(--pc-l);' +
-      'box-shadow:0 6px 18px rgba(0,0,0,.08);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s}' +
-    '.pc-flota .pc-linea{flex-wrap:nowrap;gap:6px}.pc-flota .pc-redes a{width:24px;height:24px}' +
-    '.pc-flota.oculta{transform:translate(-50%,140%);opacity:0;pointer-events:none}' +
-    '.pc-disc{position:fixed;right:calc(12px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));z-index:2147483000;display:flex;align-items:center;justify-content:flex-end}' +
-    '.pc-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--pc-l);background:var(--pc-b);display:grid;place-items:center;cursor:pointer;padding:0;' +
+      'max-width:calc(100vw - 12px);padding:.25em .35em .25em 1em;font-size:clamp(9px,3.1vw,12px);border-radius:999px;background:var(--pc-b);border:1px solid var(--pc-l);' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.08);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);' +
+      'transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s,visibility 0s}' +
+    '.pc-flota.oculta{transform:translate(-50%,140%);opacity:0;pointer-events:none;visibility:hidden;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s,visibility 0s linear .45s}' +
+    '.pc-disc{position:fixed;right:calc(12px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));z-index:2147483000;display:flex;align-items:center;justify-content:flex-end;' +
+      'transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s,visibility 0s}' +
+    '.pc-disc.oculta{transform:translateY(140%);opacity:0;pointer-events:none;visibility:hidden;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s,visibility 0s linear .45s}' +
+    '.pc-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--pc-l);background:var(--pc-b);display:grid;place-items:center;cursor:pointer;padding:0;font-size:inherit;' +
       'opacity:.75;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,.08);transition:opacity .2s}.pc-btn:hover{opacity:1}' +
-    '.pc-disc .pc-linea{position:absolute;right:0;bottom:40px;width:max-content;max-width:calc(100vw - 24px);justify-content:flex-end;padding:6px 8px 6px 12px;border-radius:18px;background:var(--pc-b);' +
+    '.pc-btn .pc-cor{width:14px;height:14px}' +
+    '.pc-disc .pc-linea{position:absolute;right:0;bottom:40px;width:max-content;max-width:calc(100vw - 20px);justify-content:flex-end;padding:.5em .6em .5em 1em;border-radius:18px;background:var(--pc-b);' +
       'border:1px solid var(--pc-l);box-shadow:0 6px 18px rgba(0,0,0,.1);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transform-origin:100% 100%;transition:transform .3s,opacity .3s}' +
     '.pc-disc:not(.abierto) .pc-linea{transform:scale(.9) translateY(6px);opacity:0;pointer-events:none}' +
-    '@media (max-width:359px){.pc-flota .pc-redes{display:none}}' +
+    '@media (max-width:299px){.pc-redes{display:none}}' +
     '@media print{.pc{display:none!important}}';
+
+  /* Muestra el elemento solo cuando el scroll llega al final de la página y lo oculta apenas se sube.
+     mostrar(true|false) lo decide cada modo. Devuelve una función que quita los escuchas (al recrear el crédito, p. ej. al cambiar de idioma). */
+  function vigilarFinal(mostrar) {
+    var pedido = false, ultimo = null;
+    var alFinal = function () { return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 32; };
+    var evaluar = function () { pedido = false; var si = alFinal(); if (si !== ultimo) { ultimo = si; mostrar(si); } };
+    var pedir = function () { if (!pedido) { pedido = true; requestAnimationFrame(evaluar); } };
+    window.addEventListener('scroll', pedir, { passive: true }); window.addEventListener('resize', pedir);
+    var ro = window.ResizeObserver ? new ResizeObserver(pedir) : null; if (ro) { ro.observe(document.documentElement); if (document.body) ro.observe(document.body); }
+    evaluar();
+    return function () { window.removeEventListener('scroll', pedir); window.removeEventListener('resize', pedir); if (ro) ro.disconnect(); };
+  }
 
   P.credito = function (opc) {
     opc = opc || {};
     var modo = opc.modo || 'flotante';
+    if (P._creditoFin) { P._creditoFin(); P._creditoFin = null; }
     var viejo = document.getElementById('pyd-credito'); if (viejo) viejo.remove();
     if (modo === 'oculto') return null;
     if (!document.getElementById('pyd-credito-css')) {
@@ -120,36 +139,24 @@ window.PYD = Object.assign({
       return el;
     }
     if (modo === 'discreto') {
-      el.className += ' pc-disc';
+      el.className += ' pc-disc oculta';
       el.innerHTML = linea + '<button type="button" class="pc-btn" aria-expanded="false" aria-label="Parte y Detalles">' + COR + '</button>';
       document.body.appendChild(el);
       var b = el.querySelector('.pc-btn'), t;
       var abrir = function (si) { el.classList.toggle('abierto', si); b.setAttribute('aria-expanded', String(si)); clearTimeout(t); if (si) t = setTimeout(function () { abrir(false); }, 6000); };
       b.addEventListener('click', function () { abrir(!el.classList.contains('abierto')); });
-      document.addEventListener('click', function (e) { if (!el.contains(e.target)) abrir(false); });
+      var fuera = function (e) { if (!el.contains(e.target)) abrir(false); };
+      document.addEventListener('click', fuera);
+      var quitar = vigilarFinal(function (si) { el.classList.toggle('oculta', !si); if (!si) abrir(false); });   // solo al llegar al final
+      P._creditoFin = function () { quitar(); document.removeEventListener('click', fuera); clearTimeout(t); };
       return el;
     }
-    /* flotante: visible 4 s al entrar · se oculta al bajar · aparece al subir o al llegar al final */
-    el.className += ' pc-flota';
+    /* flotante: oculta; aparece solo al llegar al final de la página y desaparece al subir (hasta volver a bajar) */
+    el.className += ' pc-flota oculta';
     el.innerHTML = linea;
     document.body.appendChild(el);
-    var ultimo = window.scrollY, ocultarT, pedido = false;
-    var mostrar = function (si) { el.classList.toggle('oculta', !si); };
-    var temporal = function () { mostrar(true); clearTimeout(ocultarT); ocultarT = setTimeout(function () { if (!alFinal()) mostrar(false); }, 4000); };
-    var alFinal = function () { return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 40; };
-    window.addEventListener('scroll', function () {
-      if (pedido) return; pedido = true;
-      requestAnimationFrame(function () {
-        pedido = false;
-        var y = window.scrollY;
-        if (alFinal()) { clearTimeout(ocultarT); mostrar(true); }
-        else if (y < ultimo - 8) temporal();
-        else if (y > ultimo + 8) mostrar(false);
-        ultimo = y;
-      });
-    }, { passive: true });
-    el.addEventListener('pointerenter', function () { clearTimeout(ocultarT); });
-    temporal();
+    var quitarF = vigilarFinal(function (si) { el.classList.toggle('oculta', !si); });
+    P._creditoFin = quitarF;
     return el;
   };
 

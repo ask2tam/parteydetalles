@@ -42,7 +42,10 @@ Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. 
 Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Veo que el timer tiene una T de los creditos de tickcounter podemos retirar el iframe de invitacion.html y poner un equivalente propio. El toca para abrir y el circulo mejor en vez de dorado que sea negro para que combine con la paleta de colores de la invitación. Me preocupa la velocidad de carga poner en el promise lo indispensable para que la carga inicial sea rápida. Ver como se puede reducir espacio algunas imagenes pesadas png tal vez se puedan convertir a jpg o bajarles el height x weight a escala siempre que no cambie la estética.
 
 
-Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Me aparecen luego de guardar el rsvp comando como "¡Listo! Actualizamos tu respuesta. 💛" y "Tu respuesta ya estaba guardada" cambiar por algo más formal sin emoticones como "Actualizamos tu respuesta" y "Tu respuesta ya estaba guardada" (igual) cambiar el tono verde por uno correspondiente a la configuración. En rsvp.html hay como un pequeño glitch en lo que carga la configuración inicial del proyecto. Hacer una mejora a panel.html para que importar excel y exportar excel sea un verdadero backup de todos los invitados del proyecto.
+Te comparto todo lo que venimos trabajando por si se te perdieron los archivos. Me aparecen luego de guardar el rsvp comando como "¡Listo! Actualizamos tu respuesta. 💛" y "Tu respuesta ya estaba guardada" cambiar por algo más formal sin emoticones como "Actualizamos tu respuesta" y "Tu respuesta ya estaba guardada" (igual) cambiar el tono verde por uno correspondiente a la configuración. En rsvp.html hay como un pequeño glitch en lo que carga la configuración inicial del proyecto. Hacer una mejora a panel.html para que importar excel y exportar excel sea un verdadero backup de todos los invitados del proyecto. Respecto al Crédito “Hecho con amor por Parte y Detalles” en el RSVP tanto discreto como flotante se debe activar solo cuando el scroll llegue al final cuando suba de nuevo el scroll desaparece hasta que vuelva a bajar, de esta menera no es invasivo, también debe verse todo en una linea, he visto que el pantallas angostas el discreto salta de linea.
+
+
+
 
 
 [USUARIOS]

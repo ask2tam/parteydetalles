@@ -1,4 +1,4 @@
-# Parte y Detalles · Invitaciones + RSVP + Panel · v3.9 (versión completa)
+# Parte y Detalles · Invitaciones + RSVP + Panel · v3.10 (versión completa)
 
 Esta carpeta reemplaza **todo** lo anterior. No hace falta ningún archivo previo.
 
@@ -19,6 +19,28 @@ Esta carpeta reemplaza **todo** lo anterior. No hace falta ningún archivo previ
 /respaldo-github/                       NO se sube al hosting: va a un repositorio PRIVADO de GitHub (respaldo diario)
 ```
 Funciona en un dominio propio o en una subcarpeta (p. ej. `usuario.github.io/repo/`): las rutas se calculan solas.
+
+## Novedades v3.10 y cómo actualizar desde v3.9
+**No hay cambios de SQL.** **Sube** (reemplazando): `panel.html`, `assets/rsvp.js`, `assets/pyd-config.js` (⚠ trae tus llaves de Supabase; si las cambiaste, vuelve a pegarlas), `assets/panel-i18n.js` y, en cada evento, `rsvp.html`. `optimizar_assets.py` es opcional (ya no toca `rsvp.html`).
+
+| Cambio | Dónde |
+|---|---|
+| **Mensajes al guardar** más formales y sin emoticones: «Actualizamos tu respuesta.» · «Gracias. Recibimos tu respuesta.» · «Tu respuesta ya estaba guardada.» (en inglés: «We updated your reply.» · «Thank you. We received your reply.» · «Your reply was already saved.»). | `rsvp.js` (`TXT`) |
+| **El aviso ya no es verde**: usa el color de acento del evento (Panel › Configuración › Tarjeta › Colores), oscurecido para que se lea. Vale también para «Imagen copiada» y similares. | `rsvp.js` (`--ok`) |
+| **Sin parpadeo al abrir `rsvp.html`**: antes se veía primero el formulario «genérico» y luego cambiaban colores, fondo, logo, idioma y preguntas. Ahora una pantalla de carga (fondo del evento + círculo) tapa la página hasta que la configuración, el fondo, el logo y las tipografías están listos, y se funde (máx. 7 s). Dentro de `index.html` el formulario aparece con un fundido. `rsvp.js` avisa con el evento `rsvp:listo`. Además se corrigió el respaldo de `rsvp.html` para el fondo (`.jpg` → `.png`, que el optimizador había dejado apuntando al mismo `.jpg`). | `rsvp.js`, `rsvp.html` |
+| **Crédito «Hecho con amor» (flotante y discreto)**: aparece **solo cuando el scroll llega al final**; si se sube, desaparece hasta volver a bajar (el discreto también cierra su cuadro). En páginas que no hacen scroll cuenta como «final» y se ve. **Siempre en una línea**: el tamaño se reduce con la pantalla (320 px, 360 px, 375 px… probados) y por debajo de 300 px se ocultan los íconos de redes. El modo «Al final de la página» no cambia. | `pyd-config.js` (`P.credito`) |
+| **Excel = respaldo completo** (panel). **Exportar** (sin filtros) baja el respaldo de **todos** los invitados; con un filtro activo pregunta si exportar todos o solo los visibles. El archivo trae 3 hojas: **Invitados** (para leer/editar), **Evento** (datos del respaldo) y **Respaldo** (técnica: todos los datos de cada invitado). **Importar** detecta el respaldo y ofrece **Restaurar** (ver abajo). | `panel.html` |
+| Textos del panel: las opciones de crédito en Configuración dicen «aparece solo al llegar al final». | `panel.html`, `panel-i18n.js` |
+
+### Restaurar un respaldo (Excel)
+Qué se restaura, por invitado: nombre, tratamiento, código (los links siguen funcionando), categoría, asistencia, pases asignados y confirmados, acompañantes, **respuestas del formulario** (menú, alergias…), **mensaje a los novios**, respuesta de los novios, mesa, WhatsApp, **WhatsApp enviado**, **ingresos de recepción** (pases y hora), **vistas, primera/última vista, primera respuesta, última modificación, ediciones**, fecha de registro y origen. Las fechas se guardan con hora exacta (ISO) en la hoja Respaldo.
+- **Importar** el archivo → «Restaurar respaldo»: vista previa con cuántos invitados son **nuevos**, se **actualizan** (con el detalle campo por campo) o ya están **igual**, y las filas con error.
+- **Descargar antes un respaldo del estado actual** (marcado por defecto): guarda `…_antes_de_restaurar_…xlsx` por si quieres volver atrás.
+- **Dejar el evento exactamente como el respaldo** (solo respaldos *completos*): además elimina los invitados que no estén en el archivo (se muestra cuántos). Primero se descarga la copia previa (obligatoria) y se desactiva si hay filas con error.
+- **Importar solo la hoja Invitados**: el flujo de siempre (edición en Excel: mesas, teléfonos, categorías…). Úsalo si **editaste** la hoja Invitados; la restauración usa la hoja Respaldo y no esa.
+- Un respaldo se puede restaurar en otro evento (avisa; los códigos se conservan).
+- **No incluye**: el historial de cambios (queda en la base y alimenta el reporte), la configuración del evento (formulario, tarjeta, mensajes) ni los accesos. Para eso están el respaldo `.json` y el diario con GitHub (`respaldo-github/`).
+- Si dos invitados intercambian nombre o código al restaurar, la base de datos lo rechaza y esa fila se informa para corregirla a mano.
 
 ## Novedades v3.9 y cómo actualizar desde v3.8
 No hay cambios de SQL ni de panel. **Sube** (reemplazando): `assets/rsvp.js` (compartido) y, en la carpeta del evento, `index.html`, `invitacion.html`, `rsvp.html` y **toda la carpeta `assets/`** (trae los archivos ya optimizados; `logo_portada_hd.png` y `rsvp_logo.png` son los tuyos, sin tocar). Luego **borra** del hosting los archivos viejos que ya no se usan (los `.png` que ahora son `.webp`/`.jpg`, y los `.woff`).
@@ -112,7 +134,7 @@ Las 7 imágenes suman unos 2.5 MB (antes ~0.1 MB). Se descargan mientras corre e
 | **Tamaño del código QR**: barra 50 %–200 %. 100 % = el más grande que cabe; para agrandarlo más, reduce antes las letras. | Configuración › Tarjeta › Código QR |
 | **Respaldo** retirado de Configuración. El respaldo diario con GitHub Actions y `admin_respaldo` (SQL) siguen disponibles para el administrador. | Configuración › General |
 
-### Punto de restauración con Excel (exportar todo → importar)
+### Punto de restauración con Excel (exportar todo → importar) · reemplazado en v3.10: ahora el Excel restaura TODO (ver arriba)
 Sirve para recuperar los **datos de los invitados**, no es una restauración completa:
 - **Se restaura**: nombre, tratamiento, código (los links siguen funcionando), categoría, asistencia, pases asignados y confirmados, acompañantes, respuesta de los novios, mesa y WhatsApp.
 - **No se restaura** (el Excel los exporta, pero la importación los ignora): respuestas de las preguntas adicionales (menú, alergias…), mensaje a los novios, marca de WhatsApp enviado, ingresos de recepción, vistas, fechas y ediciones, e historial.
@@ -178,8 +200,8 @@ Panel → Configuración → General (solo el administrador):
 
 | Modo | Comportamiento |
 |---|---|
-| **Flotante** (por defecto) | Píldora de una línea abajo: se ve 4 s al entrar, se oculta al desplazarse hacia abajo y reaparece al subir o al llegar al final |
-| **Discreto** | Solo un corazón pequeño en la esquina; al tocarlo muestra el crédito y se cierra solo |
+| **Flotante** (por defecto) | Píldora de una línea abajo: aparece solo al llegar al final del scroll y desaparece al subir (hasta volver a bajar) |
+| **Discreto** | Un corazón pequeño en la esquina, también solo al llegar al final; al tocarlo muestra el crédito (una línea) y se cierra solo |
 | **Al final de la página** | Línea estática después del contenido |
 | **No mostrar** | Sin crédito |
 
