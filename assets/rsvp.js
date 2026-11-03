@@ -1,35 +1,123 @@
-/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles
+/* rsvp.js — Componente RSVP + Tarjeta (Save the Date / Pase) · Parte y Detalles · v3.4.1
  * Autosuficiente: dibuja su propio HTML/CSS dentro de <div id="rsvp"></div> (Shadow DOM).
  * Lo usan la invitación (index.html) y la página directa rsvp.html (destino del QR).
- * Todo lo configurable (preguntas, textos, colores, evento) viene del proyecto en Supabase.
+ * Todo lo configurable (preguntas, textos, colores, fondos, idioma) viene del proyecto en Supabase.
  * Requiere: assets/pyd-config.js + assets/boda-api.js (head) y assets/qr.js.
  *
- * URL:  ?to=AB12  → invitado con código (nombre bloqueado, pases, últimas respuestas)
- *       ?pase=2   → invitado nuevo sin código con 2 pases
- * Eventos en window: 'rsvp:proyecto' (detail = config pública) · 'rsvp:invitado' (detail = ficha)
+ * URL:  ?to=AB12   invitado con código     ·  ?pase=2  invitado nuevo con 2 pases  ·  ?lang=en  idioma
+ * Eventos en window: 'rsvp:proyecto' · 'rsvp:invitado' · 'rsvp:idioma'
+ * API: window.RSVP_IDIOMA = { actual(), disponibles(), cambiar('es'|'en') } · window.RSVP_TARJETA = { girar, repintar }
  * Variable CSS en el host: --rsvp-zoom (p. ej. .85 dentro de un diseño de Canva)
  */
 (function () {
   'use strict';
   if (window.__rsvpIniciado) return;
   var HOST = document.getElementById('rsvp');
-  var API = window.BODA;
+  var API = window.BODA, PYD = window.PYD || {};
   if (!HOST) return;
   if (!API) { console.warn('[RSVP] Falta assets/boda-api.js'); return; }
   window.__rsvpIniciado = true;
 
-  /* ---------------------------------------------------------------- valores por defecto */
-  var DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, preguntas: [] };
+  /* ================================================================ TEXTOS (es / en) */
+  var TXT = {
+    es: {
+      loc: 'es-PE', frenteAria: 'Confirmación de asistencia', reversoAria: 'Tu tarjeta', accionesAria: 'Acciones de la tarjeta',
+      nombreLbl: '*Nombre completo:', buscar: 'Buscar mi registro', cambiar: 'No soy yo / cambiar nombre',
+      asisLbl: '*¿Asistirás a nuestra boda?', selOpcion: 'Selecciona una opción', si: 'Sí, asistiré', no: 'No podré asistir',
+      pasesLbl: '*¿Cuántos asistirán?', acompLbl: '*Nombres de tus acompañantes', acompPh: 'Nombre Apellido, Nombre Apellido',
+      msgLbl: 'Déjanos un mensajito', opcional: '(opcional)', msgAria: 'Mensaje para los novios', respNovios: 'Respuesta de los novios',
+      enviar: 'Enviar', actualizar: 'Actualizar', voltear: 'Voltear tarjeta', confirmar: 'Confirmar asistencia',
+      volver: 'Volver al formulario', cal: 'Agregar al calendario', compartir: 'Compartir', copiar: 'Guardar o copiar imagen', imprimir: 'Imprimir',
+      calIcs: 'Apple / Outlook / otros (.ics)', pista: 'Desliza la tarjeta para girarla',
+      soloYo: '1 (solo yo)', yoMas: function (v) { return v.n + ' (yo + ' + v.k + (v.k === 1 ? ' acompañante)' : ' acompañantes)'); },
+      pasesRes: function (v) { return v.n + (v.n === 1 ? ' pase reservado' : ' pases reservados'); },
+      pasesConf: function (v) { return v.n + (v.n === 1 ? ' pase confirmado' : ' pases confirmados'); },
+      tienes: 'Tienes {p}.', mesa: 'Mesa', bienvenida: '¡Nos hará felices contar contigo!',
+      primera: 'Primera respuesta', ultima: 'Última modificación', ediciones: 'Ediciones',
+      plazo: 'Confirma antes del {f} h', cerrado: 'La confirmación cerró el {f} h. Si necesitas cambiar algo, escríbenos directamente.', inactivo: 'Las confirmaciones para este evento ya están cerradas. Si necesitas cambiar algo, escríbenos directamente.',
+      acomp1: 'Escribe el nombre de tu acompañante', acompN: 'Escribe los nombres de tus {n} acompañantes, separados por comas', deN: '{k} de {n}',
+      min3: 'Escribe al menos 3 letras de tu nombre.', buscando: 'Buscando…', encontrado: 'Encontramos tu registro. Puedes revisarlo y actualizarlo.',
+      candidatos: 'No hay un registro exacto. ¿Eres alguno de estos?',
+      noNombreNuevo: 'No encontramos ese nombre. Si es tu primera vez, completa el formulario y crearemos tu registro. ',
+      noNombre: 'No encontramos ese nombre en la lista. Revisa cómo está escrito o escríbenos.',
+      errBuscar: 'No pudimos buscar en este momento. Intenta de nuevo en unos segundos.',
+      hintDup: 'Si hay otra persona con tu mismo nombre, agrega tu apellido o el parentesco entre paréntesis, por ejemplo: Pérez (Padre).',
+      obligatorios: 'Por favor completa los campos obligatorios (*).', guardando: 'Guardando…', yaGuardada: 'Tu respuesta ya estaba guardada.',
+      actualizada: '¡Listo! Actualizamos tu respuesta. 💛', recibida: '¡Gracias! Recibimos tu respuesta. 💛', dupNombre: 'Ese nombre ya está registrado. ',
+      noRegistro: 'No encontramos tu registro. Vuelve a buscarlo por nombre.',
+      sinRegistro: 'No encontramos tu nombre en la lista de invitados. Revisa cómo está escrito o escríbenos.',
+      errGuardar: 'No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.', cargando: 'Cargando tu invitación…', reintento: '(reintento {i} de {n})',
+      intro: 'Escribe tu nombre completo. Si ya respondiste antes, pulsa "Buscar mi registro" para ver o cambiar tu respuesta.',
+      noCodigo: 'No encontramos tu código. Escribe tu nombre para buscar tu registro o crear uno nuevo. ',
+      errDatos: 'No pudimos cargar tus datos. Escribe tu nombre para continuar.',
+      noProyecto: 'No encontramos esta invitación. Revisa el link que recibiste.', errForm: 'No pudimos cargar el formulario. Revisa tu conexión.',
+      siCorto: 'Sí', noCorto: 'No', copiada: 'Imagen copiada.', descargada: 'Imagen descargada.', errImagen: 'No se pudo generar la imagen.',
+      errCompartir: 'No se pudo compartir.', errImprimir: 'No se pudo preparar la impresión.',
+      etqPend: 'Save the date', etqSi: 'Te esperamos', etqNo: 'Gracias',
+      msgPend: 'Confirma tu asistencia antes del {fecha_limite}', msgSi: '¡Gracias por confirmar! Nos hace muy felices celebrar este día contigo.',
+      msgNo: 'Gracias por avisarnos. Te tendremos presente en nuestro día.', msgEscanear: 'Confirma tu asistencia escaneando el código',
+      ariaSi: 'Tu pase para la boda de {t}', ariaNo: 'Mensaje de agradecimiento', ariaPend: 'Save the Date de {t}',
+      bodaDe: 'Boda de {t}', tuInv: 'Tu invitación: ', confirmaCal: 'Confirma tu asistencia', antesDel: ' antes del {f}'
+    },
+    en: {
+      loc: 'en-US', frenteAria: 'RSVP', reversoAria: 'Your card', accionesAria: 'Card actions',
+      nombreLbl: '*Full name:', buscar: 'Find my RSVP', cambiar: 'Not me / change name',
+      asisLbl: '*Will you attend our wedding?', selOpcion: 'Select an option', si: 'Yes, I’ll be there', no: 'Sorry, I can’t make it',
+      pasesLbl: '*How many will attend?', acompLbl: '*Names of your guests', acompPh: 'First Last, First Last',
+      msgLbl: 'Leave us a message', opcional: '(optional)', msgAria: 'Message for the couple', respNovios: 'A note from the couple',
+      enviar: 'Send', actualizar: 'Update', voltear: 'Flip card', confirmar: 'RSVP now',
+      volver: 'Back to the form', cal: 'Add to calendar', compartir: 'Share', copiar: 'Save or copy image', imprimir: 'Print',
+      calIcs: 'Apple / Outlook / other (.ics)', pista: 'Swipe the card to flip it',
+      soloYo: '1 (just me)', yoMas: function (v) { return v.n + ' (me + ' + v.k + (v.k === 1 ? ' guest)' : ' guests)'); },
+      pasesRes: function (v) { return v.n + (v.n === 1 ? ' seat reserved' : ' seats reserved'); },
+      pasesConf: function (v) { return v.n + (v.n === 1 ? ' seat confirmed' : ' seats confirmed'); },
+      tienes: 'You have {p}.', mesa: 'Table', bienvenida: 'We’d love to celebrate with you!',
+      primera: 'First reply', ultima: 'Last updated', ediciones: 'Edits',
+      plazo: 'Please reply by {f}', cerrado: 'RSVP closed on {f}. If you need to change anything, please contact us directly.', inactivo: 'RSVP for this event is now closed. If you need to change anything, please contact us directly.',
+      acomp1: 'Write your guest’s name', acompN: 'Write the names of your {n} guests, separated by commas', deN: '{k} of {n}',
+      min3: 'Type at least 3 letters of your name.', buscando: 'Searching…', encontrado: 'We found your RSVP. You can review and update it.',
+      candidatos: 'No exact match. Are you one of these?',
+      noNombreNuevo: 'We couldn’t find that name. If this is your first time, fill in the form and we’ll create your RSVP. ',
+      noNombre: 'We couldn’t find that name on the guest list. Check the spelling or contact us.',
+      errBuscar: 'We couldn’t search right now. Please try again in a few seconds.',
+      hintDup: 'If someone else has your same name, add your surname or relationship in brackets, e.g. Smith (Father).',
+      obligatorios: 'Please complete the required fields (*).', guardando: 'Saving…', yaGuardada: 'Your reply was already saved.',
+      actualizada: 'Done! We updated your reply. 💛', recibida: 'Thank you! We received your reply. 💛', dupNombre: 'That name is already registered. ',
+      noRegistro: 'We couldn’t find your RSVP. Please search for it by name again.',
+      sinRegistro: 'We couldn’t find your name on the guest list. Check the spelling or contact us.',
+      errGuardar: 'We couldn’t save. Check your connection and try again.', cargando: 'Loading your invitation…', reintento: '(retry {i} of {n})',
+      intro: 'Type your full name. If you already replied, tap "Find my RSVP" to view or change your answer.',
+      noCodigo: 'We couldn’t find your code. Type your name to find your RSVP or create a new one. ',
+      errDatos: 'We couldn’t load your details. Type your name to continue.',
+      noProyecto: 'We couldn’t find this invitation. Please check the link you received.', errForm: 'We couldn’t load the form. Check your connection.',
+      siCorto: 'Yes', noCorto: 'No', copiada: 'Image copied.', descargada: 'Image downloaded.', errImagen: 'Couldn’t create the image.',
+      errCompartir: 'Couldn’t share.', errImprimir: 'Couldn’t prepare printing.',
+      etqPend: 'Save the date', etqSi: 'See you there', etqNo: 'Thank you',
+      msgPend: 'Please RSVP by {fecha_limite}', msgSi: 'Thank you for confirming! We’re so happy to celebrate this day with you.',
+      msgNo: 'Thank you for letting us know. We’ll keep you in our hearts on our day.', msgEscanear: 'Scan the code to RSVP',
+      ariaSi: 'Your pass for the wedding of {t}', ariaNo: 'Thank-you note', ariaPend: 'Save the Date for {t}',
+      bodaDe: 'Wedding of {t}', tuInv: 'Your invitation: ', confirmaCal: 'Please RSVP', antesDel: ' by {f}'
+    }
+  };
+  var lang = 'es';
+  function T(k, v) {
+    var s = (TXT[lang] || TXT.es)[k]; if (s == null) s = TXT.es[k]; if (s == null) return k;
+    if (typeof s === 'function') return s(v || {});
+    return v ? s.replace(/\{(\w+)\}/g, function (m, x) { return v[x] != null ? v[x] : m; }) : s;
+  }
+  /* Textos de la tarjeta: si el valor guardado es el predeterminado en español (o vacío), se usa el del idioma actual */
+  var DEF_ES = { etiqueta_pendiente: 'etqPend', etiqueta_si: 'etqSi', etiqueta_no: 'etqNo', mensaje_pendiente: 'msgPend', mensaje_si: 'msgSi', mensaje_no: 'msgNo' };
+  function textoTarjeta(k) { var v = (cfg.tarjeta.textos || {})[k]; return !v || v === TXT.es[DEF_ES[k]] ? T(DEF_ES[k]) : v; }
+
+  /* ================================================================ valores por defecto */
+  var DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, mostrar_saludo: true, mostrar_nombre_codigo: true,
+                   sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, preguntas: [] };
   var DEF_TARJETA = {
     titulo: '', fecha: '', lugar: '', logo_qr: '',
-    colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75' },
-    textos: {
-      etiqueta_pendiente: 'Save the date', etiqueta_si: 'Te esperamos', etiqueta_no: 'Gracias',
-      mensaje_pendiente: 'Confirma tu asistencia antes del {fecha_limite}',
-      mensaje_si: '\u00a1Gracias por confirmar! Nos hace muy felices celebrar este d\u00eda contigo.',
-      mensaje_no: 'Gracias por avisarnos. Te tendremos presente en nuestro d\u00eda.'
-    },
-    evento: { titulo: '', inicio: '', fin: '', lugar: '', detalle: '' }
+    colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100,
+    qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF' },
+    fondos: { pagina: { tipo: 'color', color: '' }, formulario: { tipo: 'color', color: '#FFFFFF' }, tarjeta: { tipo: 'color' } },
+    textos: {}, evento: { titulo: '', inicio: '', fin: '', lugar: '', detalle: '' }
   };
   var FUENTES = { titulo: '"Titulo Boda", "Snell Roundhand", Georgia, serif', texto: 'Georgia, "Times New Roman", serif' };
   var GIRO = { umbral: 90, duracion: 650, autoGirar: true };
@@ -42,8 +130,18 @@
     });
     return r;
   }
+  /* Imágenes propias del evento: /<evento>/assets/rsvp_fondo_*.png y rsvp_logo.png */
+  function urlEvento(archivo) {
+    return PYD.RAIZ && PYD.slug ? PYD.RAIZ + PYD.slug + '/assets/' + archivo : new URL('assets/' + archivo, location.href).href;
+  }
+  function urlFondo(k) { return urlEvento('rsvp_fondo_' + k + '.png'); }
+  function rgba(hex, alfa) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
+    var n = parseInt(m[1], 16), a = Math.max(0, Math.min(100, alfa == null ? 100 : +alfa)) / 100;
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
 
-  /* ---------------------------------------------------------------- HTML + CSS */
+  /* ================================================================ HTML + CSS */
   var ESTILOS = '\
 :host{display:block}\
 .rsvp-raiz{all:initial;display:block;box-sizing:border-box;width:100%;--sombra:0 10px 32px rgba(0,0,0,.16);--campo:#f9f5f2;--boton:#b9966f;--boton-osc:#a3825c;\
@@ -55,9 +153,9 @@
 .arrastrando .giro{transition:none}\
 .cara{grid-area:1/1;position:relative;min-width:0;display:flex;flex-direction:column;backface-visibility:hidden;-webkit-backface-visibility:hidden}\
 .reverso{transform:rotateY(180deg)}\
-.cara::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:6px;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,0) 65%);opacity:var(--shade)}\
-.caja{flex:1;zoom:var(--rsvp-zoom,1);width:100%;max-width:420px;margin:0 auto;background:#fff;border-radius:8px;padding:26px 24px;box-shadow:var(--sombra);-webkit-user-select:text;user-select:text}\
-.saludo{margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid #efe8e1;text-align:center}\
+.cara::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:8px;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(0,0,0,0) 65%);opacity:var(--shade)}\
+.caja{flex:1;zoom:var(--rsvp-zoom,1);width:100%;max-width:420px;margin:0 auto;background:#fff;border-radius:8px;padding:26px 24px;display:flex;flex-direction:column;justify-content:center;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;box-shadow:var(--sombra);-webkit-user-select:text;user-select:text}\
+.saludo{margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid rgba(0,0,0,.08);text-align:center}\
 .saludo .nombres{font:400 30px/1.1 "Titulo Boda","Snell Roundhand","Brush Script MT",cursive;margin:0}\
 .saludo .linea{margin:6px 0 0;font-size:12px;letter-spacing:.06em;color:var(--suave)}\
 .plazo{margin:0 0 18px;text-align:center;font-size:12.5px;color:var(--suave)}\
@@ -68,7 +166,8 @@ input[type=text],select,textarea{display:block;width:100%;margin:0;border:1px so
 select{padding-right:38px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'9\' viewBox=\'0 0 14 9\'%3E%3Cpath d=\'M1 1l6 6 6-6\' fill=\'none\' stroke=\'%237a7066\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}\
 textarea{height:96px;padding:12px 14px;resize:vertical}textarea.corto{height:70px}\
 input:focus,select:focus,textarea:focus{border-color:var(--boton);box-shadow:0 0 0 3px color-mix(in srgb,var(--boton) 25%,transparent)}\
-input[readonly]{color:#6b6258;cursor:not-allowed;background-color:#f1ebe6}:disabled{opacity:.7;cursor:not-allowed}\
+input[readonly]{color:#6b6258;cursor:not-allowed;filter:brightness(.97)}\
+.logo-rsvp{display:block;margin:0 auto 18px;max-width:100%;height:auto}:disabled{opacity:.7;cursor:not-allowed}\
 .invalido{border-color:var(--error)!important}.grupo.invalido{border:1px solid var(--error);border-radius:14px;padding:6px}\
 .opciones{display:flex;flex-wrap:wrap;gap:8px}\
 .opciones label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 14px;border-radius:999px;background:var(--campo);font-weight:500;font-size:14px;cursor:pointer;border:1px solid transparent}\
@@ -108,7 +207,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
 .menu-cal button{border:1px solid #eadfd5;background:#fff;border-radius:12px;padding:11px 12px;cursor:pointer;font:600 13px/1.2 Montserrat,sans-serif;color:var(--texto);text-align:left}\
 .aviso-std{min-height:1.3em;margin:0;text-align:center;font-size:13px;color:var(--ok)}\
 .pista{margin:12px 0 0;text-align:center;font-size:12px;color:var(--suave);transition:opacity .4s}.pista.oculta{opacity:0}\
-@media (prefers-reduced-motion:reduce){.pista,input,select,textarea{transition:none}}';
+' + (window.PYD_SIEMPRE_ANIMAR ? '' : '@media (prefers-reduced-motion:reduce){.pista,input,select,textarea{transition:none}}');
 
   var I = {
     giro: '<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>',
@@ -118,42 +217,41 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     imprimir: '<path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><rect x="6" y="14" width="12" height="7"/>'
   };
   var svg = function (k) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + I[k] + '</svg>'; };
+  var ib = function (id, k, t, cls, extra) { return '<button type="button" class="icono' + (cls ? ' ' + cls : '') + '" id="' + id + '" data-ta="' + t + '"' + (extra || '') + '>' + svg(k) + '</button>'; };
   var HTML = '<style>' + ESTILOS + '</style><div class="rsvp-raiz"><div class="escena" id="escena"><div class="giro" id="giro">' +
-    '<section class="cara frente" id="frente" aria-label="Confirmaci\u00f3n de asistencia"><div class="caja">' +
+    '<section class="cara frente" id="frente" data-ta="frenteAria"><div class="caja" id="caja">' +
+      '<img class="logo-rsvp" id="logo-rsvp" alt="" hidden>' +
       '<header class="saludo" id="saludo" hidden><p class="nombres" id="saludo-nombre"></p><p class="linea" id="saludo-linea"></p></header>' +
       '<p class="plazo" id="plazo" hidden></p><p class="aviso-cierre" id="aviso-cierre" hidden></p>' +
       '<form id="form" novalidate autocomplete="off">' +
-        '<div class="campo"><label for="nombre">*Nombre completo:</label><input type="text" id="nombre" maxlength="80" autocomplete="name" required>' +
+        '<div class="campo" id="campo-nombre"><label for="nombre" data-t="nombreLbl"></label><input type="text" id="nombre" maxlength="80" autocomplete="name" required>' +
           '<p class="ayuda" id="ayuda-nombre" hidden></p><div class="candidatos" id="candidatos" hidden></div>' +
-          '<div class="acciones-nombre"><button type="button" class="enlace" id="btn-buscar" hidden>Buscar mi registro</button>' +
-          '<button type="button" class="enlace" id="btn-cambiar" hidden>No soy yo / cambiar nombre</button></div></div>' +
-        '<div class="campo"><label for="asistencia">*\u00bfAsistir\u00e1s a nuestra boda?</label><select id="asistencia" required>' +
-          '<option value="">Selecciona una opci\u00f3n</option><option value="si">S\u00ed, asistir\u00e9</option><option value="no">No podr\u00e9 asistir</option></select></div>' +
-        '<div class="campo" id="campo-pases" hidden><label for="pases">*\u00bfCu\u00e1ntos asistir\u00e1n?</label><select id="pases"></select><p class="ayuda" id="ayuda-pases"></p></div>' +
-        '<div class="campo" id="campo-acomp" hidden><label for="acompanantes">*Nombres de tus acompa\u00f1antes</label>' +
-          '<textarea id="acompanantes" class="corto" maxlength="500" placeholder="Nombre Apellido, Nombre Apellido"></textarea><p class="ayuda" id="ayuda-acomp"></p></div>' +
+          '<div class="acciones-nombre"><button type="button" class="enlace" id="btn-buscar" data-t="buscar" hidden></button>' +
+          '<button type="button" class="enlace" id="btn-cambiar" data-t="cambiar" hidden></button></div></div>' +
+        '<div class="campo"><label for="asistencia" data-t="asisLbl"></label><select id="asistencia" required>' +
+          '<option value="" data-t="selOpcion"></option><option value="si" data-t="si"></option><option value="no" data-t="no"></option></select></div>' +
+        '<div class="campo" id="campo-pases" hidden><label for="pases" data-t="pasesLbl"></label><select id="pases"></select><p class="ayuda" id="ayuda-pases"></p></div>' +
+        '<div class="campo" id="campo-acomp" hidden><label for="acompanantes" data-t="acompLbl"></label>' +
+          '<textarea id="acompanantes" class="corto" maxlength="500" data-tph="acompPh"></textarea><p class="ayuda" id="ayuda-acomp"></p></div>' +
         '<div id="extras"></div>' +
-        '<details class="mensaje" id="det-mensaje"><summary>D\u00e9janos un mensajito <span class="opc">(opcional)</span></summary>' +
-          '<textarea id="mensaje" maxlength="1000" aria-label="Mensaje para los novios"></textarea><div class="contador"><span id="contador">0</span>/1000</div></details>' +
-        '<section class="resp-novios" id="resp-novios" hidden><p class="t">\ud83d\udc8c Respuesta de los novios</p><p class="c" id="resp-novios-txt"></p></section>' +
-        '<div class="trampa" aria-hidden="true"><label>No llenar <input type="text" id="web" tabindex="-1" autocomplete="off"></label></div>' +
-        '<div class="enviar-fila"><button type="submit" class="btn-enviar" id="btn-enviar">Enviar</button></div>' +
+        '<details class="mensaje" id="det-mensaje"><summary><span data-t="msgLbl"></span> <span class="opc" data-t="opcional"></span></summary>' +
+          '<textarea id="mensaje" maxlength="1000" data-ta="msgAria"></textarea><div class="contador"><span id="contador">0</span>/1000</div></details>' +
+        '<section class="resp-novios" id="resp-novios" hidden><p class="t">\ud83d\udc8c <span data-t="respNovios"></span></p><p class="c" id="resp-novios-txt"></p></section>' +
+        '<div class="trampa" aria-hidden="true"><label>- <input type="text" id="web" tabindex="-1" autocomplete="off"></label></div>' +
+        '<div class="enviar-fila"><button type="submit" class="btn-enviar" id="btn-enviar"></button></div>' +
         '<p class="estado" id="estado" role="status" aria-live="polite"></p><p class="meta" id="meta" hidden></p>' +
       '</form>' +
-      '<div class="ver-tarjeta"><button type="button" class="enlace" id="btn-ver-tarjeta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I.giro + '</svg>Ver mi tarjeta</button></div>' +
+      '<div class="ver-tarjeta"><button type="button" class="enlace" id="btn-ver-tarjeta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I.giro + '</svg><span data-t="voltear"></span></button></div>' +
     '</div></section>' +
-    '<section class="cara reverso" id="reverso" aria-label="Tu tarjeta" inert aria-hidden="true"><div class="std">' +
-      '<canvas id="tarjeta" width="1200" height="1680" role="img" aria-label="Tarjeta"></canvas>' +
-      '<button type="button" class="btn-confirmar" id="btn-confirmar" hidden>Confirmar asistencia</button>' +
-      '<div class="iconos" role="toolbar" aria-label="Acciones de la tarjeta">' +
-        '<button type="button" class="icono principal" id="btn-volver" aria-label="Volver al formulario" title="Volver al formulario">' + svg('giro') + '</button>' +
-        '<button type="button" class="icono" id="btn-cal" aria-label="Agregar al calendario" title="Agregar al calendario" aria-expanded="false">' + svg('cal') + '</button>' +
-        '<button type="button" class="icono" id="btn-compartir" aria-label="Compartir" title="Compartir" hidden>' + svg('compartir') + '</button>' +
-        '<button type="button" class="icono" id="btn-copiar" aria-label="Guardar o copiar imagen" title="Guardar o copiar imagen">' + svg('copiar') + '</button>' +
-        '<button type="button" class="icono" id="btn-imprimir" aria-label="Imprimir" title="Imprimir">' + svg('imprimir') + '</button></div>' +
-      '<div class="menu-cal" id="menu-cal" hidden><button type="button" id="cal-ics">Apple / Outlook / otros (.ics)</button><button type="button" id="cal-google">Google Calendar</button></div>' +
+    '<section class="cara reverso" id="reverso" data-ta="reversoAria" inert aria-hidden="true"><div class="std">' +
+      '<canvas id="tarjeta" width="1200" height="1680" role="img"></canvas>' +
+      '<button type="button" class="btn-confirmar" id="btn-confirmar" data-t="confirmar" hidden></button>' +
+      '<div class="iconos" role="toolbar" data-ta="accionesAria">' +
+        ib('btn-volver', 'giro', 'volver', 'principal') + ib('btn-cal', 'cal', 'cal', '', ' aria-expanded="false"') +
+        ib('btn-compartir', 'compartir', 'compartir', '', ' hidden') + ib('btn-copiar', 'copiar', 'copiar') + ib('btn-imprimir', 'imprimir', 'imprimir') + '</div>' +
+      '<div class="menu-cal" id="menu-cal" hidden><button type="button" id="cal-ics" data-t="calIcs"></button><button type="button" id="cal-google">Google Calendar</button></div>' +
       '<p class="aviso-std" id="aviso-std" role="status" aria-live="polite"></p>' +
-    '</div></section></div></div><p class="pista" id="pista">Desliza la tarjeta para girarla</p></div>';
+    '</div></section></div></div><p class="pista" id="pista" data-t="pista"></p></div>';
 
   var RAIZ = HOST.shadowRoot || (HOST.attachShadow ? HOST.attachShadow({ mode: 'open' }) : HOST);
   RAIZ.innerHTML = HTML;
@@ -164,27 +262,27 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   }
   var $ = function (id) { return RAIZ.getElementById ? RAIZ.getElementById(id) : RAIZ.querySelector('#' + id); };
   var el = {};
-  ['form', 'nombre', 'asistencia', 'pases', 'mensaje', 'det-mensaje', 'contador', 'saludo', 'saludo-nombre', 'saludo-linea',
+  ['form', 'logo-rsvp', 'campo-nombre', 'nombre', 'asistencia', 'pases', 'mensaje', 'det-mensaje', 'contador', 'saludo', 'saludo-nombre', 'saludo-linea',
    'ayuda-nombre', 'candidatos', 'btn-buscar', 'btn-cambiar', 'btn-enviar', 'estado', 'meta', 'resp-novios', 'resp-novios-txt',
-   'web', 'campo-pases', 'ayuda-pases', 'campo-acomp', 'acompanantes', 'ayuda-acomp', 'extras', 'plazo', 'aviso-cierre',
+   'web', 'campo-pases', 'ayuda-pases', 'campo-acomp', 'acompanantes', 'ayuda-acomp', 'extras', 'plazo', 'aviso-cierre', 'caja',
    'escena', 'giro', 'frente', 'reverso', 'tarjeta', 'pista', 'btn-ver-tarjeta', 'btn-volver', 'btn-cal', 'menu-cal', 'cal-ics',
    'cal-google', 'btn-compartir', 'btn-copiar', 'btn-imprimir', 'btn-confirmar', 'aviso-std']
     .forEach(function (id) { el[id.replace(/-(\w)/g, function (_, c) { return c.toUpperCase(); })] = $(id); });
 
-  /* ---------------------------------------------------------------- estado */
+  /* ================================================================ estado */
   var q = new URLSearchParams(location.search);
   var CODIGO_URL = (q.get('to') || q.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   var PASE_URL = q.get('pase') || q.get('pases');
-  var cfg = { form: DEF_FORM, tarjeta: DEF_TARJETA, nombre: '', urlRsvp: '', urlInvitacion: '', pasesMax: 10 };
+  var LANG_URL = (q.get('lang') || '').toLowerCase().slice(0, 2);
+  var cfg = { form: DEF_FORM, tarjeta: DEF_TARJETA, nombre: '', urlRsvp: '', urlInvitacion: '', pasesMax: 10, idiomas: ['es'] };
   var estado = { listo: false, modo: 'nuevo', codigo: '', pases: 1, existente: false, tratamiento: '', g: null,
                  abierto: true, fechaLimite: null, permitirNuevos: true };
   estado.pases = Math.max(1, Math.min(10, parseInt(PASE_URL, 10) || 1));
 
-  /* ---------------------------------------------------------------- utilidades */
-  function fechaLarga(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : ''; }
-  function fechaCorta(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleDateString('es-PE', { day: 'numeric', month: 'long' }) : ''; }
+  /* ================================================================ utilidades */
+  function fechaLarga(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleString(T('loc'), { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: lang === 'en' ? 'h12' : 'h23' }) : ''; }
+  function fechaCorta(iso) { var d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleDateString(T('loc'), { day: 'numeric', month: 'long' }) : ''; }
   function conTrato(g) { var t = (g.tratamiento || '').trim(), n = g.nombre || ''; return t && n.toLowerCase().indexOf(t.toLowerCase()) !== 0 ? t + ' ' + n : n; }
-  function plural(n, s, p) { n = parseInt(n, 10) || 0; return n + ' ' + (n === 1 ? s : p); }
   function mensajeEstado(txt, tipo) { el.estado.textContent = txt || ''; el.estado.className = 'estado' + (tipo ? ' ' + tipo : ''); }
   function ayuda(txt, error) { el.ayudaNombre.hidden = !txt; el.ayudaNombre.textContent = txt || ''; el.ayudaNombre.className = 'ayuda' + (error ? ' error' : ''); }
   var avisoT;
@@ -193,35 +291,91 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   function emitir(n, d) { try { window.dispatchEvent(new CustomEvent(n, { detail: d })); } catch (e) {} }
   function oscurecer(hex, f) { var m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex; var n = parseInt(m[1], 16);
     var c = [n >> 16, (n >> 8) & 255, n & 255].map(function (v) { return Math.round(v * (1 - f)); }); return '#' + c.map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
-  function iniciales(t) { var p = String(t || '').split(/\s*(?:&|\sy\s)\s*/i).filter(Boolean); return p.length > 1 ? p[0].trim()[0] + '&' + p[1].trim()[0] : String(t || '').trim().slice(0, 2); }
   function conTo(base, cod) { var u; try { u = new URL(base || location.href, location.href); } catch (e) { u = new URL(location.href); }
     if (!base) { u.search = ''; } u.hash = ''; u.searchParams.delete('to'); if (cod) u.searchParams.set('to', cod); return u.toString(); }
   function nombres(t) { return String(t || '').split(/[,;\n]+/).map(function (s) { return s.trim(); }).filter(Boolean); }
-  var HINT_DUP = 'Si hay otra persona con tu mismo nombre, agrega tu apellido o el parentesco entre par\u00e9ntesis, por ejemplo: P\u00e9rez (Padre).';
 
-  /* ---------------------------------------------------------------- configuración del proyecto */
+  /* ================================================================ idioma */
+  function aplicarTextos() {
+    RAIZ.querySelectorAll('[data-t]').forEach(function (n) { n.textContent = T(n.dataset.t); });
+    RAIZ.querySelectorAll('[data-tph]').forEach(function (n) { n.placeholder = T(n.dataset.tph); });
+    RAIZ.querySelectorAll('[data-ta]').forEach(function (n) { n.setAttribute('aria-label', T(n.dataset.ta)); if (n.tagName === 'BUTTON') n.title = T(n.dataset.ta); });
+    el.btnEnviar.textContent = estado.g && estado.g.primera ? T('actualizar') : T('enviar');
+  }
+  function elegirIdioma() {
+    var disp = cfg.idiomas, guardado = '';
+    try { guardado = sessionStorage.getItem('pyd.lang.' + PYD.slug) || ''; } catch (e) {}
+    if (disp.indexOf(LANG_URL) >= 0) return LANG_URL;
+    if (disp.indexOf(guardado) >= 0) return guardado;
+    if (disp.length > 1) return /^en/i.test(navigator.language || '') ? 'en' : disp[0];
+    return disp[0] || 'es';
+  }
+  function cambiarIdioma(l, recordar) {
+    if (!TXT[l]) return;
+    if (recordar) { try { sessionStorage.setItem('pyd.lang.' + PYD.slug, l); } catch (e) {} }
+    var resp = estado.listo ? leerRespuestas() : null;
+    lang = l; HOST.setAttribute('lang', l);
+    aplicarTextos();
+    if (estado.listo) {
+      renderPreguntas(); if (resp) cargarRespuestas({ respuestas: resp, acompanantes: el.acompanantes.value });
+      llenarPases(estado.pases, parseInt(el.pases.value, 10) || estado.pases);
+      actualizarCondicionales(); pintarSaludo(); pintarMeta(estado.g); pintarCierre(); mensajeEstado('');
+      pintarTarjeta();
+    }
+    ponerCredito();
+    emitir('rsvp:idioma', l);
+  }
+  window.RSVP_IDIOMA = { actual: function () { return lang; }, disponibles: function () { return cfg.idiomas.slice(); }, cambiar: function (l) { cambiarIdioma(l, true); } };
+  lang = TXT[LANG_URL] ? LANG_URL : 'es';
+  aplicarTextos();
+
+  /* ================================================================ configuración del proyecto */
+  /* Crédito "Hecho con amor" (modo configurable por evento). La página anfitriona puede desactivarlo con window.PYD_SIN_CREDITO = true */
+  function ponerCredito() { if (window.PYD_SIN_CREDITO || !PYD.credito || !cfg.credito) return; PYD.credito({ modo: cfg.credito, lang: lang, oscuro: !!window.PYD_CREDITO_OSCURO }); }
+  function aplicarFondos() {
+    var F = cfg.tarjeta.fondos, fo = F.formulario || {}, ft = F.tarjeta || {}, caja = el.caja;
+    caja.style.backgroundColor = fo.tipo === 'transparente' ? 'transparent' : fo.tipo === 'imagen' ? '#fff' : (fo.color || '#fff');
+    caja.style.backgroundImage = fo.tipo === 'imagen' ? 'url("' + urlFondo('formulario') + '")' : 'none';   /* cover · 50% 50% en el CSS */
+    caja.style.boxShadow = fo.tipo === 'transparente' ? 'none' : '';
+    el.tarjeta.style.background = ft.tipo === 'color' ? cfg.tarjeta.colores.papel : 'transparent';
+    el.tarjeta.style.boxShadow = ft.tipo === 'transparente' ? 'none' : '';
+    RAIZ.querySelector('.rsvp-raiz').style.setProperty('--campo', rgba(cfg.tarjeta.colores.campo || '#F9F5F2', cfg.tarjeta.campo_alfa));
+    var L = cfg.form.logo || {};
+    el.logoRsvp.hidden = !L.mostrar;
+    if (L.mostrar) {
+      el.logoRsvp.style.width = Math.max(40, Math.min(360, parseInt(L.ancho, 10) || 140)) + 'px';
+      el.logoRsvp.onerror = function () { el.logoRsvp.hidden = true; };
+      if (el.logoRsvp.getAttribute('src') !== urlEvento('rsvp_logo.png')) el.logoRsvp.src = urlEvento('rsvp_logo.png');
+    }
+  }
   function aplicarProyecto(p) {
     if (!p) return;
     cfg.nombre = p.nombre || ''; cfg.urlRsvp = p.urlRsvp || ''; cfg.urlInvitacion = p.urlInvitacion || '';
     cfg.pasesMax = p.pasesMax || 10;
+    cfg.idiomas = String(p.idioma || 'es').split(',').filter(function (x) { return TXT[x]; });
+    if (!cfg.idiomas.length) cfg.idiomas = ['es'];
     cfg.form = fusionar(DEF_FORM, p.formulario || {});
     cfg.form.preguntas = Array.isArray((p.formulario || {}).preguntas) ? p.formulario.preguntas : [];
     cfg.tarjeta = fusionar(DEF_TARJETA, p.tarjeta || {});
-    estado.fechaLimite = p.fechaLimite || null; estado.abierto = p.abierto !== false; estado.permitirNuevos = p.permitirNuevos !== false;
+    cfg.tarjeta.textos = (p.tarjeta || {}).textos || {};
+    estado.fechaLimite = p.fechaLimite || null; estado.abierto = p.abierto !== false; estado.inactivo = p.activo === false; estado.permitirNuevos = p.permitirNuevos !== false;
     if (!estado.existente) estado.pases = Math.max(1, Math.min(cfg.pasesMax, parseInt(PASE_URL, 10) || 1));
     var raiz = RAIZ.querySelector('.rsvp-raiz'), ac = cfg.tarjeta.colores.acento;
     raiz.style.setProperty('--boton', ac); raiz.style.setProperty('--boton-osc', oscurecer(ac, .14));
     el.detMensaje.hidden = !cfg.form.permitir_mensaje;
+    aplicarFondos();
+    lang = elegirIdioma(); HOST.setAttribute('lang', lang); aplicarTextos();
     renderPreguntas();
     if (!estado.existente) llenarPases(estado.pases, estado.pases);
+    estado.listo = true; el.btnEnviar.disabled = false;
     actualizarCondicionales(); pintarCierre(); pintarSaludo(); bloquearNombre(el.nombre.readOnly);
     if (estado.g) cargarRespuestas(estado.g);
-    estado.listo = true; el.btnEnviar.disabled = false;
-    emitir('rsvp:proyecto', p);
+    cfg.credito = p.credito || 'flotante'; ponerCredito();
+    emitir('rsvp:proyecto', p); emitir('rsvp:idioma', lang);
     pintarTarjeta();
   }
 
-  /* ---------------------------------------------------------------- preguntas configurables */
+  /* ================================================================ preguntas configurables */
   function renderPreguntas() {
     el.extras.innerHTML = '';
     cfg.form.preguntas.forEach(function (pq, i) {
@@ -240,8 +394,8 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
         if (tipo === 'parrafo') { inp = document.createElement('textarea'); inp.className = 'corto'; inp.maxLength = 500; }
         else if (tipo === 'opcion' || tipo === 'sino') {
           inp = document.createElement('select');
-          var lista = tipo === 'sino' ? [['si', 'S\u00ed'], ['no', 'No']] : ops.map(function (o) { return [o, o]; });
-          inp.innerHTML = '<option value="">Selecciona una opci\u00f3n</option>';
+          var lista = tipo === 'sino' ? [['si', T('siCorto')], ['no', T('noCorto')]] : ops.map(function (o) { return [o, o]; });
+          var o0 = document.createElement('option'); o0.value = ''; o0.textContent = T('selOpcion'); inp.appendChild(o0);
           lista.forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; inp.appendChild(op); });
         } else { inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 300; }
         inp.id = id; d.appendChild(inp);
@@ -250,6 +404,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
       if (pq.ayuda) { var a = document.createElement('p'); a.className = 'ayuda'; a.textContent = pq.ayuda; d.appendChild(a); }
       el.extras.appendChild(d);
     });
+    if (!estado.abierto) el.extras.querySelectorAll('input,select,textarea').forEach(function (x) { x.disabled = true; });
   }
   function leerRespuestas() {
     var r = {};
@@ -271,16 +426,16 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.acompanantes.value = g.acompanantes || '';
   }
 
-  /* ---------------------------------------------------------------- formulario */
+  /* ================================================================ formulario */
   function llenarPases(asignados, valor) {
     el.pases.innerHTML = '';
     for (var i = 1; i <= asignados; i++) {
       var o = document.createElement('option'); o.value = i;
-      o.textContent = i === 1 ? '1 (solo yo)' : i + ' (yo + ' + plural(i - 1, 'acompa\u00f1ante', 'acompa\u00f1antes') + ')';
+      o.textContent = i === 1 ? T('soloYo') : T('yoMas', { n: i, k: i - 1 });
       el.pases.appendChild(o);
     }
     el.pases.value = String(Math.max(1, Math.min(asignados, valor || asignados)));
-    el.ayudaPases.textContent = 'Tienes ' + plural(asignados, 'pase reservado', 'pases reservados') + '.';
+    el.ayudaPases.textContent = T('tienes', { p: T('pasesRes', { n: asignados }) });
   }
   function pasesElegidos() { return cfg.form.preguntar_pases ? (parseInt(el.pases.value, 10) || estado.pases) : estado.pases; }
   function actualizarCondicionales() {
@@ -288,46 +443,46 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.campoPases.hidden = !(si && cfg.form.preguntar_pases && estado.pases > 1);
     var n = pasesElegidos() - 1;
     el.campoAcomp.hidden = !(si && cfg.form.pedir_acompanantes && n > 0);
-    if (!el.campoAcomp.hidden) {
-      var k = nombres(el.acompanantes.value).length;
-      el.ayudaAcomp.textContent = 'Escribe ' + (n === 1 ? 'el nombre de tu acompa\u00f1ante' : 'los nombres de tus ' + n + ' acompa\u00f1antes, separados por comas') + ' \u00b7 ' + k + ' de ' + n;
-    }
+    if (!el.campoAcomp.hidden) el.ayudaAcomp.textContent = (n === 1 ? T('acomp1') : T('acompN', { n: n })) + ' \u00b7 ' + T('deN', { k: nombres(el.acompanantes.value).length, n: n });
     el.extras.querySelectorAll('[data-pregunta]').forEach(function (d) { d.hidden = d.dataset.siAsiste === '1' && !si; });
   }
   function pintarSaludo() {
-    var mesa = estado.g && estado.g.mesa ? ' \u00b7 Mesa ' + estado.g.mesa : '';
+    if (!cfg.form.mostrar_saludo) { el.saludo.hidden = true; return; }
+    var mesa = estado.g && estado.g.mesa ? ' \u00b7 ' + T('mesa') + ' ' + estado.g.mesa : '';
     if (!estado.existente) {
       el.saludo.hidden = !PASE_URL;
-      el.saludoNombre.textContent = '\u00a1Nos har\u00e1 felices contar contigo!';
-      el.saludoLinea.textContent = plural(estado.pases, 'pase reservado', 'pases reservados');
+      el.saludoNombre.textContent = T('bienvenida');
+      el.saludoLinea.textContent = T('pasesRes', { n: estado.pases });
       return;
     }
     el.saludo.hidden = false;
     el.saludoNombre.textContent = conTrato({ tratamiento: estado.tratamiento, nombre: el.nombre.value.trim() });
-    el.saludoLinea.textContent = plural(estado.pases, 'pase reservado', 'pases reservados') + mesa;
+    el.saludoLinea.textContent = T('pasesRes', { n: estado.pases }) + mesa;
   }
   function pintarMeta(g) {
     if (!g || !g.primera) { el.meta.hidden = true; return; }
-    var partes = ['Primera respuesta: ' + fechaLarga(g.primera)];
-    if (g.ultima) partes.push('\u00daltima modificaci\u00f3n: ' + fechaLarga(g.ultima));
-    partes.push('Ediciones: ' + (g.ediciones || 1));
+    var partes = [T('primera') + ': ' + fechaLarga(g.primera)];
+    if (g.ultima) partes.push(T('ultima') + ': ' + fechaLarga(g.ultima));
+    partes.push(T('ediciones') + ': ' + (g.ediciones || 1));
     el.meta.textContent = '';
     partes.forEach(function (t, i) { if (i) el.meta.appendChild(document.createElement('br')); el.meta.appendChild(document.createTextNode(t)); });
     el.meta.hidden = false;
   }
   function pintarCierre() {
     var f = estado.fechaLimite;
-    el.plazo.hidden = !f || !estado.abierto;
-    if (f) el.plazo.textContent = 'Confirma antes del ' + fechaLarga(f) + ' h';
+    el.plazo.hidden = !f || !estado.abierto || estado.inactivo;
+    if (f) el.plazo.textContent = T('plazo', { f: fechaLarga(f) });
     el.avisoCierre.hidden = estado.abierto;
     if (!estado.abierto) {
-      el.avisoCierre.textContent = 'La confirmaci\u00f3n cerr\u00f3 el ' + fechaLarga(f) + ' h. Si necesitas cambiar algo, escr\u00edbenos directamente.';
+      el.avisoCierre.textContent = estado.inactivo || !f ? T('inactivo') : T('cerrado', { f: fechaLarga(f) });
       el.form.querySelectorAll('input,select,textarea').forEach(function (x) { x.disabled = true; });
       el.btnEnviar.hidden = true; el.btnBuscar.hidden = true; el.btnCambiar.hidden = true;
     }
   }
   function bloquearNombre(si) {
     el.nombre.readOnly = !!si;
+    /* Opción: con link personal (?to=CÓDIGO) no mostrar el campo "Nombre completo" */
+    el.campoNombre.hidden = !!si && estado.modo === 'codigo' && cfg.form.mostrar_nombre_codigo === false;
     el.btnCambiar.hidden = !(si && estado.modo === 'editar') || !estado.abierto;
     el.btnBuscar.hidden = !!si || !estado.abierto;
   }
@@ -340,7 +495,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.mensaje.value = g.mensaje || ''; actualizarContador(); el.detMensaje.open = !!g.mensaje;
     cargarRespuestas(g);
     el.respNovios.hidden = !g.respuestaNovios; el.respNoviosTxt.textContent = g.respuestaNovios || '';
-    el.btnEnviar.textContent = g.primera ? 'Actualizar' : 'Enviar';
+    el.btnEnviar.textContent = g.primera ? T('actualizar') : T('enviar');
     ayuda(''); el.candidatos.hidden = true; el.candidatos.innerHTML = '';
     actualizarCondicionales(); bloquearNombre(true); pintarSaludo(); pintarMeta(g); pintarTarjeta();
     emitir('rsvp:invitado', g);
@@ -352,19 +507,19 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.asistencia.value = ''; llenarPases(estado.pases, estado.pases);
     el.mensaje.value = ''; actualizarContador(); el.detMensaje.open = false;
     cargarRespuestas({});
-    el.respNovios.hidden = true; el.meta.hidden = true; el.btnEnviar.textContent = 'Enviar';
+    el.respNovios.hidden = true; el.meta.hidden = true; el.btnEnviar.textContent = T('enviar');
     el.candidatos.hidden = true; el.candidatos.innerHTML = '';
     actualizarCondicionales(); bloquearNombre(false); pintarSaludo(); mensajeEstado(''); pintarTarjeta();
   }
 
   function buscarPorNombre(nombre) {
     nombre = (nombre || el.nombre.value).trim();
-    if (nombre.length < 3) { ayuda('Escribe al menos 3 letras de tu nombre.', true); return; }
-    ayuda('Buscando\u2026'); el.candidatos.hidden = true;
+    if (nombre.length < 3) { ayuda(T('min3'), true); return; }
+    ayuda(T('buscando')); el.candidatos.hidden = true;
     API.leer({ action: 'buscar', q: nombre }).then(function (r) {
-      if (r.encontrado) { cargarInvitado(r.invitado, 'editar'); mensajeEstado('Encontramos tu registro. Puedes revisarlo y actualizarlo.', 'ok'); return; }
-      if (r.candidatos && r.candidatos.length) {
-        ayuda('No hay un registro exacto. \u00bfEres alguno de estos?');
+      if (r.encontrado) { cargarInvitado(r.invitado, 'editar'); mensajeEstado(T('encontrado'), 'ok'); return; }
+      if (cfg.form.sugerir_nombres && r.candidatos && r.candidatos.length) {
+        ayuda(T('candidatos'));
         el.candidatos.innerHTML = '';
         r.candidatos.forEach(function (n) {
           var b = document.createElement('button'); b.type = 'button'; b.textContent = n;
@@ -373,9 +528,8 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
         });
         el.candidatos.hidden = false; return;
       }
-      ayuda(estado.permitirNuevos ? 'No encontramos ese nombre. Si es tu primera vez, completa el formulario y crearemos tu registro. ' + HINT_DUP
-                                  : 'No encontramos ese nombre en la lista. Revisa c\u00f3mo est\u00e1 escrito o escr\u00edbenos.');
-    }).catch(function () { ayuda('No pudimos buscar en este momento. Intenta de nuevo en unos segundos.', true); });
+      ayuda(estado.permitirNuevos ? T('noNombreNuevo') + T('hintDup') : T('noNombre'));
+    }).catch(function () { ayuda(T('errBuscar'), true); });
   }
 
   function marcar(nodo) { nodo.classList.add('invalido'); if (nodo.focus) nodo.focus(); }
@@ -391,7 +545,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
       if (pq.obligatoria && d && !d.hidden && !(pq.id in resp)) m(d.querySelector('.grupo,input,select,textarea'));
     });
     if (primero) {
-      mensajeEstado(primero === el.acompanantes ? el.ayudaAcomp.textContent.split(' \u00b7 ')[0] + '.' : 'Por favor completa los campos obligatorios (*).', 'error');
+      mensajeEstado(primero === el.acompanantes ? el.ayudaAcomp.textContent.split(' \u00b7 ')[0] + '.' : T('obligatorios'), 'error');
       if (primero.focus) primero.focus(); else primero.scrollIntoView({ block: 'center' });
       return null;
     }
@@ -402,7 +556,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     ev.preventDefault();
     if (el.web.value || !estado.abierto || !estado.listo) return;
     var resp = validar(); if (!resp) return;
-    mensajeEstado('Guardando\u2026'); el.btnEnviar.disabled = true;
+    mensajeEstado(T('guardando')); el.btnEnviar.disabled = true;
     var asis = el.asistencia.value, pc = asis === 'si' ? pasesElegidos() : 0;
     API.post({
       modo: estado.modo, codigo: estado.codigo, nombre: el.nombre.value.trim(), asistencia: asis, pasesConfirmados: pc,
@@ -415,19 +569,19 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
         if (r.invitado.codigo && history.replaceState && !CODIGO_URL) {
           var u = new URL(location.href); u.searchParams.delete('pase'); u.searchParams.set('to', r.invitado.codigo); history.replaceState(null, '', u.toString());
         }
-        mensajeEstado(r.cambio === false ? 'Tu respuesta ya estaba guardada.' : yaTenia ? '\u00a1Listo! Actualizamos tu respuesta. \ud83d\udc9b' : '\u00a1Gracias! Recibimos tu respuesta. \ud83d\udc9b', 'ok');
+        mensajeEstado(r.cambio === false ? T('yaGuardada') : yaTenia ? T('actualizada') : T('recibida'), 'ok');
         if (GIRO.autoGirar) setTimeout(function () { girarA('reverso'); }, 900);
         return;
       }
       var e = r.error;
-      if (e === 'duplicado') { marcar(el.nombre); mensajeEstado(''); ayuda('Ese nombre ya est\u00e1 registrado. ' + HINT_DUP, true); return; }
-      if (e === 'no_encontrado') { mensajeEstado('No encontramos tu registro. Vuelve a buscarlo por nombre.', 'error'); reiniciarComoNuevo(false); return; }
-      if (e === 'sin_registro') { mensajeEstado('No encontramos tu nombre en la lista de invitados. Revisa c\u00f3mo est\u00e1 escrito o escr\u00edbenos.', 'error'); return; }
-      if (e === 'pregunta') { var d = el.extras.querySelector('[data-pregunta="' + r.campo + '"]'); if (d) marcar(d.querySelector('.grupo,input,select,textarea')); mensajeEstado('Por favor completa los campos obligatorios (*).', 'error'); return; }
+      if (e === 'duplicado') { marcar(el.nombre); mensajeEstado(''); ayuda(T('dupNombre') + T('hintDup'), true); return; }
+      if (e === 'no_encontrado') { mensajeEstado(T('noRegistro'), 'error'); reiniciarComoNuevo(false); return; }
+      if (e === 'sin_registro') { mensajeEstado(T('sinRegistro'), 'error'); return; }
+      if (e === 'pregunta') { var d = el.extras.querySelector('[data-pregunta="' + r.campo + '"]'); if (d) marcar(d.querySelector('.grupo,input,select,textarea')); mensajeEstado(T('obligatorios'), 'error'); return; }
       if (e === 'cerrado') { estado.abierto = false; pintarCierre(); mensajeEstado(''); return; }
       throw new Error(e || 'servidor');
     }).catch(function () {
-      mensajeEstado('No pudimos guardar. Revisa tu conexi\u00f3n e int\u00e9ntalo de nuevo.', 'error');
+      mensajeEstado(T('errGuardar'), 'error');
     }).then(function () { el.btnEnviar.disabled = false; });
   });
 
@@ -442,7 +596,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   el.nombre.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !el.nombre.readOnly) { e.preventDefault(); buscarPorNombre(); } });
   el.nombre.addEventListener('input', function () { el.nombre.classList.remove('invalido'); if (!el.nombre.readOnly) { ayuda(''); el.candidatos.hidden = true; } });
 
-  /* ---------------------------------------------------------------- tarjeta (canvas 1200×1680 = 5×7 in) */
+  /* ================================================================ tarjeta (canvas 1200×1680 = 5×7 in) */
   function situacion() { var a = estado.g && estado.g.asistenciaCodigo; return a === 'si' || a === 'no' ? a : 'pendiente'; }
   function urlQR() { return conTo(cfg.urlRsvp || '', estado.codigo); }
   function envolver(ctx, texto, cx, y, maxW, lh, maxLineas) {
@@ -461,6 +615,15 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     var ch = Array.from(texto), w = ch.reduce(function (a, c) { return a + ctx.measureText(c).width; }, 0) + sp * (ch.length - 1), x = cx - w / 2;
     ctx.textAlign = 'left'; ch.forEach(function (c) { ctx.fillText(c, x, y); x += ctx.measureText(c).width + sp; }); ctx.textAlign = 'center';
   }
+  var imgFondo = { url: '', img: null, prom: null };
+  function cargarFondoTarjeta() {
+    if ((cfg.tarjeta.fondos.tarjeta || {}).tipo !== 'imagen') return Promise.resolve(null);
+    var u = urlFondo('tarjeta');
+    if (imgFondo.url === u && imgFondo.prom) return imgFondo.prom;
+    imgFondo.url = u;
+    imgFondo.prom = new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = u; });
+    return imgFondo.prom;
+  }
   var pintando = null, repintar = false;
   function pintarTarjeta() {
     if (pintando) { repintar = true; return pintando; }
@@ -470,40 +633,48 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     return pintando;
   }
   function dibujarTarjeta() {
-    var cv = el.tarjeta, ctx = cv.getContext('2d'), W = cv.width, H = cv.height, T = cfg.tarjeta, C = T.colores, X = T.textos, s = situacion(), g = estado.g || {};
-    var titulo = T.titulo || cfg.nombre || '';
+    var cv = el.tarjeta, ctx = cv.getContext('2d'), W = cv.width, H = cv.height, Tj = cfg.tarjeta, C = Tj.colores, s = situacion(), g = estado.g || {};
+    var titulo = Tj.titulo || cfg.nombre || '', tipoF = (Tj.fondos.tarjeta || {}).tipo || 'color';
     var fuentes = document.fonts ? Promise.all([document.fonts.load('100px ' + FUENTES.titulo, titulo || 'A'), document.fonts.load('40px ' + FUENTES.texto)]).catch(function () {}) : Promise.resolve();
-    return fuentes.then(function () {
+    return Promise.all([fuentes, cargarFondoTarjeta()]).then(function (res) {
+      var fondo = res[1];
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = C.papel; ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = C.acento; ctx.lineWidth = 4; ctx.strokeRect(48, 48, W - 96, H - 96);
-      ctx.lineWidth = 1.5; ctx.strokeRect(64, 64, W - 128, H - 128);
+      if (tipoF === 'imagen' && fondo) {
+        var e = Math.max(W / fondo.naturalWidth, H / fondo.naturalHeight);
+        ctx.drawImage(fondo, (W - fondo.naturalWidth * e) / 2, (H - fondo.naturalHeight * e) / 2, fondo.naturalWidth * e, fondo.naturalHeight * e);
+      } else if (tipoF !== 'transparente') { ctx.fillStyle = C.papel; ctx.fillRect(0, 0, W, H); }
+      if (tipoF !== 'imagen') {
+        ctx.strokeStyle = C.acento; ctx.lineWidth = 4; ctx.strokeRect(48, 48, W - 96, H - 96);
+        ctx.lineWidth = 1.5; ctx.strokeRect(64, 64, W - 128, H - 128);
+      }
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      var y = 200, etq = { pendiente: X.etiqueta_pendiente, si: X.etiqueta_si, no: X.etiqueta_no }[s];
+      var y = 200, etq = textoTarjeta({ pendiente: 'etiqueta_pendiente', si: 'etiqueta_si', no: 'etiqueta_no' }[s]);
       ctx.fillStyle = C.acento; ctx.font = '600 36px ' + FUENTES.texto; espaciado(ctx, String(etq).toUpperCase(), W / 2, y, 12);
       y += 150; ctx.fillStyle = C.tinta; ctx.font = '400 116px ' + FUENTES.titulo; y = envolver(ctx, titulo, W / 2, y, W - 240, 120, 2);
       y += 56; ctx.strokeStyle = C.acento; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(W / 2 - 130, y); ctx.lineTo(W / 2 + 130, y); ctx.stroke();
       ctx.fillStyle = C.acento; ctx.beginPath(); ctx.arc(W / 2, y, 7, 0, Math.PI * 2); ctx.fill();
-      if (T.fecha) { y += 84; ctx.fillStyle = C.tinta; ctx.font = '500 52px ' + FUENTES.texto; espaciado(ctx, T.fecha, W / 2, y, 6); }
-      if (T.lugar) { y += 56; ctx.fillStyle = C.suave; ctx.font = '34px ' + FUENTES.texto; ctx.fillText(T.lugar, W / 2, y); }
+      if (Tj.fecha) { y += 84; ctx.fillStyle = C.tinta; ctx.font = '500 52px ' + FUENTES.texto; espaciado(ctx, Tj.fecha, W / 2, y, 6); }
+      if (Tj.lugar) { y += 56; ctx.fillStyle = C.suave; ctx.font = '34px ' + FUENTES.texto; ctx.fillText(Tj.lugar, W / 2, y); }
       if (g.nombre) { y += 92; ctx.fillStyle = C.tinta; ctx.font = 'italic 46px ' + FUENTES.texto; y = envolver(ctx, conTrato(g), W / 2, y, W - 260, 54, 2); }
-      var linea = s === 'si' ? plural(g.pasesConfirmados || g.pases, 'pase confirmado', 'pases confirmados') + (g.mesa ? '  \u00b7  Mesa ' + g.mesa : '')
-                : s === 'pendiente' && g.nombre ? plural(g.pases, 'pase reservado', 'pases reservados') : '';
+      var linea = s === 'si' ? T('pasesConf', { n: g.pasesConfirmados || g.pases }) + (g.mesa ? '  \u00b7  ' + T('mesa') + ' ' + g.mesa : '')
+                : s === 'pendiente' && g.nombre ? T('pasesRes', { n: g.pases }) : '';
       if (linea) { y += 64; ctx.fillStyle = C.acento; ctx.font = '600 32px ' + FUENTES.texto; espaciado(ctx, linea.toUpperCase(), W / 2, y, 4); }
       var msg;
       if (s === 'pendiente') {
-        msg = X.mensaje_pendiente || '';
-        msg = /\{fecha_limite\}/.test(msg) ? (estado.fechaLimite ? msg.replace(/\{fecha_limite\}/g, fechaCorta(estado.fechaLimite)) : 'Confirma tu asistencia escaneando el c\u00f3digo') : msg;
-      } else msg = g.respuestaNovios || (s === 'si' ? X.mensaje_si : X.mensaje_no);
+        msg = textoTarjeta('mensaje_pendiente');
+        if (/\{fecha_limite\}/.test(msg)) msg = estado.fechaLimite ? msg.replace(/\{fecha_limite\}/g, fechaCorta(estado.fechaLimite)) : T('msgEscanear');
+      } else msg = g.respuestaNovios || textoTarjeta(s === 'si' ? 'mensaje_si' : 'mensaje_no');
       ctx.fillStyle = C.suave; ctx.font = 'italic 36px ' + FUENTES.texto;
       if (s === 'no') { y = Math.max(y + 140, H / 2 + 40); envolver(ctx, msg, W / 2, y, W - 300, 50, 8); return; }
       y += 74; y = envolver(ctx, msg, W / 2, y, W - 280, 46, 3);
-      var codigo = estado.codigo, abajo = H - (codigo ? 150 : 110), qs = Math.max(320, Math.min(520, abajo - y - 50)), qx = (W - qs) / 2, qy = abajo - qs;
+      /* QR: lo más grande posible (máx. 600) y centrado verticalmente en el espacio libre bajo el texto */
+      var codigo = estado.codigo, arriba = y + 50, abajo = H - (codigo ? 150 : 100), libre = abajo - arriba;
+      var qs = Math.round(Math.max(300, Math.min(600, libre - 24))), qx = (W - qs) / 2, qy = Math.round(arriba + Math.max(12, (libre - qs) / 2));
       ctx.save(); ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = 'rgba(0,0,0,.08)'; ctx.shadowBlur = 24; ctx.fillRect(qx - 12, qy - 12, qs + 24, qs + 24); ctx.restore();
-      var logo = T.logo_qr || iniciales(titulo);
-      return QR.dibujarEn(ctx, urlQR(), qx, qy, qs, { ecc: 'M', estilo: 'redondeado', color: C.tinta,
-        logo: { activo: !!logo, tipo: 'texto', texto: logo, colorTexto: '#FFFFFF', fondo: C.acento, forma: 'circulo',
+      var logo = (Tj.logo_qr || '').trim(), Q = Tj.qr || {};
+      return QR.dibujarEn(ctx, urlQR(), qx, qy, qs, { ecc: 'M', estilo: Q.estilo || 'redondeado', color: Q.color || C.tinta,
+        logo: { activo: !!logo, tipo: 'texto', texto: logo, colorTexto: Q.logo_texto || '#FFFFFF', fondo: Q.logo_fondo || C.acento, forma: Q.logo_forma || 'circulo',
                 fuente: 'italic 600 {px}px Georgia, serif', halo: .1, tamano: 'max', ladoMax: .3, ecc: 'H', reservaECC: .5 } }).then(function () {
         if (codigo) { ctx.fillStyle = C.suave; ctx.font = '26px ' + FUENTES.texto; espaciado(ctx, codigo, W / 2, H - 98, 10); }
       });
@@ -511,7 +682,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   }
   function actualizarAcciones() {
     var s = situacion(), titulo = cfg.tarjeta.titulo || cfg.nombre;
-    el.tarjeta.setAttribute('aria-label', s === 'si' ? 'Tu pase para la boda de ' + titulo : s === 'no' ? 'Mensaje de agradecimiento' : 'Save the Date de ' + titulo);
+    el.tarjeta.setAttribute('aria-label', s === 'si' ? T('ariaSi', { t: titulo }) : s === 'no' ? T('ariaNo') : T('ariaPend', { t: titulo }));
     el.btnConfirmar.hidden = s !== 'pendiente' || !estado.abierto;
     el.btnCal.hidden = s === 'no' || !cfg.tarjeta.evento.inicio;
     el.btnCompartir.hidden = s === 'no' || !puedeCompartir;
@@ -520,7 +691,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     if (el.btnCal.hidden) el.menuCal.hidden = true;
   }
 
-  /* ---------------------------------------------------------------- acciones de la tarjeta */
+  /* ================================================================ acciones de la tarjeta */
   var puedeCompartir = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] }));
   function nombreArchivo() { return 'save_the_date_' + (estado.codigo || 'invitacion') + '.png'; }
   function blobTarjeta() { return pintarTarjeta().then(function () { return new Promise(function (ok, ko) { el.tarjeta.toBlob(function (b) { b ? ok(b) : ko(new Error('png')); }, 'image/png'); }); }); }
@@ -531,14 +702,14 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   el.btnCompartir.addEventListener('click', function () {
     blobTarjeta().then(function (b) {
       return navigator.share({ files: [new File([b], nombreArchivo(), { type: 'image/png' })], title: cfg.tarjeta.titulo || cfg.nombre, text: urlQR() });
-    }).catch(function (e) { if (e.name !== 'AbortError') avisoStd('No se pudo compartir.'); });
+    }).catch(function (e) { if (e.name !== 'AbortError') avisoStd(T('errCompartir')); });
   });
   el.btnCopiar.addEventListener('click', function () {
     var ok = navigator.clipboard && window.ClipboardItem && window.isSecureContext;
-    (ok ? navigator.clipboard.write([new ClipboardItem({ 'image/png': blobTarjeta() })]).then(function () { avisoStd('Imagen copiada.'); })
+    (ok ? navigator.clipboard.write([new ClipboardItem({ 'image/png': blobTarjeta() })]).then(function () { avisoStd(T('copiada')); })
         : Promise.reject(new Error('sin portapapeles'))
-    ).catch(function () { return blobTarjeta().then(function (b) { descargar(b, nombreArchivo()); avisoStd('Imagen descargada.'); }); })
-     .catch(function () { avisoStd('No se pudo generar la imagen.'); });
+    ).catch(function () { return blobTarjeta().then(function (b) { descargar(b, nombreArchivo()); avisoStd(T('descargada')); }); })
+     .catch(function () { avisoStd(T('errImagen')); });
   });
   el.btnImprimir.addEventListener('click', function () {
     blobTarjeta().then(function (b) {
@@ -553,17 +724,17 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
       box.innerHTML = ''; var img = new Image(); img.alt = '';
       img.onload = function () { setTimeout(function () { window.print(); }, 60); };
       img.src = URL.createObjectURL(b); box.appendChild(img);
-    }).catch(function () { avisoStd('No se pudo preparar la impresi\u00f3n.'); });
+    }).catch(function () { avisoStd(T('errImprimir')); });
   });
 
   function utc(iso) { return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); }
   function escIcs(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
   function evento() { var E = cfg.tarjeta.evento, fin = E.fin || new Date(new Date(E.inicio).getTime() + 6 * 3600e3).toISOString();
-    return { titulo: E.titulo || 'Boda de ' + (cfg.tarjeta.titulo || cfg.nombre), inicio: E.inicio, fin: fin, lugar: E.lugar || cfg.tarjeta.lugar || '', detalle: E.detalle || '' }; }
+    return { titulo: E.titulo || T('bodaDe', { t: cfg.tarjeta.titulo || cfg.nombre }), inicio: E.inicio, fin: fin, lugar: E.lugar || cfg.tarjeta.lugar || '', detalle: E.detalle || '' }; }
   function detalleEvento() {
     var g = estado.g || {}, s = situacion(), url = conTo(cfg.urlInvitacion || cfg.urlRsvp, estado.codigo), d = [evento().detalle];
-    if (s === 'si') { d.push(plural(g.pasesConfirmados || g.pases, 'pase confirmado', 'pases confirmados') + (g.mesa ? ' \u00b7 Mesa ' + g.mesa : '')); d.push('Tu invitaci\u00f3n: ' + url); }
-    else d.push('Confirma tu asistencia' + (estado.fechaLimite ? ' antes del ' + fechaCorta(estado.fechaLimite) : '') + ': ' + urlQR());
+    if (s === 'si') { d.push(T('pasesConf', { n: g.pasesConfirmados || g.pases }) + (g.mesa ? ' \u00b7 ' + T('mesa') + ' ' + g.mesa : '')); d.push(T('tuInv') + url); }
+    else d.push(T('confirmaCal') + (estado.fechaLimite ? T('antesDel', { f: fechaCorta(estado.fechaLimite) }) : '') + ': ' + urlQR());
     return d.filter(Boolean).join('\n');
   }
   el.btnCal.addEventListener('click', function () { el.menuCal.hidden = !el.menuCal.hidden; el.btnCal.setAttribute('aria-expanded', String(!el.menuCal.hidden)); });
@@ -584,8 +755,15 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.menuCal.hidden = true;
   });
 
-  /* ---------------------------------------------------------------- giro controlado por el dedo */
-  var reducido = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* Alto mínimo del formulario = alto de la tarjeta (5×7): al girar ambas caras se ven del mismo tamaño.
+     Si hay muchas preguntas, el formulario crece normalmente. */
+  function altoMinimo() { var w = el.caja.offsetWidth; if (w) el.caja.style.minHeight = Math.round(w * 7 / 5) + 'px'; }
+  if (window.ResizeObserver) new ResizeObserver(altoMinimo).observe(el.caja); else window.addEventListener('resize', altoMinimo);
+  altoMinimo();
+
+  /* ================================================================ giro controlado por el dedo */
+  /* window.PYD_SIEMPRE_ANIMAR = true (antes de cargar este archivo): se anima igual aunque el sistema pida reducir movimiento */
+  var reducido = !window.PYD_SIEMPRE_ANIMAR && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var rot = 0, actual = 0, ini = null, arrastrando = false;
   function aplicar(ang, dur) {
     el.giro.style.setProperty('--dur', (reducido ? Math.min(dur, 150) : dur) + 'ms');
@@ -593,25 +771,25 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     el.giro.style.setProperty('--shade', (Math.abs(Math.sin(ang * Math.PI / 180)) * .9).toFixed(3));
     actual = ang;
   }
-  /* La cara oculta no aporta altura: tras el giro, la página se ajusta al tamaño de la cara visible */
+  /* La cara oculta no aporta altura: tras el giro, la página se ajusta a la cara visible */
   var altoT;
   function liberarAltura() { clearTimeout(altoT); [el.frente, el.reverso].forEach(function (c) { c.style.maxHeight = ''; c.style.overflow = ''; }); }
   function ajustarAltura() {
     var atras = lado() === 'reverso', vis = atras ? el.reverso : el.frente, oc = atras ? el.frente : el.reverso;
     vis.style.maxHeight = ''; vis.style.overflow = ''; oc.style.maxHeight = vis.offsetHeight + 'px'; oc.style.overflow = 'hidden';
   }
+  function lado() { return ((Math.round(rot / 180) % 2) + 2) % 2 === 1 ? 'reverso' : 'frente'; }
   function asentar(destino) {
     var dur = Math.max(180, GIRO.duracion * Math.abs(destino - actual) / 180);
     liberarAltura();
     rot = destino; aplicar(destino, dur);
     altoT = setTimeout(ajustarAltura, dur + 30);
-    var atras = ((Math.round(rot / 180) % 2) + 2) % 2 === 1;
+    var atras = lado() === 'reverso';
     el.frente.inert = atras; el.reverso.inert = !atras;
     el.frente.setAttribute('aria-hidden', String(atras)); el.reverso.setAttribute('aria-hidden', String(!atras));
     if (destino !== 0) el.pista.classList.add('oculta');
     if (!atras) el.menuCal.hidden = true;
   }
-  function lado() { return ((Math.round(rot / 180) % 2) + 2) % 2 === 1 ? 'reverso' : 'frente'; }
   function girarA(destino) { if (lado() !== destino) { actual = rot; asentar(rot - 180); } }
   window.RSVP_TARJETA = { girar: girarA, repintar: pintarTarjeta };
   el.escena.addEventListener('pointerdown', function (e) {
@@ -643,27 +821,43 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
   el.btnVolver.addEventListener('click', function () { girarA('frente'); });
   el.btnConfirmar.addEventListener('click', function () { girarA('frente'); setTimeout(function () { (el.nombre.readOnly ? el.asistencia : el.nombre).focus({ preventScroll: true }); }, GIRO.duracion); });
 
-  /* ---------------------------------------------------------------- arranque */
+  /* ================================================================ arranque */
   el.btnEnviar.disabled = true;
   llenarPases(estado.pases, estado.pases);
-  function errorProyecto() { mensajeEstado('No encontramos esta invitaci\u00f3n. Revisa el link que recibiste.', 'error'); el.form.querySelectorAll('input,select,textarea,button').forEach(function (x) { x.disabled = true; }); }
-  function sinCodigo(aviso) { reiniciarComoNuevo(true); ayuda(aviso || ''); }
+  /* Errores que impiden cargar el formulario: mensaje para el invitado + detalle técnico para quien instala */
+  var DIAG = {
+    proyecto: 'evento «' + (PYD.slug || '¿?') + '» no encontrado (revisa el nombre de la carpeta o usa ?p=identificador)',
+    config: 'falta configurar SUPABASE_URL / SUPABASE_ANON en assets/pyd-config.js',
+    llave: 'Supabase rechazó la llave (revisa la Publishable key en assets/pyd-config.js)',
+    sql: 'no existe la función rsvp en Supabase (ejecuta supabase/01_esquema.sql)'
+  };
+  function errorProyecto(e) {
+    var c = (e && e.codigo) || 'proyecto';
+    mensajeEstado(T('noProyecto'), 'error');
+    var d = document.createElement('small'); d.style.cssText = 'display:block;margin-top:6px;font-size:11px;opacity:.75';
+    d.textContent = '(' + (DIAG[c] || (e && e.message) || c) + ')'; el.estado.appendChild(d);
+    console.error('[RSVP] No se pudo cargar el evento:', DIAG[c] || e, '· slug:', PYD.slug, '· Supabase:', PYD.SUPABASE_URL);
+    el.form.querySelectorAll('input,select,textarea,button').forEach(function (x) { x.disabled = true; });
+  }
+  var esGrave = function (e) { return e && /^(proyecto|config|llave|sql)$/.test(e.codigo); };
+  function sinCodigo(clave) { reiniciarComoNuevo(true); ayuda(clave ? T(clave) + (clave === 'noCodigo' ? T('hintDup') : '') : ''); }
   if (!CODIGO_URL) {
-    sinCodigo('Escribe tu nombre completo. Si ya respondiste antes, pulsa "Buscar mi registro" para ver o cambiar tu respuesta.');
-    API.proyecto().then(aplicarProyecto).catch(function (e) { if (e && e.codigo === 'proyecto') errorProyecto(); else mensajeEstado('No pudimos cargar el formulario. Revisa tu conexi\u00f3n.', 'error'); });
+    sinCodigo('intro');
+    API.proyecto().then(function (p) { aplicarProyecto(p); sinCodigo('intro'); })
+      .catch(function (e) { if (esGrave(e)) errorProyecto(e); else { mensajeEstado(T('errForm'), 'error'); console.error('[RSVP]', e); } });
   } else {
-    mensajeEstado('Cargando tu invitaci\u00f3n\u2026');
-    var alReintento = function (e) { mensajeEstado('Cargando tu invitaci\u00f3n\u2026 (reintento ' + e.detail.i + ' de ' + e.detail.total + ')'); };
+    mensajeEstado(T('cargando'));
+    var alReintento = function (e) { mensajeEstado(T('cargando') + ' ' + T('reintento', { i: e.detail.i, n: e.detail.total })); };
     window.addEventListener('boda:reintento', alReintento);
     API.invitado(CODIGO_URL).then(function (r) {
       window.removeEventListener('boda:reintento', alReintento); mensajeEstado('');
       aplicarProyecto(r.proyecto);
       if (r.encontrado) cargarInvitado(r.invitado, 'codigo');
-      else sinCodigo('No encontramos tu c\u00f3digo. Escribe tu nombre para buscar tu registro o crear uno nuevo. ' + HINT_DUP);
+      else sinCodigo('noCodigo');
     }).catch(function (e) {
       window.removeEventListener('boda:reintento', alReintento); mensajeEstado('');
-      if (e && e.codigo === 'proyecto') return errorProyecto();
-      sinCodigo('No pudimos cargar tus datos. Escribe tu nombre para continuar.');
+      if (esGrave(e)) return errorProyecto(e);
+      sinCodigo('errDatos');
       API.proyecto().then(aplicarProyecto).catch(function () {});
     });
   }

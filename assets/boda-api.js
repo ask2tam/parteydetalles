@@ -11,14 +11,15 @@
   function esperar(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 
   function rpc(fn, args, ms) {
+    if (!P.configurado) { var ec = new Error('config'); ec.codigo = 'config'; return Promise.reject(ec); }
     var ctl = ('AbortController' in window) ? new AbortController() : null, t;
     var red = fetch(P.SUPABASE_URL + '/rest/v1/rpc/' + fn, {
       method: 'POST', cache: 'no-store', signal: ctl ? ctl.signal : undefined,
-      headers: { 'Content-Type': 'application/json', apikey: P.SUPABASE_ANON, Authorization: 'Bearer ' + P.SUPABASE_ANON },
+      headers: P.cabeceras(),
       body: JSON.stringify(args || {})
     }).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (j) {
-        if (!r.ok) throw new Error('HTTP ' + r.status + (j && j.message ? ': ' + j.message : ''));
+        if (!r.ok) { var er = new Error('HTTP ' + r.status + (j && (j.message || j.msg) ? ': ' + (j.message || j.msg) : '')); er.status = r.status; er.codigo = r.status === 401 || r.status === 403 ? 'llave' : r.status === 404 ? 'sql' : 'red'; throw er; }
         return j;
       });
     });
@@ -60,7 +61,7 @@
     var reintentos = opc.intentos == null ? 2 : opc.intentos, l = llamada(params || {});
     function intentar(i) {
       return rpc(l.fn, l.args, TIMEOUTS[Math.min(i, TIMEOUTS.length - 1)]).then(adaptar).catch(function (err) {
-        if (err.codigo === 'proyecto') throw err;
+        if (err.codigo === 'proyecto' || err.codigo === 'config' || err.codigo === 'llave' || err.codigo === 'sql') throw err;
         console.warn('[BODA] Lectura fallida (intento ' + (i + 1) + ' de ' + (reintentos + 1) + '):', err.message);
         if (i >= reintentos) throw err;
         if (opc.alReintentar) opc.alReintentar(i + 1, reintentos);
