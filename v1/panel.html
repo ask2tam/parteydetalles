@@ -1,0 +1,1981 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f5f5f4">
+<title>Panel de invitados · Parte y Detalles</title>
+<script src="assets/pyd-config.js"></script>   <!-- llaves de Supabase y rutas del motor (BASE / SITIO / RUTAS) -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+  @theme {
+    --color-oro-50: #fbf7f0; --color-oro-100: #f3e8d6; --color-oro-200: #e7d3b2; --color-oro-400: #c9a87f;
+    --color-oro-500: #b9966f; --color-oro-600: #a3825c; --color-oro-700: #84683f;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+<script src="assets/qr.js" defer></script>
+<script src="assets/buscar.js"></script>
+<script src="assets/telefono.js"></script>
+<script src="assets/panel-i18n.js"></script>
+<style>
+  [hidden] { display: none !important; }
+  dialog::backdrop { background: rgb(28 25 23 / .55); }
+  dialog[open] { animation: aparecer .16s ease-out; }
+  #dlg[open] { display: flex; flex-direction: column; }
+  #dlg > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+  @keyframes aparecer { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes destello { from { background-color: #fdf3d9; } to { background-color: transparent; } }
+  .destello { animation: destello 2.4s ease-out; }
+  .ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .escribiendo::after { content: '▍'; animation: parpadeo 1s steps(1) infinite; color: #a3825c; }
+  @keyframes parpadeo { 50% { opacity: 0; } }
+  #dlg [data-panel] .grid:not([class*="grid-cols"]) { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 639px) { #dlg [data-panel] .grid:not(.grid-cols-2):not(.grid-cols-3) { grid-template-columns: minmax(0, 1fr); } }
+  #dlg select { max-width: 100%; }
+  #toasts { position: fixed; inset: auto 0 16px 0; margin: 0 auto; border: 0; padding: 0 16px; background: transparent; overflow: visible; width: auto; height: auto; }
+  details > summary::-webkit-details-marker { display: none; }
+  mark { background: #fbe7b5; color: inherit; border-radius: 3px; padding: 0 1px; }
+  .sin-barra { scrollbar-width: none; } .sin-barra::-webkit-scrollbar { display: none; }
+  @media (prefers-reduced-motion: reduce) { dialog[open], .destello, .escribiendo::after { animation: none; } }
+</style>
+</head>
+<body class="min-h-dvh bg-stone-100 text-stone-800 antialiased">
+<div id="app" class="min-h-dvh"></div>
+<div id="toasts" popover="manual" class="pointer-events-none flex-col items-center gap-2" aria-live="polite"></div>
+<dialog id="dlg" class="m-auto w-[min(100%-1rem,48rem)] max-h-[92dvh] overflow-hidden rounded-2xl bg-white p-0 text-stone-800 shadow-2xl"></dialog>
+<dialog id="dlg2" class="m-auto h-[92dvh] w-[min(100%-1rem,44rem)] overflow-hidden rounded-2xl bg-white p-0 shadow-2xl"></dialog>
+
+<script>
+'use strict';
+/* =====================================================================================
+   CONFIGURACIÓN: claves y rutas en assets/pyd-config.js · traducciones en assets/panel-i18n.js
+   Este panel pertenece a la versión v1 del motor (ver VERSIONES.md): trae el RSVP (assets/rsvp.js), la biblioteca de fondos (fondos/)
+   y todo lo que el RSVP necesita. Un evento «es de v1» si su rsvp.html carga el assets/rsvp.js de esta misma carpeta.
+   ===================================================================================== */
+const P = window.PYD;
+const IDIOMA = window.PANEL_I18N ? PANEL_I18N.idioma : 'es';
+const t = s => window.PANEL_I18N ? PANEL_I18N.t(s) : s;
+const LOC = IDIOMA === 'en' ? 'en-US' : 'es-PE';
+const TRATAMIENTOS = ['Señor', 'Señora', 'Señorita', 'Sr. y Sra.', 'Familia', 'Doctor', 'Doctora', 'Joven'];
+const CLAVE_MIN = 8, MAX_PLANTILLAS = 5;
+const VIENE_DE_RECUPERACION = /type=recovery/.test(location.hash);
+/* Enlace de registro (?alta=TOKEN): se guarda hasta que la persona tenga sesión y se canjea al entrar */
+(() => { const a = new URLSearchParams(location.search).get('alta'); if (a) localStorage.setItem('pyd.alta', a.replace(/[^A-Za-z0-9_-]/g, '')); })();
+const altaPendiente = () => localStorage.getItem('pyd.alta') || '';
+const sb = window.supabase.createClient(P.SUPABASE_URL, P.SUPABASE_ANON);
+const S = {
+  user: null, perfil: null, proyectos: [], p: null, lista: [], sel: new Set(), canal: null, recientes: new Map(),
+  q: '', seg: 'todos', cat: '', orden: 'fecha_registro', dir: 'desc', ordenAntes: null, parcial: false, motivos: new Map(), recuperando: VIENE_DE_RECUPERACION, ia: null,
+  vista: localStorage.getItem('panel.vista') || (innerWidth < 768 ? 'tarjetas' : 'tabla')
+};
+const URL_PANEL = location.origin + location.pathname;
+const $ = s => document.querySelector(s);
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const slugify = t => norm(t).replace(/&/g, 'y').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+const estadoDe = i => i.asistencia === 'si' ? 'si' : i.asistencia === 'no' ? 'no' : 'pendiente';
+const conTo = (base, cod) => { if (!base) return ''; try { const u = new URL(base); u.searchParams.set('to', cod); return u.toString(); } catch { return base + (base.includes('?') ? '&' : '?') + 'to=' + cod; } };
+const link = i => conTo(S.p?.url_invitacion, i.codigo);
+const linkRsvp = i => conTo(S.p?.url_rsvp, i.codigo);
+const conTrato = i => i.tratamiento && !norm(i.nombre).startsWith(norm(i.tratamiento)) ? `<span class="font-normal text-stone-500">${esc(i.tratamiento)} </span>` : '';
+const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+const fmt = iso => iso ? new Date(iso).toLocaleString(LOC, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const esAdmin = () => !!S.perfil?.admin;
+/* Categoría = etiquetas internas separadas por comas ("Familia novia, Niños"). No las ve el invitado. */
+/* "Amigos;  amigos , Trabajo" → "Amigos, Trabajo" (sin repetidas; se queda la primera forma escrita) */
+const unicasEtiquetas = tx => { const m = new Map(); String(tx || '').split(/[,;]/).map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean).forEach(x => { if (!m.has(norm(x))) m.set(norm(x), x); }); return [...m.values()].join(', '); };
+const etiquetasDe = i => String(i.categoria || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+const todasEtiquetas = () => { const m = new Map(); S.lista.forEach(i => etiquetasDe(i).forEach(e => { const k = norm(e); if (!m.has(k)) m.set(k, e); })); return [...m.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })); };
+const chipCat = e => `<span class="rounded-full bg-violet-50 px-2 py-0.5 text-violet-700 ring-1 ring-inset ring-violet-600/15" data-notr>${esc(e)}</span>`;
+/* Teléfonos: país por defecto del evento (Configuración › General) para números sin código */
+const paisTel = () => S.p?.pais_tel || 'PE';
+const telInfo = tx => window.PYD_TEL ? PYD_TEL.normalizar(tx, paisTel()) : { numero: String(tx || '').replace(/\D/g, ''), texto: tx, estado: 'ok', nota: '' };
+/* Por revisar: sin número, dudoso o sin código de país (se enviaría con el país por defecto) */
+const telRevisar = i => ['vacio', 'dudoso', 'agregado'].includes(telInfo(i.telefono).estado);
+const opcionesPais = sel => (window.PYD_TEL ? PYD_TEL.PAISES : [['PE', 'Perú', '51']]).map(p => `<option value="${p[0]}" ${p[0] === sel ? 'selected' : ''}>${esc(p[1])} (+${p[2]})</option>`).join('');
+function hace(iso) {
+  if (!iso) return '';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return 'hace un momento';
+  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
+  if (s < 86400 * 30) return `hace ${Math.floor(s / 86400)} d`;
+  return fmt(iso);
+}
+
+/* ------------------------------------------------------------------ valores por defecto (iguales a los de assets/rsvp.js) */
+const DEF_FORM = { preguntar_pases: true, permitir_mensaje: true, pedir_acompanantes: false, mostrar_saludo: true, mostrar_nombre_codigo: true, mostrar_fechas: true, mostrar_voltear: true, permitir_giro: true, sugerir_nombres: true, logo: { mostrar: false, ancho: 140 }, escala_fuente: 100, preguntas: [] };
+const DEF_TEXTOS = { etiqueta_pendiente: 'Save the date', etiqueta_si: 'Te esperamos', etiqueta_no: 'Gracias',
+  mensaje_pendiente: 'Confirma tu asistencia antes del {fecha_limite}',
+  mensaje_si: '¡Gracias por confirmar! Nos hace muy felices celebrar este día contigo.',
+  mensaje_no: 'Gracias por avisarnos. Te tendremos presente en nuestro día.' };
+const DEF_TARJETA = {
+  titulo: '', fecha: '', lugar: '', logo_qr: '',
+  colores: { papel: '#FBF8F3', tinta: '#2B2622', acento: '#B08D57', suave: '#8A7F75', campo: '#F9F5F2' }, campo_alfa: 100, escala_texto: 100,
+  qr: { estilo: 'redondeado', color: '', logo_forma: 'circulo', logo_fondo: '', logo_texto: '#FFFFFF', escala: 100 },
+  fondos: { pagina: { tipo: 'color', color: '#F1ECE4', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50 },
+            formulario: { tipo: 'color', color: '#FFFFFF', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50 },
+            tarjeta: { tipo: 'color', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50 } },
+  textos: DEF_TEXTOS, evento: { titulo: '', inicio: '', fin: '', lugar: '', detalle: '' }
+};
+const fusionar = (b, e) => { const r = { ...b }; for (const k in (e || {})) { const v = e[k]; if (v === '' || v == null) continue; r[k] = v && typeof v === 'object' && !Array.isArray(v) && b[k] && typeof b[k] === 'object' ? fusionar(b[k], v) : v; } return r; };
+const PRESETS_PREG = [
+  { etiqueta: 'Menú de preferencia', tipo: 'opcion', opciones: ['Carne', 'Pescado', 'Vegetariano'], obligatoria: true, solo_si_asiste: true },
+  { etiqueta: '¿Alergias o restricciones alimentarias?', tipo: 'texto', opciones: [], obligatoria: false, solo_si_asiste: true },
+  { etiqueta: '¿Necesitas transporte?', tipo: 'sino', opciones: [], obligatoria: false, solo_si_asiste: true },
+  { etiqueta: 'Canción que no puede faltar', tipo: 'texto', opciones: [], obligatoria: false, solo_si_asiste: true },
+  { etiqueta: '¿Asistirás a…?', tipo: 'multiple', opciones: ['Ceremonia religiosa', 'Ceremonia civil', 'Recepción'], obligatoria: false, solo_si_asiste: true }
+];
+const TIPOS = [['texto', 'Texto corto'], ['parrafo', 'Texto largo'], ['opcion', 'Una opción'], ['multiple', 'Varias opciones'], ['sino', 'Sí / No']];
+const PLANTILLAS_WA = [
+  { id: 'simple', nombre: 'Simple y directo', texto: 'Hola {tratamiento} {nombre} 💛\n\nCon mucha alegría te compartimos nuestra invitación. Tienes {pases} reservado(s) para ti.\n\nConfirma tu asistencia aquí antes del {fecha_limite}:\n{link}\n\nCon cariño,\n{novios}' },
+  { id: 'nos_casamos', nombre: '¡Nos casamos!', texto: '¡Hola, {nombre}! ✨\n\nQueremos compartir contigo una de las noticias más felices e importantes de nuestras vidas: *¡Nos casamos!* 💍💒\n\nNos encantaría contar con tu presencia para celebrar nuestro amor y este nuevo comienzo. Preparamos una invitación digital con todos los detalles del evento.\n\n📲 Ver invitación: {link}\n\nPor favor, no olvides confirmar tu asistencia desde el enlace antes del {fecha_limite}. ¡Nos hará muy felices verte ahí! ❤️\n\n{novios}' },
+  { id: 'nuevo_capitulo', nombre: 'Un nuevo capítulo', texto: 'Un nuevo capítulo comienza… 🤍✨\n\nQuerido(a) {nombre}:\n\nDespués de tantos momentos compartidos, risas, sueños y aventuras, llegó el momento de dar un paso muy especial en nuestras vidas. Nos hace mucha ilusión compartir contigo este día tan importante: *nuestro matrimonio*. 💍🥂\n\nQueremos celebrar el amor, la familia, la amistad y a todas esas personas que han sido parte de nuestra historia.\n\nTe invitamos a *confirmar tu asistencia* desde tu invitación hasta el {fecha_limite}, indicando el nombre completo de cada asistente:\n{link}\n\nCon mucho amor, esperamos contar contigo para celebrar este día tan especial. 🤍\n\n{novios}' }
+];
+const TONOS = ['Romántico', 'Divertido', 'Elegante', 'Breve', 'Familiar', 'Emotivo'];
+
+/* ------------------------------------------------------------------ iconos y estilos */
+const PI = {
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  wa: '<path d="M3 21l1.7-4.6A8.5 8.5 0 1 1 8 19.6L3 21z"/><path d="M9 9.5c.3 1.6 2.4 4 4.5 4.7l1.2-1.2 2 .9c-.2 1.3-1.2 1.9-2.4 1.8-3.3-.4-6.6-3.7-6.9-6.9-.1-1.2.6-2.2 1.8-2.4l.9 2-1.1 1.1z"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', up: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>', down: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L21 2M17 6l3 3M14 9l2 2"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>', table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
+  cards: '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/>',
+  sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>', chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>', eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  x: '<path d="M18 6L6 18M6 6l12 12"/>', heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', arrowup: '<path d="M12 19V5M5 12l7-7 7 7"/>', arrowdown: '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+  spark: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>', users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6.5 6.5 0 0 0-2.5-5.1"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>', save: '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>',
+  chev: '<path d="M6 9l6 6 6-6"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+};
+const ico = (n, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" aria-hidden="true">${PI[n]}</svg>`;
+const BADGE = { si: ['Asistirá', 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'], no: ['No asistirá', 'bg-rose-50 text-rose-700 ring-rose-600/20'], pendiente: ['Pendiente', 'bg-amber-50 text-amber-700 ring-amber-600/20'] };
+const badge = i => { const [tx, c] = BADGE[estadoDe(i)]; return `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${c}">${tx}</span>`; };
+const btn = 'inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro-500 disabled:opacity-50';
+const btnP = `${btn} bg-oro-600 text-white hover:bg-oro-700`;
+const btnS = `${btn} bg-white text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50`;
+const btnD = `${btn} bg-rose-600 text-white hover:bg-rose-700`;
+const icoBtn = 'inline-grid size-9 place-items-center rounded-lg text-stone-500 hover:bg-stone-200/60 hover:text-stone-800 focus-visible:outline-2 focus-visible:outline-oro-500';
+const campoBase = 'block rounded-xl border-0 bg-white px-3 py-2 text-base sm:text-sm ring-1 ring-stone-300 focus:ring-2 focus:ring-oro-500 focus:outline-none disabled:bg-stone-100 disabled:text-stone-500';
+const campo = campoBase + ' w-full', campoA = campoBase + ' w-auto';
+const lbl = 'mb-1 block text-sm font-medium text-stone-700';
+const enlace = 'text-sm font-medium text-oro-700 underline underline-offset-2 hover:text-oro-600';
+const chk = 'mt-0.5 size-4 accent-oro-600';
+
+/* Avisos en la capa superior (se ven por encima de las ventanas modales) */
+function toast(msg, tipo = 'ok') {
+  const box = $('#toasts'), c = { ok: 'bg-stone-900 text-white', error: 'bg-rose-600 text-white', info: 'bg-white text-stone-800 ring-1 ring-stone-200' }[tipo];
+  const d = document.createElement('div');
+  d.className = `pointer-events-auto max-w-md rounded-xl px-4 py-2.5 text-sm shadow-lg ${c}`;
+  d.textContent = msg; box.appendChild(d); box.style.display = 'flex';
+  try { box.hidePopover(); box.showPopover(); } catch {}
+  setTimeout(() => { d.style.transition = 'opacity .3s'; d.style.opacity = '0'; setTimeout(() => { d.remove(); if (!box.children.length) { try { box.hidePopover(); } catch {} box.style.display = ''; } }, 300); }, tipo === 'error' ? 7000 : 3200);
+}
+function errorAmigable(e) {
+  const m = (e && (e.message || e.details)) || String(e);
+  if (/solo_admin/.test(m)) return 'Solo el administrador puede cambiar el nombre del evento, sus links y el crédito.';
+  if (/column .* does not exist|schema cache/i.test(m)) return 'La base de datos no está actualizada: ejecuta supabase/01_esquema.sql.';
+  if (e?.code === '23505' && /miembros/.test(m)) return 'Ese correo ya tiene acceso a este evento.';
+  if (e?.code === '23505' && /proyectos_slug|slug/.test(m)) return 'Ya existe un evento con ese identificador.';
+  if (e?.code === '23505' || /duplicate key|nombre_uk|nombre_norm/.test(m)) return 'Ya existe un invitado con ese nombre. Agrega un apellido o el parentesco entre paréntesis, p. ej. “Pérez (Padre)”.';
+  if (/pases_confirmados_max/.test(m)) return 'Los pases confirmados no pueden superar los pases asignados.';
+  if (/plantillas_chk/.test(m)) return `Máximo ${MAX_PLANTILLAS} plantillas guardadas.`;
+  if (/slug/.test(m) && /check/.test(m)) return 'Identificador inválido: usa minúsculas, números y guiones (3 a 40 caracteres).';
+  if (/check/.test(m)) return 'Hay un valor fuera de rango. Revisa los campos.';
+  if (/JWT|session|permission|RLS|no_autorizado|row-level/i.test(m)) return 'Tu usuario no tiene permiso para esta acción.';
+  return m;
+}
+function errorClave(e) {
+  const c = e?.code || '', m = e?.message || '';
+  if (/sending|smtp|email.*(provider|send)/i.test(m)) return 'No se pudo enviar el correo: el servicio de correo del sitio no está bien configurado. Avisa al administrador.';
+  if (c === 'same_password' || /different from the old/i.test(m)) return 'La nueva contraseña debe ser distinta de la actual.';
+  if (c === 'weak_password' || /weak|at least/i.test(m)) return `Contraseña muy débil: usa al menos ${CLAVE_MIN} caracteres combinando letras y números.`;
+  if (c === 'reauthentication_needed' || /reauthentic/i.test(m)) return 'Por seguridad debes volver a iniciar sesión antes de cambiar la contraseña.';
+  if (/expired|invalid/i.test(m)) return 'El enlace o código venció. Solicita uno nuevo.';
+  if (/rate|too many|seconds/i.test(m)) return 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.';
+  return m || 'No se pudo completar la operación.';
+}
+
+/* ------------------------------------------------------------------ ventanas modales */
+const dlg = $('#dlg'), dlg2 = $('#dlg2');
+let antesDeCerrar = null, modalFijo = false;
+function cerrarModal() { if (antesDeCerrar && !antesDeCerrar()) return; antesDeCerrar = null; dlg.close(); }
+/* opc.fijo = false: se cierra al hacer clic fuera · opc.antesDeCerrar(): devuelve false para impedir el cierre */
+function modal(html, alAbrir, opc = {}) {
+  antesDeCerrar = opc.antesDeCerrar || null; modalFijo = opc.fijo !== false;   // por defecto NO se cierran al hacer clic fuera
+  dlg.innerHTML = html; if (!dlg.open) dlg.showModal();
+  dlg.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrarModal));
+  alAbrir?.(dlg);
+}
+dlg.addEventListener('click', e => { if (e.target === dlg && !modalFijo) cerrarModal(); });
+dlg.addEventListener('cancel', e => { if (antesDeCerrar && !antesDeCerrar()) e.preventDefault(); });
+dlg.addEventListener('close', () => { S.ia?.abort(); antesDeCerrar = null; modalFijo = false; });
+dlg2.addEventListener('click', e => { if (e.target === dlg2) dlg2.close(); });
+const cabecera = (tx, sub = '') => `<div class="flex flex-none items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
+  <div class="min-w-0"><h2 class="text-lg font-semibold">${tx}</h2>${sub ? `<p class="mt-0.5 text-sm text-stone-500">${sub}</p>` : ''}</div>
+  <button type="button" class="${icoBtn}" data-cerrar aria-label="Cerrar">${ico('x')}</button></div>`;
+const cuerpo = h => `<div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">${h}</div>`;
+const pie = h => `<div class="flex flex-none flex-wrap items-center justify-end gap-2 border-t border-stone-200 bg-stone-50 px-5 py-3">${h}</div>`;
+function confirmar({ titulo, texto, ok = 'Confirmar', peligro = false, palabra = null }) {
+  return new Promise(res => {
+    modal(cabecera(titulo) + cuerpo(`<p class="text-sm text-stone-600">${texto}</p>${palabra ? `<label class="${lbl} mt-4" for="cf-p">Escribe <b>${palabra}</b> para continuar</label><input id="cf-p" class="${campo}" autocomplete="off">` : ''}`) +
+      pie(`<button type="button" class="${btnS}" data-cerrar>Cancelar</button><button type="button" id="cf-ok" class="${peligro ? btnD : btnP}" ${palabra ? 'disabled' : ''}>${ok}</button>`), d => {
+      let r = false;
+      d.querySelector('#cf-p')?.addEventListener('input', e => { d.querySelector('#cf-ok').disabled = e.target.value.trim() !== palabra; });
+      d.querySelector('#cf-ok').addEventListener('click', () => { r = true; d.close(); });
+      d.addEventListener('close', () => res(r), { once: true });
+    });
+  });
+}
+const piePagina = () => '<div id="pie-panel" class="mt-8" data-notr></div>';
+new MutationObserver(() => { const c = document.getElementById('pie-panel'); if (c && !c.firstChild) P.credito({ modo: 'final', lang: IDIOMA, contenedor: c, extra: (IDIOMA === 'en' ? 'Guest panel ' : 'Panel de invitados ') + P.VERSION }); })
+  .observe(document.getElementById('app'), { childList: true, subtree: true });
+const logo = (c = 'h-9') => `<img src="${P.ruta('logo')}" alt="Parte y Detalles" class="${c} w-auto" onerror="this.outerHTML='<span class=&quot;text-sm font-semibold tracking-[.18em] uppercase text-oro-700&quot;>Parte y Detalles</span>'">`;
+const botonIdioma = (c = '') => `<button type="button" data-idioma class="${icoBtn} w-auto px-2 text-xs font-semibold ${c}" title="${IDIOMA === 'en' ? 'Español' : 'English'}" aria-label="${IDIOMA === 'en' ? 'Cambiar a español' : 'Switch to English'}">${ico('globe')}<span class="ml-1">${IDIOMA === 'en' ? 'ES' : 'EN'}</span></button>`;
+document.addEventListener('click', e => { if (e.target.closest('[data-idioma]')) { localStorage.setItem('panel.idioma', IDIOMA === 'en' ? 'es' : 'en'); location.reload(); } });
+
+/* =====================================================================================
+   ACCESO
+   ===================================================================================== */
+const tarjetaAcceso = contenido => `<main class="grid min-h-dvh place-items-center px-4"><div class="w-full max-w-sm">
+  <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200"><div class="flex items-start justify-between">${logo('h-10')}${botonIdioma()}</div>
+    <p class="mt-4 text-xs font-semibold uppercase tracking-[.2em] text-oro-600">Panel de invitados</p>${contenido}</div>${piePagina()}</div></main>`;
+const msgAcceso = (el, tx, tipo = 'error') => { el.className = `mt-3 min-h-5 text-sm ${{ error: 'text-rose-600', ok: 'text-emerald-700', info: 'text-stone-500' }[tipo]}`; el.textContent = tx; };
+
+function pantallaLogin(msg = '') {
+  S.user = null;
+  $('#app').innerHTML = tarjetaAcceso(`<form id="login" class="mt-4">
+      <label class="${lbl}" for="l-email">Correo</label><input id="l-email" type="email" autocomplete="email" required class="${campo}">
+      <div class="mt-4 flex items-baseline justify-between"><label class="${lbl}" for="l-pass">Contraseña</label>
+        <button type="button" id="l-olvide" class="${enlace} text-xs">¿Olvidaste tu contraseña?</button></div>
+      <input id="l-pass" type="password" autocomplete="current-password" class="${campo}">
+      <p id="l-msg" class="mt-3 min-h-5 text-sm text-rose-600" role="status">${esc(msg)}</p>
+      <button class="${btnP} mt-2 w-full">Ingresar</button>
+      <button type="button" id="l-magic" class="${btnS} mt-2 w-full">${ico('mail')} Enviarme un enlace de acceso</button></form>
+      ${altaPendiente() ? `<p class="mt-4 rounded-xl bg-oro-50 p-3 text-sm text-stone-700"><span>Tienes una invitación pendiente: se activará al ingresar.</span> <button type="button" id="l-alta" class="${enlace}">¿Aún no tienes cuenta? Créala aquí</button></p>` : ''}`);
+  $('#l-alta')?.addEventListener('click', () => pantallaAlta());
+  const m = $('#l-msg');
+  $('#login').addEventListener('submit', async e => {
+    e.preventDefault(); msgAcceso(m, t('Ingresando…'), 'info');
+    const { error } = await sb.auth.signInWithPassword({ email: $('#l-email').value.trim(), password: $('#l-pass').value });
+    if (error) msgAcceso(m, t(/confirm/i.test(error.message) ? 'Tu correo aún no está confirmado.' : 'Correo o contraseña incorrectos.'));
+  });
+  $('#l-olvide').addEventListener('click', () => pantallaRecuperar($('#l-email').value.trim()));
+  $('#l-magic').addEventListener('click', async () => {
+    const email = $('#l-email').value.trim();
+    if (!email) return msgAcceso(m, t('Escribe tu correo primero.'));
+    const b = $('#l-magic'); b.disabled = true; msgAcceso(m, t('Enviando…'), 'info');
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: URL_PANEL, shouldCreateUser: false } });
+    b.disabled = false;
+    error ? msgAcceso(m, t(errorClave(error))) : msgAcceso(m, t('Si el correo tiene acceso, te llegará un enlace. Ábrelo en este dispositivo.'), 'ok');
+  });
+}
+async function pantallaAlta() {
+  const tk = altaPendiente();
+  $('#app').innerHTML = tarjetaAcceso(`<p class="mt-4 text-sm text-stone-500">Verificando invitación…</p>`);
+  const { data } = await sb.rpc('alta_info', { p_token: tk });
+  if (!data?.ok || !data.vigente) {
+    localStorage.removeItem('pyd.alta');
+    return pantallaLogin(t('El enlace de registro no es válido o ya venció. Pide uno nuevo.'));
+  }
+  $('#app').innerHTML = tarjetaAcceso(`
+    <h2 class="mt-3 font-semibold">Crea tu cuenta</h2>
+    <p class="mt-1 text-sm text-stone-600"><span>Te invitaron a gestionar</span> <b data-notr>${esc(data.evento)}</b> <span>${data.rol === 'novios' ? t('como novios (panel de invitados).') : t('como staff (modo recepción).')}</span></p>
+    <form id="al" class="mt-4 grid gap-3" novalidate>
+      <div><label class="${lbl}" for="al-email">Correo</label><input id="al-email" type="email" autocomplete="email" class="${campo}"></div>
+      <div><label class="${lbl}" for="al-1">Contraseña</label><input id="al-1" type="password" autocomplete="new-password" class="${campo}"></div>
+      <div><label class="${lbl}" for="al-2">Repite la contraseña</label><input id="al-2" type="password" autocomplete="new-password" class="${campo}"></div>
+      <p class="text-xs text-stone-500">Mínimo ${CLAVE_MIN} caracteres.</p>
+      <p id="al-msg" class="min-h-5 text-sm text-rose-600" role="status"></p>
+      <button class="${btnP} w-full" id="al-ok">Crear cuenta</button></form>
+    <button type="button" id="al-login" class="${enlace} mt-3">Ya tengo cuenta: ingresar</button>`);
+  $('#al-login').onclick = () => pantallaLogin();
+  $('#al').addEventListener('submit', async e => {
+    e.preventDefault();
+    const m = $('#al-msg'), email = $('#al-email').value.trim(), a = $('#al-1').value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return msgAcceso(m, t('Escribe un correo válido.'));
+    if (a.length < CLAVE_MIN) return msgAcceso(m, t(`Usa al menos ${CLAVE_MIN} caracteres.`));
+    if (a !== $('#al-2').value) return msgAcceso(m, t('Las contraseñas no coinciden.'));
+    $('#al-ok').disabled = true; msgAcceso(m, t('Creando cuenta…'), 'info');
+    const { data: r, error } = await sb.auth.signUp({ email, password: a, options: { emailRedirectTo: URL_PANEL } });
+    $('#al-ok').disabled = false;
+    if (error) {
+      if (/already|registered|exists/i.test(error.message)) return msgAcceso(m, t('Ese correo ya tiene cuenta: pulsa “Ya tengo cuenta: ingresar”.'));
+      if (/signups? (are )?not allowed|disabled/i.test(error.message)) return msgAcceso(m, t('El registro está desactivado en el servidor. Avisa al administrador.'));
+      return msgAcceso(m, t(errorClave(error)));
+    }
+    if (!r.session) msgAcceso(m, t('Te enviamos un correo para confirmar tu cuenta. Ábrelo y luego ingresa con tu contraseña.'), 'ok');
+  });
+}
+async function canjearAlta() {
+  const tk = altaPendiente(); if (!tk) return;
+  const { data, error } = await sb.rpc('canjear_alta', { p_token: tk });
+  if (error) return;   // se reintenta en el próximo ingreso
+  localStorage.removeItem('pyd.alta');
+  const u = new URL(location.href); if (u.searchParams.has('alta')) { u.searchParams.delete('alta'); history.replaceState(null, '', u.toString()); }
+  if (data?.ok && !data.ya_tenia) toast(t('¡Bienvenido! Tu acceso quedó activado.'));
+  else if (!data?.ok) toast(t('El enlace de registro no es válido o ya venció. Pide uno nuevo.'), 'error');
+}
+function pantallaRecuperar(email = '') {
+  $('#app').innerHTML = tarjetaAcceso(`
+    <h2 class="mt-3 font-semibold">Restablecer contraseña</h2>
+    <p class="mt-1 text-sm text-stone-500">Te enviaremos un correo con un enlace y un código para crear una contraseña nueva.</p>
+    <form id="r-form" class="mt-4"><label class="${lbl}" for="r-email">Correo</label>
+      <input id="r-email" type="email" autocomplete="email" required class="${campo}" value="${esc(email)}">
+      <button class="${btnP} mt-4 w-full" id="r-enviar">Enviar correo</button></form>
+    <form id="r-codigo" class="mt-5 hidden border-t border-stone-200 pt-4">
+      <label class="${lbl}" for="r-otp">¿El enlace no funcionó? Escribe el código del correo</label>
+      <input id="r-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="10" class="${campo} tracking-[.4em] text-center font-mono text-lg" placeholder="••••••">
+      <button class="${btnS} mt-3 w-full">Verificar código</button></form>
+    <p id="r-msg" class="mt-3 min-h-5 text-sm" role="status"></p>
+    <button type="button" id="r-volver" class="${enlace} mt-2">← Volver al ingreso</button>`);
+  const m = $('#r-msg');
+  $('#r-volver').onclick = () => pantallaLogin();
+  $('#r-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const b = $('#r-enviar'); b.disabled = true; msgAcceso(m, t('Enviando…'), 'info');
+    const { error } = await sb.auth.resetPasswordForEmail($('#r-email').value.trim(), { redirectTo: URL_PANEL });
+    b.disabled = false;
+    if (error) return msgAcceso(m, t(errorClave(error)));
+    msgAcceso(m, t('Si el correo tiene acceso al panel, recibirás un mensaje en unos minutos. Revisa también Spam.'), 'ok');
+    $('#r-codigo').classList.remove('hidden'); b.textContent = t('Reenviar correo');
+  });
+  $('#r-codigo').addEventListener('submit', async e => {
+    e.preventDefault();
+    const token = $('#r-otp').value.replace(/\D/g, '');
+    if (token.length < 6) return msgAcceso(m, t('Escribe el código completo.'));
+    msgAcceso(m, t('Verificando…'), 'info'); S.recuperando = true;
+    const { error } = await sb.auth.verifyOtp({ email: $('#r-email').value.trim(), token, type: 'recovery' });
+    if (error) { S.recuperando = false; return msgAcceso(m, t(errorClave(error))); }
+    pantallaNuevaClave();
+  });
+}
+const formClave = id => `<form id="${id}" class="mt-4 grid gap-3 px-5 pb-5 sm:px-0 sm:pb-0" novalidate>
+  <div><label class="${lbl}" for="${id}-1">Nueva contraseña</label><input id="${id}-1" type="password" autocomplete="new-password" class="${campo}"></div>
+  <div><label class="${lbl}" for="${id}-2">Repite la contraseña</label><input id="${id}-2" type="password" autocomplete="new-password" class="${campo}"></div>
+  <p class="text-xs text-stone-500">Mínimo ${CLAVE_MIN} caracteres. Evita reutilizar contraseñas de otros servicios.</p>
+  <p id="${id}-msg" class="min-h-5 text-sm text-rose-600" role="alert"></p>
+  <button class="${btnP} w-full" id="${id}-ok">Guardar contraseña</button></form>`;
+async function guardarClave(id) {
+  const a = $(`#${id}-1`).value, b = $(`#${id}-2`).value, m = $(`#${id}-msg`);
+  if (a.length < CLAVE_MIN) { m.textContent = t(`Usa al menos ${CLAVE_MIN} caracteres.`); return false; }
+  if (a !== b) { m.textContent = t('Las contraseñas no coinciden.'); return false; }
+  $(`#${id}-ok`).disabled = true; m.textContent = '';
+  const { error } = await sb.auth.updateUser({ password: a });
+  $(`#${id}-ok`).disabled = false;
+  if (error) { m.textContent = t(errorClave(error)); return false; }
+  return true;
+}
+function pantallaNuevaClave() {
+  $('#app').innerHTML = tarjetaAcceso(`<h2 class="mt-3 font-semibold">Crea tu nueva contraseña</h2>${formClave('nc')}`);
+  $('#nc').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!(await guardarClave('nc'))) return;
+    S.recuperando = false; history.replaceState(null, '', URL_PANEL + location.search); toast(t('Contraseña actualizada'));
+    const { data } = await sb.auth.getSession();
+    data.session ? entrar(data.session, true) : pantallaLogin();
+  });
+}
+function cambiarClave() {
+  modal(cabecera('Cambiar contraseña', esc(S.user?.email || '')) + `<div class="sm:px-5 sm:pb-5">${formClave('cc')}</div>`, d => {
+    d.querySelector('#cc-1').focus();
+    d.querySelector('#cc').addEventListener('submit', async e => { e.preventDefault(); if (await guardarClave('cc')) { dlg.close(); toast(t('Contraseña actualizada')); } });
+  });
+}
+
+async function entrar(session, forzar = false) {
+  if (S.recuperando) return pantallaNuevaClave();
+  if (!forzar && S.user && S.user.id === session.user.id) return;
+  S.user = session.user;
+  await canjearAlta();
+  const { data, error } = await sb.rpc('mi_perfil');
+  if (error || !data) { pantallaLogin(t('No se pudo verificar tu acceso.')); return; }
+  S.perfil = data;
+  const todos = data.proyectos || [];
+  S.proyectos = todos.filter(x => x.rol === 'admin' || x.rol === 'novios');
+  const staff = todos.filter(x => x.rol === 'staff');
+  localStorage.setItem('pyd.staff', JSON.stringify({ proyectos: staff.map(x => x.slug) }));
+  if (!S.proyectos.length && !data.admin) {
+    if (staff.length) { location.replace(P.STAFF_URL + '?p=' + encodeURIComponent(staff[0].slug)); return; }
+    await sb.auth.signOut(); pantallaLogin(t('Este correo no tiene acceso al panel.')); return;
+  }
+  if (!S.proyectos.length) { pantallaSinProyectos(); return; }
+  const pedido = new URLSearchParams(location.search).get('p') || localStorage.getItem('panel.proyecto');
+  const elegido = S.proyectos.find(x => x.slug === pedido) || S.proyectos[0];
+  await abrirProyecto(elegido.id);
+}
+function pantallaSinProyectos() {
+  $('#app').innerHTML = `<main class="grid min-h-dvh place-items-center px-6 text-center"><div class="max-w-sm">${logo('mx-auto h-10')}
+    <h1 class="mt-6 text-2xl font-semibold">Aún no hay eventos</h1><p class="mt-2 text-stone-600">Crea el primer evento para empezar a cargar invitados.</p>
+    <div class="mt-6 flex justify-center gap-2"><button id="np" class="${btnP}">${ico('plus')} Nuevo evento</button><button id="salir" class="${btnS}">${ico('out')} Salir</button></div>${piePagina()}</div></main>`;
+  $('#np').onclick = nuevoProyecto; $('#salir').onclick = () => sb.auth.signOut();
+}
+
+/* =====================================================================================
+   DATOS + TIEMPO REAL
+   ===================================================================================== */
+async function abrirProyecto(id) {
+  if (S.canal) { sb.removeChannel(S.canal); S.canal = null; }
+  S.sel.clear(); S.q = ''; S.seg = 'todos';
+  $('#app').innerHTML = `<div class="grid min-h-dvh place-items-center text-stone-500">Cargando invitados…</div>`;
+  const [c, l] = await Promise.all([sb.from('proyectos').select('*').eq('id', id).single(), sb.from('invitados').select('*').eq('proyecto_id', id).order('id')]);
+  if (c.error || l.error) { $('#app').innerHTML = `<p class="p-6 text-rose-700">${esc(t('No se pudieron cargar los datos:'))} ${esc(errorAmigable(c.error || l.error))}</p>`; return; }
+  S.p = c.data; S.lista = l.data;
+  localStorage.setItem('panel.proyecto', S.p.slug);
+  const u = new URL(location.href); u.searchParams.set('p', S.p.slug); history.replaceState(null, '', u.toString());
+  layout(); refrescar(); suscribir();
+}
+async function recargar() {
+  const { data, error } = await sb.from('invitados').select('*').eq('proyecto_id', S.p.id).order('id');
+  if (!error) { S.lista = data; refrescar(); }
+}
+function suscribir() {
+  const id = S.p.id;
+  S.canal = sb.channel('invitados-' + id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'invitados', filter: `proyecto_id=eq.${id}` }, pl => {
+      if (pl.eventType === 'DELETE') { S.lista = S.lista.filter(i => i.id !== pl.old.id); S.sel.delete(pl.old.id); }
+      else if (pl.new.proyecto_id === S.p.id) { upsertLocal(pl.new); S.recientes.set(pl.new.id, Date.now()); }
+      programar();
+    })
+    .subscribe(st => { if (st === 'SUBSCRIBED') recargar(); });
+}
+function upsertLocal(r) { const k = S.lista.findIndex(i => i.id === r.id); if (k >= 0) S.lista[k] = r; else S.lista.push(r); }
+let pendiente = 0;
+function programar() { cancelAnimationFrame(pendiente); pendiente = requestAnimationFrame(refrescar); }
+
+/* =====================================================================================
+   VISTA PRINCIPAL
+   ===================================================================================== */
+const SEGMENTOS = [['todos', 'Todos'], ['pendiente', 'Pendientes'], ['si', 'Asistirán'], ['no', 'No asistirán'],
+  ['abrio', 'Abrieron sin responder'], ['no_abrio', 'No abrieron'], ['sin_envio', 'WhatsApp sin enviar'],
+  ['con_mensaje', 'Con mensaje'], ['sin_mesa', 'Asistirán sin mesa'], ['ingreso', 'Ya ingresaron'], ['tel_revisar', 'WhatsApp por revisar']];
+const ORDENES = [['relevancia', 'Relevancia'], ['fecha_registro', 'Fecha de registro'], ['nombre', 'Nombre'], ['categoria', 'Categoría'], ['ultima_modificacion', 'Última respuesta'],
+  ['ultima_vista', 'Última vista'], ['pases_asignados', 'Pases'], ['mesa', 'Mesa'], ['estado', 'Estado']];
+function selectorProyecto() {
+  if (S.proyectos.length < 2 && !esAdmin()) return `<h1 class="truncate text-lg font-semibold">${esc(S.p.nombre)}</h1>`;
+  return `<label class="sr-only" for="sel-p">Evento</label><select id="sel-p" class="-ml-1 max-w-full truncate rounded-lg border-0 bg-transparent py-0.5 pr-7 pl-1 text-lg font-semibold focus:ring-2 focus:ring-oro-500">
+    ${S.proyectos.map(x => `<option value="${x.id}" ${x.id === S.p.id ? 'selected' : ''}>${esc(x.nombre)}${x.activo ? '' : ' (inactivo)'}</option>`).join('')}
+    ${esAdmin() ? '<option value="nuevo">＋ Nuevo evento…</option>' : ''}</select>`;
+}
+function enlazarSelector() { $('#sel-p')?.addEventListener('change', e => { if (e.target.value === 'nuevo') { e.target.value = S.p.id; nuevoProyecto(); } else abrirProyecto(+e.target.value); }); }
+function layout() {
+  $('#app').innerHTML = `
+  <header class="sticky top-0 z-30 border-b border-stone-200 bg-stone-100/90 backdrop-blur">
+    <div class="mx-auto flex max-w-7xl items-center gap-1 px-4 py-2.5 sm:gap-3">
+      <a href="${esc(P.WEB)}" target="_blank" rel="noopener" class="shrink-0" title="Parte y Detalles">${logo('h-9 sm:h-10')}</a>
+      <div class="min-w-0 flex-1 border-l border-stone-300 pl-3 sm:pl-4">
+        <p class="text-[11px] font-semibold uppercase tracking-[.2em] text-oro-600">Panel de invitados</p>
+        <div id="titulo" class="min-w-0">${selectorProyecto()}</div>
+      </div>
+      ${botonIdioma('hidden sm:inline-flex')}
+      <button class="${icoBtn}" id="b-config" title="Configuración" aria-label="Configuración">${ico('gear')}</button>
+      <button class="${icoBtn}" id="b-clave" title="Cambiar contraseña" aria-label="Cambiar contraseña">${ico('key')}</button>
+      <button class="${icoBtn}" id="b-salir" title="Cerrar sesión" aria-label="Cerrar sesión">${ico('out')}</button>
+    </div>
+  </header>
+  <main class="mx-auto max-w-7xl px-4 pb-6 pt-4">
+    <section id="kpis" class="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Indicadores"></section>
+    <section id="cats" class="mt-3 hidden" aria-label="Por categoría"></section>
+    <section class="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center" aria-label="Herramientas">
+      <div class="relative flex-1">
+        <span class="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-stone-400">${ico('search')}</span>
+        <input id="q" type="search" placeholder="Buscar nombre, código, mesa, categoría, alergias…" autocomplete="off" spellcheck="false" class="${campo} pl-10" aria-label="Buscar">
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="seg" class="${campoA} py-2" aria-label="Filtrar">${SEGMENTOS.map(([v, tx]) => `<option value="${v}">${tx}</option>`).join('')}</select>
+        <select id="cat" class="${campoA} max-w-48 py-2" aria-label="Categoría" hidden></select>
+        <div class="flex items-center gap-1">
+          <select id="orden" class="${campoA} py-2" aria-label="Ordenar por">${ORDENES.map(([v, tx]) => `<option value="${v}">${tx}</option>`).join('')}</select>
+          <button id="dir" class="${icoBtn} bg-white ring-1 ring-stone-300" aria-label="Invertir orden" title="Invertir orden">${ico('sort')}</button>
+        </div>
+        <div class="flex rounded-xl bg-white p-0.5 ring-1 ring-stone-300" role="group" aria-label="Vista">
+          <button id="v-tabla" class="rounded-lg px-2.5 py-1.5" title="Vista tabla" aria-label="Vista tabla">${ico('table')}</button>
+          <button id="v-tarjetas" class="rounded-lg px-2.5 py-1.5" title="Vista tarjetas" aria-label="Vista tarjetas">${ico('cards')}</button>
+        </div>
+        ${botonIdioma('sm:hidden ring-1 ring-stone-300 bg-white')}
+      </div>
+    </section>
+    <section class="mt-3 flex flex-wrap items-center gap-2">
+      <button id="b-agregar" class="${btnP}">${ico('plus')} Agregar</button>
+      <button id="b-importar" class="${btnS}">${ico('up')} Importar Excel</button>
+      <button id="b-exportar" class="${btnS}" title="${esc(t('Exporta todos los invitados con sus datos completos (respaldo)'))}">${ico('down')} Exportar</button>
+      <button id="b-borrar-todo" class="${btn} text-rose-700 hover:bg-rose-50">${ico('trash')} Borrar todo</button>
+      <p id="conteo" class="ml-auto text-sm text-stone-500"></p>
+    </section>
+    <section id="selbar" class="sticky top-16 z-20 mt-3 hidden items-center gap-2 rounded-xl bg-stone-900 px-3 py-2 text-sm text-white shadow-lg"></section>
+    <section id="lista" class="mt-3"></section>
+    ${piePagina()}
+  </main>`;
+  $('#q').addEventListener('input', e => {
+    const antes = !!S.q.trim(); S.q = e.target.value; const ahora = !!S.q.trim();
+    if (!antes && ahora && S.orden !== 'relevancia') { S.ordenAntes = [S.orden, S.dir]; S.orden = 'relevancia'; }
+    if (antes && !ahora && S.orden === 'relevancia') { [S.orden, S.dir] = S.ordenAntes || ['fecha_registro', 'desc']; S.ordenAntes = null; }
+    refrescar();
+  });
+  $('#seg').addEventListener('change', e => { S.seg = e.target.value; refrescar(); });
+  $('#cat').addEventListener('change', e => { S.cat = e.target.value; refrescar(); });
+  $('#cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { S.cat = S.cat === b.dataset.cat ? '' : b.dataset.cat; refrescar(); } });
+  $('#orden').addEventListener('change', e => { S.orden = e.target.value; S.ordenAntes = null; S.dir = ['nombre', 'mesa', 'estado', 'categoria'].includes(S.orden) ? 'asc' : 'desc'; refrescar(); });
+  $('#dir').addEventListener('click', () => { S.dir = S.dir === 'asc' ? 'desc' : 'asc'; refrescar(); });
+  $('#v-tabla').addEventListener('click', () => cambiarVista('tabla'));
+  $('#v-tarjetas').addEventListener('click', () => cambiarVista('tarjetas'));
+  $('#b-agregar').addEventListener('click', () => editar(null));
+  $('#b-importar').addEventListener('click', () => importar());
+  $('#b-exportar').addEventListener('click', exportarMenu);
+  $('#b-borrar-todo').addEventListener('click', borrarTodo);
+  $('#b-config').addEventListener('click', () => configurar());
+  $('#b-clave').addEventListener('click', cambiarClave);
+  $('#b-salir').addEventListener('click', () => sb.auth.signOut());
+  enlazarSelector();
+  $('#kpis').addEventListener('click', e => { const b = e.target.closest('[data-seg]'); if (b) { S.seg = b.dataset.seg; refrescar(); } });
+  $('#lista').addEventListener('click', accionLista);
+  $('#lista').addEventListener('change', e => {
+    const c = e.target.closest('input[type=checkbox]'); if (!c) return;
+    if (c.dataset.todos) { const ids = visibles().map(i => i.id); c.checked ? ids.forEach(id => S.sel.add(id)) : ids.forEach(id => S.sel.delete(id)); }
+    else { const id = +c.dataset.id; c.checked ? S.sel.add(id) : S.sel.delete(id); }
+    refrescar();
+  });
+}
+function cambiarVista(v) { S.vista = v; localStorage.setItem('panel.vista', v); refrescar(); }
+
+const preguntas = () => (S.p?.formulario?.preguntas || []);
+function respuestasTxt(i, sep = ' · ') {
+  const r = i.respuestas || {};
+  return preguntas().filter(q => r[q.id] != null).map(q => `${q.etiqueta}: ${Array.isArray(r[q.id]) ? r[q.id].join(', ') : q.tipo === 'sino' ? t(r[q.id] === 'si' ? 'Sí' : 'No') : r[q.id]}`).join(sep);
+}
+function coincide(i) {
+  const e = estadoDe(i);
+  switch (S.seg) {
+    case 'pendiente': case 'si': case 'no': if (e !== S.seg) return false; break;
+    case 'abrio': if (!(i.vistas > 0 && e === 'pendiente')) return false; break;
+    case 'no_abrio': if (i.vistas > 0) return false; break;
+    case 'sin_envio': if (i.whatsapp_enviado) return false; break;
+    case 'con_mensaje': if (!i.mensaje) return false; break;
+    case 'sin_mesa': if (!(e === 'si' && !i.mesa)) return false; break;
+    case 'ingreso': if (!(i.ingreso_pases > 0)) return false; break;
+    case 'tel_revisar': if (!telRevisar(i)) return false; break;
+  }
+  if (S.cat === '__sin') return !etiquetasDe(i).length;
+  if (S.cat && !etiquetasDe(i).some(e => norm(e) === S.cat)) return false;
+  return true;
+}
+/* Campos de búsqueda (assets/buscar.js): el nombre pesa más; acompañantes, categoría, respuestas y mensajes menos */
+const camposBusqueda = i => {
+  const r = i.respuestas || {};
+  return [
+    { k: 'nombre', texto: i.nombre, tipo: 'nombre', peso: 1 }, { k: 'tratamiento', texto: i.tratamiento, peso: .6 },
+    { k: 'codigo', texto: i.codigo, tipo: 'codigo' }, { k: 'mesa', etiqueta: t('Mesa'), texto: i.mesa, tipo: 'mesa' },
+    { k: 'telefono', etiqueta: 'WhatsApp', texto: i.telefono, tipo: 'telefono' },
+    { k: 'acompanantes', etiqueta: t('Acompañantes'), texto: i.acompanantes, tipo: 'nombre', peso: .7 },
+    { k: 'categoria', etiqueta: t('Categoría'), texto: i.categoria, peso: .6 },
+    ...preguntas().filter(q => r[q.id] != null).map(q => ({ k: 'r_' + q.id, etiqueta: q.etiqueta, alias: q.etiqueta, peso: .5,
+      texto: Array.isArray(r[q.id]) ? r[q.id].join(', ') : q.tipo === 'sino' ? t(r[q.id] === 'si' ? 'Sí' : 'No') : r[q.id] })),
+    { k: 'mensaje', etiqueta: t('Mensaje'), texto: i.mensaje, peso: .35 }, { k: 'respuesta_novios', etiqueta: t('Respuesta de los novios'), texto: i.respuesta_novios, peso: .35 }
+  ];
+};
+function visibles() {
+  const k = S.orden, d = S.dir === 'asc' ? 1 : -1, ord = { si: 0, pendiente: 1, no: 2 };
+  const base = S.lista.filter(coincide);
+  S.motivos = new Map(); S.parcial = false;
+  if (S.q.trim()) {
+    const r = PYD_BUSCAR.buscar(base, S.q, camposBusqueda);
+    S.parcial = r.parcial; r.resultados.forEach(x => x.motivo && S.motivos.set(x.item.id, x.motivo));
+    const lista = r.resultados.map(x => x.item);
+    if (k === 'relevancia') return lista;
+    base.length = 0; base.push(...lista);
+  } else if (k === 'relevancia') return base.sort((a, b) => b.id - a.id);
+  const val = i => k === 'estado' ? ord[estadoDe(i)] : k === 'categoria' ? etiquetasDe(i)[0] : i[k];
+  return base.sort((a, b) => {
+    const x = val(a), y = val(b);
+    if (x == null || x === '') return 1; if (y == null || y === '') return -1;
+    if (typeof x === 'number') return (x - y) * d;
+    return String(x).localeCompare(String(y), 'es', { numeric: true, sensitivity: 'base' }) * d;
+  });
+}
+function kpis() {
+  const L = S.lista, sum = (a, f) => a.reduce((s, i) => s + (f(i) || 0), 0);
+  const si = L.filter(i => i.asistencia === 'si'), no = L.filter(i => i.asistencia === 'no'), pen = L.filter(i => !i.asistencia);
+  const abiertos = L.filter(i => i.vistas > 0), resp = si.length + no.length, pct = L.length ? Math.round(resp / L.length * 100) : 0;
+  const enviados = L.filter(i => i.whatsapp_enviado).length, conMesa = si.filter(i => i.mesa).length, ingresos = sum(L, i => i.ingreso_pases);
+  const pc = sum(si, i => i.pases_confirmados);
+  const k = (seg, titulo, valor, sub, acento = '') => `<button type="button" data-seg="${seg}" class="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ${S.seg === seg ? 'ring-2 ring-oro-500' : 'ring-stone-200'} hover:ring-oro-400 focus-visible:outline-2 focus-visible:outline-oro-500">
+      <p class="text-xs font-medium text-stone-500">${titulo}</p><p class="mt-1 text-2xl font-semibold tabular-nums ${acento}">${valor}</p><p class="mt-0.5 text-xs text-stone-500">${sub}</p></button>`;
+  $('#kpis').innerHTML =
+    k('todos', 'Invitados', L.length, `${sum(L, i => i.pases_asignados)} pases asignados`) +
+    k('si', 'Asistirán', pc, `pases · ${plural(si.length, 'registro', 'registros')}`, 'text-emerald-700') +
+    k('no', 'No asistirán', no.length, `${sum(no, i => i.pases_asignados)} pases liberados`, 'text-rose-700') +
+    k('pendiente', 'Pendientes', pen.length, `${sum(pen, i => i.pases_asignados)} pases por confirmar`, 'text-amber-700') +
+    `<div class="col-span-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:col-span-1">
+       <div class="flex items-baseline justify-between"><p class="text-xs font-medium text-stone-500">Tasa de respuesta</p><p class="text-2xl font-semibold tabular-nums">${pct}%</p></div>
+       <div class="mt-2 flex h-2.5 overflow-hidden rounded-full bg-stone-100" role="img" aria-label="${si.length} / ${no.length} / ${pen.length}">
+         <div class="bg-emerald-500" style="width:${L.length ? si.length / L.length * 100 : 0}%"></div><div class="bg-rose-400" style="width:${L.length ? no.length / L.length * 100 : 0}%"></div></div>
+       <p class="mt-2 text-xs text-stone-500">${resp} de ${L.length} respondieron</p></div>` +
+    k('abrio', 'Abrieron la invitación', abiertos.length, `${abiertos.filter(i => !i.asistencia).length} sin responder aún`) +
+    k('sin_envio', 'WhatsApp enviados', `${enviados}<span class="text-base text-stone-400">/${L.length}</span>`, `${L.length - enviados} por enviar`) +
+    k('sin_mesa', 'Mesas asignadas', `${conMesa}<span class="text-base text-stone-400">/${si.length}</span>`, `${si.length - conMesa} confirmados sin mesa`) +
+    (ingresos ? k('ingreso', 'Ingresaron', ingresos, `de ${pc} pases confirmados`) : '');
+  categorias();
+}
+/* Una sola fila de chips por categoría (se desliza en el celular): pases confirmados / asignados y barra de respuesta */
+function categorias() {
+  const box = $('#cats'), cats = todasEtiquetas(), sinCat = S.lista.filter(i => !etiquetasDe(i).length);
+  const sel = $('#cat');
+  sel.hidden = !cats.length;
+  sel.innerHTML = `<option value="">${t('Todas las categorías')}</option>${cats.map(e => `<option value="${esc(norm(e))}" ${S.cat === norm(e) ? 'selected' : ''}>${esc(e)}</option>`).join('')}${cats.length && sinCat.length ? `<option value="__sin" ${S.cat === '__sin' ? 'selected' : ''}>${t('Sin categoría')}</option>` : ''}`;
+  if (S.cat && S.cat !== '__sin' && !cats.some(e => norm(e) === S.cat)) S.cat = '';
+  box.classList.toggle('hidden', !cats.length);
+  if (!cats.length) { box.innerHTML = ''; return; }
+  const chip = (clave, nombre, L) => {
+    const asig = L.reduce((s, i) => s + (i.pases_asignados || 0), 0), conf = L.reduce((s, i) => s + (i.asistencia === 'si' ? i.pases_confirmados || 0 : 0), 0);
+    const resp = L.filter(i => i.asistencia).length, act = S.cat === clave;
+    return `<button type="button" data-cat="${esc(clave)}" aria-pressed="${act}" title="${esc(nombre)} · ${L.length} ${t('invitados')} · ${resp}/${L.length} ${t('respondieron')}"
+      class="flex shrink-0 flex-col gap-1 rounded-xl px-3 py-2 text-left ring-1 ${act ? 'bg-violet-50 ring-2 ring-violet-500' : 'bg-white ring-stone-200 hover:ring-violet-300'}">
+      <span class="flex items-baseline gap-2 text-xs"><span class="max-w-40 truncate font-medium text-stone-700" data-notr>${esc(nombre)}</span><span class="tabular-nums text-stone-500"><b class="text-emerald-700">${conf}</b>/${asig}</span></span>
+      <span class="flex h-1 w-full min-w-20 overflow-hidden rounded-full bg-stone-100"><span class="bg-emerald-500" style="width:${L.length ? L.filter(i => i.asistencia === 'si').length / L.length * 100 : 0}%"></span><span class="bg-rose-400" style="width:${L.length ? L.filter(i => i.asistencia === 'no').length / L.length * 100 : 0}%"></span></span></button>`;
+  };
+  box.innerHTML = `<div class="flex items-center gap-2"><p class="shrink-0 text-xs font-medium text-stone-500">${t('Por categoría')}<span class="block text-[10px] font-normal text-stone-400">${t('pases confirmados / asignados')}</span></p>
+    <div class="sin-barra flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5">${cats.map(e => chip(norm(e), e, S.lista.filter(i => etiquetasDe(i).some(x => norm(x) === norm(e))))).join('')}${sinCat.length ? chip('__sin', t('Sin categoría'), sinCat) : ''}</div></div>`;
+}
+function refrescar() {
+  if (!$('#lista')) return;
+  kpis();
+  const v = visibles(), ahora = Date.now();
+  for (const [id, tt] of S.recientes) if (ahora - tt > 2500) S.recientes.delete(id);
+  $('#seg').value = S.seg; $('#orden').value = S.orden;
+  $('#dir').title = t(S.dir === 'asc' ? 'Orden ascendente' : 'Orden descendente');
+  $('#v-tabla').className = `rounded-lg px-2.5 py-1.5 ${S.vista === 'tabla' ? 'bg-oro-100 text-oro-700' : 'text-stone-500'}`;
+  $('#v-tarjetas').className = `rounded-lg px-2.5 py-1.5 ${S.vista === 'tarjetas' ? 'bg-oro-100 text-oro-700' : 'text-stone-500'}`;
+  $('#v-tabla').setAttribute('aria-pressed', S.vista === 'tabla'); $('#v-tarjetas').setAttribute('aria-pressed', S.vista === 'tarjetas');
+  $('#conteo').textContent = (v.length === S.lista.length ? plural(S.lista.length, 'invitado', 'invitados') : `${v.length} de ${S.lista.length}`) + (S.parcial && v.length ? ' · ' + t('coincidencias parciales') : '');
+  if (!S.lista.length) {
+    $('#lista').innerHTML = `<div class="rounded-2xl border-2 border-dashed border-stone-300 p-10 text-center">
+      <p class="font-medium">Aún no hay invitados</p><p class="mt-1 text-sm text-stone-500">Agrégalos uno por uno o importa un Excel.</p>
+      <div class="mt-4 flex justify-center gap-2"><button class="${btnP}" data-acc="agregar">${ico('plus')} Agregar</button><button class="${btnS}" data-acc="importar">${ico('up')} Importar Excel</button></div></div>`;
+  } else if (!v.length) $('#lista').innerHTML = `<p class="rounded-2xl bg-white p-8 text-center text-sm text-stone-500 ring-1 ring-stone-200">Ningún invitado coincide con el filtro.</p>`;
+  else if (S.parcial) $('#lista').innerHTML = `<p class="mb-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">${t('Ningún invitado tiene todas las palabras: se muestran los más parecidos.')}</p>` + (S.vista === 'tabla' ? tabla(v) : tarjetas(v));
+  else $('#lista').innerHTML = S.vista === 'tabla' ? tabla(v) : tarjetas(v);
+  barraSeleccion();
+}
+function acciones(i, extra = '') {
+  return `<div class="flex items-center justify-end gap-0.5 ${extra}">
+    <button class="${icoBtn}" data-acc="link" data-id="${i.id}" title="Copiar link de la invitación" aria-label="Copiar link de la invitación">${ico('link')}</button>
+    <button class="${icoBtn} ${i.whatsapp_enviado ? 'text-emerald-600' : ''}" data-acc="wa" data-id="${i.id}" title="${i.whatsapp_enviado ? t('Ya enviado · enviar de nuevo') : t('Enviar por WhatsApp')}" aria-label="Enviar por WhatsApp">${ico('wa')}</button>
+    <button class="${icoBtn}" data-acc="editar" data-id="${i.id}" title="Editar" aria-label="Editar">${ico('edit')}</button>
+    <button class="${icoBtn} hover:text-rose-600" data-acc="borrar" data-id="${i.id}" title="Eliminar" aria-label="Eliminar">${ico('trash')}</button></div>`;
+}
+const nombreHtml = i => S.q.trim() ? PYD_BUSCAR.resaltar(i.nombre, S.q) : esc(i.nombre);
+const motivoHtml = i => { const m = S.motivos.get(i.id); return m ? `<p class="mt-0.5 truncate text-xs text-stone-500" data-notr><span class="text-stone-400">${esc(m.etiqueta)}:</span> ${PYD_BUSCAR.resaltar(m.texto, S.q)}</p>` : ''; };
+const telHtml = i => { if (!i.telefono) return '<span class="text-stone-300">—</span>'; const r = telInfo(i.telefono);
+  return r.estado === 'dudoso' ? `<span class="text-amber-700" title="${esc(r.nota)}">⚠ ${esc(i.telefono)}</span>` : r.estado === 'agregado' ? `<span title="${esc(t('Se enviará a') + ' ' + r.texto)}">${esc(i.telefono)} <span class="text-xs text-stone-400">→ ${esc(r.texto.split(' ')[0])}</span></span>` : esc(i.telefono); };
+const pasesTxt = i => i.asistencia === 'si' ? `<b>${i.pases_confirmados}</b><span class="text-stone-400">/${i.pases_asignados}</span>` : i.asistencia === 'no' ? `<span class="text-stone-400">0/${i.pases_asignados}</span>` : `<span class="text-stone-500">${i.pases_asignados}</span>`;
+const marcas = i => { const r = respuestasTxt(i, '\n'), a = i.acompanantes ? t('Acompañantes') + ': ' + i.acompanantes : '';
+  return `${i.mensaje ? `<span title="${esc(i.mensaje)}" class="text-oro-600">${ico('chat', 'size-4')}</span>` : ''}${r || a ? `<span title="${esc([a, r].filter(Boolean).join('\n'))}" class="text-sky-600">${ico('list', 'size-4')}</span>` : ''}${i.respuesta_novios ? `<span title="${esc(i.respuesta_novios)}" class="text-rose-500">${ico('heart', 'size-4')}</span>` : ''}`; };
+function tabla(v) {
+  const todos = v.length && v.every(i => S.sel.has(i.id));
+  const th = (k, tx, c = '') => `<th scope="col" class="px-3 py-2.5 text-left text-xs font-semibold text-stone-500 ${c}">${k ? `<button data-ordenar="${k}" class="inline-flex items-center gap-1 hover:text-stone-800"><span>${tx}</span>${S.orden === k ? (S.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button>` : tx}</th>`;
+  return `<div class="overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"><table class="min-w-full divide-y divide-stone-200 text-sm">
+    <thead class="bg-stone-50"><tr><th class="w-10 px-3"><input type="checkbox" data-todos="1" ${todos ? 'checked' : ''} aria-label="Seleccionar todos" class="size-4 accent-oro-600"></th>
+      ${th('nombre', 'Invitado')}${th('estado', 'Estado')}${th('pases_asignados', 'Pases', 'text-center')}${th('mesa', 'Mesa')}
+      ${th('', 'WhatsApp', 'hidden md:table-cell')}${th('ultima_vista', 'Vista', 'hidden lg:table-cell')}${th('ultima_modificacion', 'Respuesta', 'hidden lg:table-cell')}${th('', '<span class="sr-only">Acciones</span>')}</tr></thead>
+    <tbody class="divide-y divide-stone-100">${v.map(i => `<tr class="${S.recientes.has(i.id) ? 'destello' : ''} ${S.sel.has(i.id) ? 'bg-oro-50' : 'hover:bg-stone-50'}">
+      <td class="px-3"><input type="checkbox" data-id="${i.id}" ${S.sel.has(i.id) ? 'checked' : ''} aria-label="Seleccionar" class="size-4 accent-oro-600"></td>
+      <td class="max-w-72 px-3 py-2.5"><div class="flex items-center gap-1.5"><button data-acc="editar" data-id="${i.id}" data-notr class="truncate text-left font-medium hover:text-oro-700">${conTrato(i)}${nombreHtml(i)}</button>${marcas(i)}</div>
+        <div class="flex flex-wrap items-center gap-1 text-xs"><span class="font-mono text-stone-400">${esc(i.codigo)}</span>${etiquetasDe(i).map(chipCat).join('')}</div>${motivoHtml(i)}</td>
+      <td class="px-3">${badge(i)}</td><td class="px-3 text-center tabular-nums">${pasesTxt(i)}</td>
+      <td class="px-3">${esc(i.mesa) || '<span class="text-stone-300">—</span>'}</td>
+      <td class="hidden whitespace-nowrap px-3 text-stone-600 md:table-cell">${telHtml(i)}</td>
+      <td class="hidden px-3 text-xs text-stone-500 lg:table-cell">${i.ultima_vista ? `${hace(i.ultima_vista)}<br>${plural(i.vistas, 'vista', 'vistas')}` : '<span class="text-stone-300">No abrió</span>'}</td>
+      <td class="hidden px-3 text-xs text-stone-500 lg:table-cell">${i.ultima_modificacion ? `${hace(i.ultima_modificacion)}<br>${plural(i.ediciones, 'edición', 'ediciones')}` : '<span class="text-stone-300">—</span>'}</td>
+      <td class="px-2">${acciones(i)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function tarjetas(v) {
+  return `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">${v.map(i => { const r = respuestasTxt(i); return `
+    <article class="rounded-2xl bg-white p-4 shadow-sm ring-1 ${S.sel.has(i.id) ? 'ring-2 ring-oro-500' : 'ring-stone-200'} ${S.recientes.has(i.id) ? 'destello' : ''}">
+      <div class="flex items-start gap-3"><input type="checkbox" data-id="${i.id}" ${S.sel.has(i.id) ? 'checked' : ''} aria-label="Seleccionar" class="mt-1 size-4 accent-oro-600">
+        <div class="min-w-0 flex-1"><button data-acc="editar" data-id="${i.id}" data-notr class="block w-full truncate text-left font-semibold hover:text-oro-700">${conTrato(i)}${nombreHtml(i)}</button>${motivoHtml(i)}
+          <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs">${badge(i)}<span class="rounded-full bg-stone-100 px-2 py-0.5 tabular-nums">${pasesTxt(i)} <span>${i.pases_asignados === 1 ? 'pase' : 'pases'}</span></span>
+            ${i.mesa ? `<span class="rounded-full bg-oro-100 px-2 py-0.5 text-oro-700"><span>Mesa</span> ${esc(i.mesa)}</span>` : ''}<span class="font-mono text-stone-400">${esc(i.codigo)}</span>${etiquetasDe(i).map(chipCat).join('')}${marcas(i)}</div></div></div>
+      <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-stone-500">
+        <div><dt class="inline">Vista:</dt> <dd class="inline">${i.ultima_vista ? `${hace(i.ultima_vista)} (${i.vistas})` : 'no abrió'}</dd></div>
+        <div><dt class="inline">Respuesta:</dt> <dd class="inline">${i.ultima_modificacion ? hace(i.ultima_modificacion) : '—'}</dd></div>
+        ${i.telefono ? `<div class="col-span-2"><dt class="inline">WhatsApp:</dt> <dd class="inline">${telHtml(i)}${i.whatsapp_enviado ? ' ✓' : ''}</dd></div>` : ''}
+        ${i.acompanantes ? `<div class="col-span-2"><dt class="inline">Acompañantes:</dt> <dd class="inline" data-notr>${esc(i.acompanantes)}</dd></div>` : ''}
+        ${r ? `<div class="col-span-2 text-stone-600" data-notr>${esc(r)}</div>` : ''}</dl>
+      ${i.mensaje ? `<p class="mt-2 line-clamp-2 rounded-lg bg-oro-50 px-2.5 py-1.5 text-xs italic text-stone-600" data-notr>“${esc(i.mensaje)}”</p>` : ''}
+      ${acciones(i, 'mt-2 border-t border-stone-100 pt-2')}</article>`; }).join('')}</div>`;
+}
+function barraSeleccion() {
+  const n = S.sel.size, b = $('#selbar');
+  b.classList.toggle('hidden', !n); b.classList.toggle('flex', !!n);
+  if (!n) return;
+  b.innerHTML = `<span class="font-medium">${plural(n, 'seleccionado', 'seleccionados')}</span>
+    <button data-sel="exportar" class="ml-auto rounded-lg px-2.5 py-1.5 hover:bg-white/10">Exportar</button>
+    <button data-sel="borrar" class="rounded-lg px-2.5 py-1.5 text-rose-300 hover:bg-white/10">Eliminar</button>
+    <button data-sel="limpiar" class="rounded-lg px-2 py-1.5 hover:bg-white/10" aria-label="Quitar selección">${ico('x')}</button>`;
+  b.onclick = e => {
+    const a = e.target.closest('[data-sel]')?.dataset.sel; if (!a) return;
+    const elegidos = S.lista.filter(i => S.sel.has(i.id));
+    if (a === 'limpiar') { S.sel.clear(); refrescar(); }
+    if (a === 'exportar') exportar(elegidos, 'seleccion');
+    if (a === 'borrar') borrar(elegidos);
+  };
+}
+async function accionLista(e) {
+  const o = e.target.closest('[data-ordenar]');
+  if (o) { const k = o.dataset.ordenar; S.dir = S.orden === k && S.dir === 'asc' ? 'desc' : 'asc'; S.orden = k; refrescar(); return; }
+  const b = e.target.closest('[data-acc]'); if (!b) return;
+  const i = S.lista.find(x => x.id === +b.dataset.id);
+  switch (b.dataset.acc) {
+    case 'agregar': return editar(null);
+    case 'importar': return importar();
+    case 'editar': return editar(i);
+    case 'borrar': return borrar([i]);
+    case 'wa': return whatsapp(i);
+    case 'link': await copiar(link(i)); toast(t('Link de la invitación copiado')); return;
+  }
+}
+async function copiar(tx) {
+  try { await navigator.clipboard.writeText(tx); }
+  catch { const a = document.createElement('textarea'); a.value = tx; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
+}
+
+/* =====================================================================================
+   AGREGAR / EDITAR INVITADO
+   ===================================================================================== */
+function editar(i) {
+  const nuevo = !i; i = i || { nombre: '', tratamiento: '', pases_asignados: 1, mesa: '', telefono: '', categoria: '', asistencia: null, pases_confirmados: null, respuesta_novios: '', acompanantes: '', respuestas: {} };
+  const max = S.p.pases_max || 10, f = (k, tx, h) => `<div><label class="${lbl}" for="e-${k}">${tx}</label>${h}</div>`, r = respuestasTxt(i, '\n');
+  modal(`<form id="f-ed" novalidate>${cabecera(nuevo ? 'Agregar invitado' : 'Editar invitado', nuevo ? 'El código y los links se generan al guardar.' : `<span>Código</span> <b class="font-mono">${esc(i.codigo)}</b>`)}
+    ${cuerpo(`<div class="grid gap-4 sm:grid-cols-6">
+      <div class="sm:col-span-4">${f('nombre', 'Nombre del invitado *', `<input id="e-nombre" required maxlength="80" class="${campo}" value="${esc(i.nombre)}" placeholder="Juan Pérez (Padre)">`)}</div>
+      <div class="sm:col-span-2">${f('trat', 'Tratamiento', `<input id="e-trat" list="l-trat" class="${campo}" value="${esc(i.tratamiento)}"><datalist id="l-trat">${TRATAMIENTOS.map(x => `<option value="${esc(x)}">`).join('')}</datalist>`)}</div>
+      <div class="sm:col-span-2">${f('asig', 'Pases asignados *', `<input id="e-asig" type="number" min="1" max="${max}" inputmode="numeric" class="${campo}" value="${i.pases_asignados}">`)}</div>
+      <div class="sm:col-span-2">${f('mesa', 'Número de mesa', `<input id="e-mesa" class="${campo}" value="${esc(i.mesa)}">`)}</div>
+      <div class="sm:col-span-2">${f('tel', 'WhatsApp', `<input id="e-tel" type="tel" inputmode="tel" class="${campo}" value="${esc(i.telefono)}" placeholder="+51 987 654 321">`)}<p id="e-tel-h" class="mt-1 text-xs text-stone-500">${t('Sin código de país se usa')} +${esc((window.PYD_TEL ? PYD_TEL.porIso(paisTel()) : ['', '', '51'])[2])}</p></div>
+      <div class="sm:col-span-6">${f('cat', 'Categoría', `<input id="e-cat" list="l-cat" maxlength="200" class="${campo}" value="${esc(i.categoria)}" placeholder="${esc(t('Familia novia, Amigos novio, Trabajo…'))}"><datalist id="l-cat">${todasEtiquetas().map(x => `<option value="${esc(x)}">`).join('')}</datalist>`)}<p class="mt-1 text-xs text-stone-500">${t('Solo para los novios (filtros, búsqueda y totales). Varias, separadas por comas. El invitado no la ve.')}</p></div>
+      <div class="sm:col-span-3">${f('asis', 'Asistencia', `<select id="e-asis" class="${campo}"><option value="">Pendiente</option><option value="si" ${i.asistencia === 'si' ? 'selected' : ''}>Sí, asistirá</option><option value="no" ${i.asistencia === 'no' ? 'selected' : ''}>No podrá asistir</option></select>`)}</div>
+      <div class="sm:col-span-3" id="w-conf">${f('conf', 'Pases confirmados', `<input id="e-conf" type="number" min="1" inputmode="numeric" class="${campo}" value="${i.pases_confirmados ?? ''}">`)}</div>
+      <div class="sm:col-span-6" id="w-acomp">${f('acomp', 'Acompañantes (separados por comas)', `<input id="e-acomp" maxlength="500" class="${campo}" value="${esc(i.acompanantes)}">`)}</div>
+      <div class="sm:col-span-6">${f('resp', 'Respuesta de los novios (se muestra en la invitación)', `<textarea id="e-resp" rows="3" maxlength="1000" class="${campo}">${esc(i.respuesta_novios)}</textarea>`)}</div>
+      ${!nuevo && (i.mensaje || r) ? `<div class="grid gap-2 sm:col-span-6">${r ? `<div><p class="${lbl}">Respuestas del formulario</p><p class="whitespace-pre-wrap rounded-xl bg-sky-50 p-3 text-sm text-stone-700" data-notr>${esc(r)}</p></div>` : ''}
+        ${i.mensaje ? `<div><p class="${lbl}">Mensaje del invitado</p><p class="whitespace-pre-wrap rounded-xl bg-oro-50 p-3 text-sm italic text-stone-700" data-notr>${esc(i.mensaje)}</p></div>` : ''}</div>` : ''}
+      ${nuevo ? '' : `<div class="grid gap-4 rounded-xl bg-stone-50 p-3 text-xs text-stone-600 sm:col-span-6 sm:grid-cols-[1fr_auto]">
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          <dt class="text-stone-400">Registro</dt><dd>${fmt(i.fecha_registro)}</dd>
+          <dt class="text-stone-400">Primera vista</dt><dd>${fmt(i.primera_vista) || '—'}</dd>
+          <dt class="text-stone-400">Última vista</dt><dd>${fmt(i.ultima_vista) || '—'} ${i.vistas ? `(${i.vistas})` : ''}</dd>
+          <dt class="text-stone-400">Primera respuesta</dt><dd>${fmt(i.primera_respuesta) || '—'}</dd>
+          <dt class="text-stone-400">Última modificación</dt><dd>${fmt(i.ultima_modificacion) || '—'}</dd>
+          <dt class="text-stone-400">N.º de ediciones</dt><dd>${i.ediciones}</dd>
+          <dt class="text-stone-400">WhatsApp enviado</dt><dd>${fmt(i.whatsapp_enviado) || '—'}</dd>
+          <dt class="text-stone-400">Ingreso</dt><dd>${i.ingreso_pases ? `${i.ingreso_pases} · ${fmt(i.ingreso_fecha)}` : '—'}</dd>
+          <dt class="text-stone-400">Invitación</dt><dd class="truncate"><a class="text-oro-700 underline" href="${esc(link(i))}" target="_blank" rel="noopener">${esc(link(i))}</a></dd>
+          <dt class="text-stone-400">RSVP directo</dt><dd class="truncate"><a class="text-oro-700 underline" href="${esc(linkRsvp(i))}" target="_blank" rel="noopener">${esc(linkRsvp(i))}</a></dd>
+        </dl>
+        <div class="flex flex-col items-center gap-2"><canvas id="e-qr" width="480" height="480" class="size-28 rounded-lg bg-white ring-1 ring-stone-200" aria-label="QR"></canvas>
+          <div class="flex flex-wrap justify-center gap-1"><button type="button" id="e-qr-d" class="${btnS} px-2.5 py-1 text-xs">QR</button><button type="button" id="e-l2" class="${btnS} px-2.5 py-1 text-xs">Link RSVP</button><button type="button" id="e-msg" class="${btnS} px-2.5 py-1 text-xs">Mensaje</button></div></div></div>`}
+      <p id="e-err" class="min-h-5 text-sm text-rose-600 sm:col-span-6" role="alert"></p></div>`)}
+    ${pie(`<button type="button" class="${btnS}" data-cerrar>Cancelar</button><button class="${btnP}" id="e-ok">${nuevo ? 'Agregar' : 'Guardar cambios'}</button>`)}</form>`, d => {
+    const asis = d.querySelector('#e-asis'), conf = d.querySelector('#e-conf'), asig = d.querySelector('#e-asig');
+    const sync = () => { const si = asis.value === 'si'; d.querySelector('#w-conf').style.visibility = si ? 'visible' : 'hidden'; d.querySelector('#w-acomp').hidden = !si; conf.max = asig.value; if (si && !conf.value) conf.value = asig.value; };
+    asis.addEventListener('change', sync); asig.addEventListener('input', sync); sync();
+    const tel = d.querySelector('#e-tel'), telH = d.querySelector('#e-tel-h'), telBase = telH.textContent;
+    const revisarTel = () => { const r = telInfo(tel.value); if (r.estado === 'vacio') { telH.className = 'mt-1 text-xs text-stone-500'; telH.textContent = telBase; return r; }
+      telH.className = 'mt-1 text-xs ' + (r.estado === 'dudoso' ? 'text-amber-700' : 'text-emerald-700');
+      telH.textContent = r.estado === 'dudoso' ? '⚠ ' + t(r.nota || 'Revisa el número.') : '✓ ' + r.texto + (r.nota ? ' · ' + t(r.nota) : ''); return r; };
+    tel.addEventListener('blur', () => { const r = revisarTel(); if (r.estado === 'ok' || r.estado === 'agregado') tel.value = r.texto; });
+    tel.addEventListener('input', revisarTel); if (tel.value) revisarTel();
+    /* Agregar categorías: al elegir una sugerencia se añade a las que ya tiene */
+    const cat = d.querySelector('#e-cat'); let catAntes = cat.value;
+    cat.addEventListener('focus', () => { catAntes = cat.value; });
+    cat.addEventListener('input', e => {
+      if (e.inputType === 'insertReplacementText' || !e.inputType) { const v = cat.value.trim();
+        if (catAntes.trim() && v && !v.includes(',') && !catAntes.split(',').map(x => norm(x)).includes(norm(v))) cat.value = catAntes.replace(/[,\s]*$/, '') + ', ' + v; }
+      catAntes = cat.value; });
+    if (!nuevo && window.QR) {
+      QR.dibujar(d.querySelector('#e-qr'), linkRsvp(i), { ecc: 'M', estilo: 'redondeado', color: '#2B2622' });
+      d.querySelector('#e-qr-d').onclick = () => { const a = document.createElement('a'); a.download = `qr_${i.codigo}.png`; a.href = d.querySelector('#e-qr').toDataURL('image/png'); a.click(); };
+      d.querySelector('#e-l2').onclick = async () => { await copiar(linkRsvp(i)); toast(t('Link del RSVP copiado')); };
+      d.querySelector('#e-msg').onclick = async () => { await copiar(mensajeWa(i)); toast(t('Mensaje de WhatsApp copiado')); };
+    }
+    d.querySelector('#e-nombre').focus();
+    d.querySelector('#f-ed').addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const err = d.querySelector('#e-err'), nombre = d.querySelector('#e-nombre').value.trim().replace(/\s+/g, ' ');
+      const pa = parseInt(asig.value, 10), pcv = parseInt(conf.value, 10);
+      if (nombre.length < 2) { err.textContent = t('Escribe el nombre del invitado.'); return; }
+      if (!(pa >= 1 && pa <= max)) { err.textContent = t('Pases asignados fuera de rango.') + ` (1–${max})`; return; }
+      if (asis.value === 'si' && (pcv < 1 || pcv > pa)) { err.textContent = t('Los pases confirmados deben estar entre 1 y los pases asignados.'); return; }
+      const otro = S.lista.find(x => norm(x.nombre) === norm(nombre) && x.id !== i.id);
+      if (otro) { err.textContent = t('Ya existe un invitado con ese nombre. Agrega un apellido o el parentesco entre paréntesis, p. ej. “Pérez (Padre)”.'); return; }
+      const fila = { nombre, tratamiento: d.querySelector('#e-trat').value.trim(), pases_asignados: pa, mesa: d.querySelector('#e-mesa').value.trim(),
+        telefono: (r => r.estado === 'ok' || r.estado === 'agregado' ? r.texto : d.querySelector('#e-tel').value.trim())(telInfo(d.querySelector('#e-tel').value)),
+        categoria: unicasEtiquetas(d.querySelector('#e-cat').value), asistencia: asis.value || null, acompanantes: asis.value === 'si' ? d.querySelector('#e-acomp').value.trim() : '',
+        pases_confirmados: asis.value === 'si' ? pcv : asis.value === 'no' ? 0 : null, respuesta_novios: d.querySelector('#e-resp').value.trim() };
+      if (!nuevo && fila.asistencia && !i.primera_respuesta && fila.asistencia !== i.asistencia) Object.assign(fila, { primera_respuesta: new Date().toISOString(), ultima_modificacion: new Date().toISOString() });
+      d.querySelector('#e-ok').disabled = true;
+      const rr = nuevo ? await sb.from('invitados').insert({ ...fila, proyecto_id: S.p.id, origen: 'panel' }).select().single()
+                       : await sb.from('invitados').update(fila).eq('id', i.id).select().single();
+      d.querySelector('#e-ok').disabled = false;
+      if (rr.error) { err.textContent = t(errorAmigable(rr.error)); return; }
+      upsertLocal(rr.data); S.recientes.set(rr.data.id, Date.now()); refrescar(); dlg.close();
+      toast(nuevo ? t('Invitado agregado') + ' · ' + rr.data.codigo : t('Cambios guardados'));
+    });
+  });
+}
+async function borrar(lista) {
+  if (!lista.length) return;
+  const ok = await confirmar({ titulo: lista.length === 1 ? 'Eliminar invitado' : `Eliminar ${lista.length} invitados`, peligro: true, ok: 'Eliminar',
+    texto: lista.length === 1 ? `<span>Se eliminará a</span> <b>${esc(lista[0].nombre)}</b> <span>con sus respuestas. Su link dejará de funcionar.</span>` : 'Se eliminarán los invitados seleccionados con sus respuestas. Sus links dejarán de funcionar.' });
+  if (!ok) return;
+  const ids = lista.map(i => i.id), { error } = await sb.from('invitados').delete().in('id', ids);
+  if (error) return toast(t(errorAmigable(error)), 'error');
+  S.lista = S.lista.filter(i => !ids.includes(i.id)); ids.forEach(id => S.sel.delete(id)); refrescar();
+  toast(lista.length === 1 ? t('Invitado eliminado') : `${lista.length} ${t('invitados eliminados')}`);
+}
+async function borrarTodo() {
+  if (!S.lista.length) return toast(t('No hay invitados para borrar'), 'info');
+  const ok = await confirmar({ titulo: 'Borrar TODOS los invitados', peligro: true, ok: 'Borrar todo', palabra: 'BORRAR',
+    texto: `<span>Se eliminarán</span> <b>${S.lista.length}</b> <span>invitados con todas sus respuestas, mensajes, historial y registros de ingreso. Los links enviados dejarán de funcionar.</span> <b>No se puede deshacer.</b><br><br><button type="button" id="cf-exp" class="font-medium text-oro-700 underline">Exportar un respaldo antes</button>` });
+  if (!ok) return;
+  const { data, error } = await sb.rpc('admin_borrar_todo', { p_proyecto: S.p.id, p_confirmacion: 'BORRAR' });
+  if (error) return toast(t(errorAmigable(error)), 'error');
+  S.lista = []; S.sel.clear(); refrescar(); toast(`${data.borrados} ${t('invitados borrados')}`);
+}
+dlg.addEventListener('click', e => { if (e.target.id === 'cf-exp') exportar(S.lista, 'respaldo'); });
+
+/* =====================================================================================
+   WHATSAPP
+   ===================================================================================== */
+function mensajeWa(i, plantilla) {
+  const p = S.p, fl = p.fecha_limite ? new Date(p.fecha_limite).toLocaleDateString(p.idioma === 'en' ? 'en-US' : 'es-PE', { day: 'numeric', month: 'long' }) : '';
+  let tx = plantilla ?? p.mensaje_whatsapp ?? '';
+  if (!fl) tx = tx.replace(/[ \t]*(antes del|hasta el|by|before)[ \t]*\{fecha_limite\}/gi, '').replace(/\{fecha_limite\}/g, '');
+  const novios = fusionar(DEF_TARJETA, p.tarjeta).titulo || p.nombre;
+  return tx.replace(/\{(\w+)\}/g, (m, k) => ({
+    tratamiento: i.tratamiento && !norm(i.nombre).startsWith(norm(i.tratamiento)) ? i.tratamiento : '', nombre: i.nombre, link: link(i), link_rsvp: linkRsvp(i),
+    pases: p.idioma === 'en' ? plural(i.pases_asignados, 'seat', 'seats') : plural(i.pases_asignados, 'pase', 'pases'), codigo: i.codigo, mesa: i.mesa, fecha_limite: fl, novios }[k] ?? m))
+    .replace(/[ \t]{2,}/g, ' ').replace(/^ /gm, '').replace(/ ([,.:;!?])/g, '$1');
+}
+/* Número para WhatsApp: si no trae código de país se usa el del evento (Configuración › General) */
+const numeroWa = tx => telInfo(tx).numero;
+/* wa.me redirige y en PC convierte los emojis en "?": en computadora se usa WhatsApp Web directo y en el celular api.whatsapp.com */
+const esMovil = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+function urlWhatsapp(numero, texto) {
+  const q = (numero ? 'phone=' + numero + '&' : '') + 'text=' + encodeURIComponent(texto);
+  return (esMovil() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + q;
+}
+/* Mensajes que se pueden enviar: el predeterminado (el guardado en Configuración › WhatsApp), las plantillas sugeridas y "Mis plantillas" */
+function opcionesWa() {
+  const mias = (S.p.plantillas_wa || []).map((x, k) => x && x.texto ? { k: 'm' + k, g: 'mias', nombre: x.nombre || `${t('Mensaje')} ${k + 1}`, texto: x.texto } : null).filter(Boolean);
+  return [{ k: 'def', g: 'def', nombre: t('Predeterminado (guardado en Configuración)'), texto: S.p.mensaje_whatsapp || '' },
+    ...PLANTILLAS_WA.map(x => ({ k: 's:' + x.id, g: 'sug', nombre: t(x.nombre), texto: x.texto })), ...mias];
+}
+const claveWa = () => 'panel.wa.' + (S.p?.id ?? '');
+function whatsapp(i) {
+  const ops = opcionesWa(), n = numeroWa(i.telefono), est = telInfo(i.telefono).estado;
+  let sel = localStorage.getItem(claveWa()); if (!ops.some(o => o.k === sel)) sel = 'def';   // recuerda la última elegida
+  const grupo = (g, titulo) => { const l = ops.filter(o => o.g === g); return l.length ? `<optgroup label="${esc(t(titulo))}">${l.map(o => `<option value="${esc(o.k)}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; };
+  const aviso = !n ? t('Sin número: elige el contacto en WhatsApp') : est === 'dudoso' ? `${t('Revisa el número: no parece un celular válido.')} ${esc(i.telefono)}` : `${t('Se enviará a')} +${n}`;
+  modal(`${cabecera(t('Enviar por WhatsApp'), `<span data-notr>${esc(i.nombre)}</span>${i.whatsapp_enviado ? ` · <span class="text-emerald-700">${t('Ya enviado · enviar de nuevo')}</span>` : ''}`)}${cuerpo(`<div class="grid gap-3">
+      <div><label class="${lbl}" for="wa-sel">${t('Mensaje a enviar')}</label>
+        <select id="wa-sel" class="${campo}">${ops.filter(o => o.g === 'def').map(o => `<option value="${o.k}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}${grupo('sug', 'Plantillas sugeridas')}${grupo('mias', 'Mis plantillas')}</select></div>
+      <p id="wa-prev" data-notr class="max-h-72 overflow-y-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-[#e7ffdb] p-3 text-sm text-stone-800"></p>
+      <p id="wa-aviso" class="min-h-4 text-xs text-amber-700"></p>
+      <p class="text-xs ${!n || est === 'dudoso' ? 'text-amber-700' : 'text-stone-500'}" data-notr>${aviso}</p></div>`)}
+    ${pie(`<button type="button" class="${btnS}" data-cerrar>${t('Cancelar')}</button><button type="button" id="wa-ir" class="${btnP}">${ico('wa')} <span>${t('Enviar por WhatsApp')}</span></button>`)}`, d => {
+    const elegido = () => ops.find(o => o.k === d.querySelector('#wa-sel').value) || ops[0];
+    const pintar = () => {
+      const o = elegido(); localStorage.setItem(claveWa(), o.k);
+      d.querySelector('#wa-prev').textContent = mensajeWa(i, o.texto);
+      d.querySelector('#wa-aviso').textContent = /\{link\}|\{link_rsvp\}/.test(o.texto) ? '' : t('Este mensaje no incluye {link}: el invitado no recibirá su invitación.');
+    };
+    d.querySelector('#wa-sel').addEventListener('change', pintar); pintar();
+    d.querySelector('#wa-ir').onclick = () => { const o = elegido(); cerrarModal(); enviarWa(i, o.texto); };
+    d.querySelector('#wa-ir').focus();
+  });
+}
+async function enviarWa(i, plantilla) {
+  const n = numeroWa(i.telefono);
+  window.open(urlWhatsapp(n, mensajeWa(i, plantilla)), '_blank', 'noopener');
+  const { data, error } = await sb.from('invitados').update({ whatsapp_enviado: new Date().toISOString() }).eq('id', i.id).select().single();
+  if (!error) { upsertLocal(data); refrescar(); }
+}
+
+/* IA: redacta el mensaje en vivo (Edge Function "generar-mensaje", streaming, modelos de respaldo) */
+async function generarIA({ ta, instrucciones, tonos, base, idioma, alTexto, alFin }) {
+  const { data: { session } } = await sb.auth.getSession();
+  const ctl = new AbortController(); S.ia = ctl;
+  const reloj = setTimeout(() => ctl.abort('tiempo'), 60000);
+  let txt = '', modelo = '';
+  try {
+    const r = await fetch(P.SUPABASE_URL + '/functions/v1/generar-mensaje', {
+      method: 'POST', signal: ctl.signal,
+      headers: { 'Content-Type': 'application/json', apikey: P.SUPABASE_ANON, Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ proyecto: S.p.id, instrucciones, tonos, base, idioma })
+    });
+    if (!r.ok || !r.body) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(r.status === 404 ? t('La función de IA no está desplegada.') : j.error === 'sin_configurar' ? t('Falta configurar la clave de IA.')
+        : j.error === 'clave' ? t('La clave de IA no es válida o no tiene permisos.') : r.status === 403 ? t('Tu usuario no puede usar la IA en este evento.')
+        : t('La IA no respondió.') + (j.detalle ? ' ' + j.detalle : ''));
+    }
+    modelo = r.headers.get('x-modelo') || '';
+    ta.value = ''; ta.classList.add('escribiendo');
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { value, done } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let k;
+      while ((k = buf.indexOf('\n')) >= 0) {
+        const linea = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+        if (!linea.startsWith('data:')) continue;
+        const dato = linea.slice(5).trim(); if (dato === '[DONE]') continue;
+        try { const c = JSON.parse(dato).choices?.[0]?.delta?.content; if (c) { txt += c; ta.value = txt; ta.scrollTop = ta.scrollHeight; alTexto?.(); } } catch {}
+      }
+    }
+    txt = txt.trim();
+    if (!txt) throw new Error(t('La IA no devolvió texto. Intenta con otras indicaciones.'));
+    if (!/\{link\}/.test(txt)) txt += '\n\n{link}';
+    ta.value = txt; alTexto?.(); return modelo || 'IA';
+  } catch (e) {
+    if (e.name === 'AbortError' || e === 'tiempo') { if (ctl.signal.reason === 'tiempo') toast(t('La IA tardó demasiado. Intenta de nuevo.'), 'error'); }
+    else toast(e.message, 'error');
+    if (txt) { ta.value = txt; alTexto?.(); }
+    return '';
+  } finally { clearTimeout(reloj); ta.classList.remove('escribiendo'); S.ia = null; alFin?.(); }
+}
+
+/* =====================================================================================
+   CONFIGURACIÓN DEL EVENTO (pestañas; la ventana no se cierra al guardar ni al hacer clic fuera)
+   ===================================================================================== */
+const correosValidos = tx => [...new Set(String(tx || '').split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))];
+const ERRORES_REPORTE = { sin_destinatarios: 'Agrega al menos un correo destinatario válido.', sin_api_key: 'El servicio de correo aún no está configurado.' };
+const localDT = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const deLocal = v => v ? new Date(v).toISOString() : '';
+const CREDITOS = [['flotante', 'Flotante abajo · aparece solo al llegar al final de la página (recomendado)'], ['discreto', 'Discreto · un corazón pequeño en la esquina, solo al llegar al final'], ['final', 'Al final de la página · fijo, sin animación de entrada'], ['oculto', 'No mostrar']];
+const PESTANAS = [['general', 'General'], ['formulario', 'Formulario RSVP'], ['tarjeta', 'Tarjeta'], ['whatsapp', 'WhatsApp'], ['reporte', 'Reporte diario'], ['accesos', 'Accesos']];
+/* ---- Fondos del RSVP: color o imagen, con opacidad, zoom (≥ 100 % sobre «cover») y posición; imagen propia del evento o de la biblioteca (fondos/) ---- */
+const FONDOS = [['pagina', 'Fondo de la página (rsvp.html)', 'rsvp_fondo_background', '9 / 16'], ['formulario', 'Fondo del formulario', 'rsvp_fondo_formulario', '5 / 7'], ['tarjeta', 'Fondo de la tarjeta', 'rsvp_fondo_tarjeta', '5 / 7']];
+const numF = (v, d, mn, mx) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.max(mn, Math.min(mx, n)) : d; };
+const fondoCero = { tipo: 'color', color: '', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50 };
+let CATALOGO_FONDOS = null;                                     // [{ id, nombre, grupo }] de <fondos>/catalogo.json
+const cargarCatalogo = () => CATALOGO_FONDOS ? Promise.resolve(CATALOGO_FONDOS)
+  : fetch(P.ruta('fondos') + 'catalogo.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject()).then(j => (CATALOGO_FONDOS = (j.imagenes || []).filter(x => /^[a-z0-9-]{1,40}$/.test(x.id)))).catch(() => (CATALOGO_FONDOS = []));
+/* ¿Qué motor carga el RSVP del evento? Se lee su rsvp.html y se compara el <script> del motor con el de ESTE panel:
+     'propio'      = carga el mismo rsvp.js que este panel → todas las opciones de fondo aplican
+     'otro'        = carga un rsvp.js de otra carpeta/versión → las opciones avanzadas no tendrían efecto (se ocultan y se guarda sin tocarlas)
+     'desconocido' = no se pudo leer (otro dominio, sin red o sin <script> reconocible)
+   No depende de nombres de carpeta: si renombras la carpeta del motor, la comparación sigue siendo válida. */
+async function detectarMotor(urlRsvp) {
+  if (!urlRsvp) return { estado: 'desconocido' };
+  try {
+    const r = await fetch(urlRsvp, { cache: 'no-store' }); if (!r.ok) return { estado: 'desconocido' };
+    const h = await r.text(), limpia = u => new URL(u, urlRsvp).href.split(/[?#]/)[0];
+    const propio = limpia(P.ruta('rsvp')), nombre = propio.split('/').pop();
+    const motores = [...h.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map(m => limpia(m[1])).filter(u => u.split('/').pop() === nombre);
+    if (motores.includes(propio)) return { estado: 'propio' };
+    if (motores.length) return { estado: 'otro', url: motores[0] };
+  } catch { /* otro dominio o sin red */ }
+  return { estado: 'desconocido' };
+}
+const TABLERO = 'background-image:conic-gradient(#e7e5e4 25%,#fff 0 50%,#e7e5e4 0 75%,#fff 0);background-size:12px 12px';
+
+function configurar(pestana = 'general') {
+  const c = S.p, F = fusionar(DEF_FORM, c.formulario), T = fusionar(DEF_TARJETA, c.tarjeta), X = T.textos, E = T.evento, C = T.colores, FO = T.fondos;
+  let preg = (c.formulario?.preguntas || []).map(q => ({ ...q, opciones: [...(q.opciones || [])] }));
+  let plantillas = Array.isArray(c.plantillas_wa) ? [...c.plantillas_wa] : [];
+  const admin = esAdmin(), bloq = admin ? '' : 'disabled';
+  const ejemplo = S.lista[0] || { nombre: 'Juan Pérez', tratamiento: 'Señor', codigo: 'AB12', pases_asignados: 2, mesa: '5' };
+  const horas = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${c.reporte_hora === h ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('');
+  const inp = (id, label, val, extra = '') => `<div><label class="${lbl}" for="${id}">${label}</label><input id="${id}" class="${campo}" value="${esc(val)}" ${extra}></div>`;
+  /* Barra de tamaño: 100 % por defecto, de 50 % a 200 % */
+  const esc100 = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.max(50, Math.min(200, n)) : 100; };
+  const barraEscala = (id, v, etiqueta) => `<div class="flex items-center gap-2 text-sm"><input id="${id}" data-escala type="range" min="50" max="200" step="5" value="${esc100(v)}" class="w-32 accent-oro-600 sm:w-40" aria-label="${esc(etiqueta)}"><output id="${id}-v" class="w-12 text-right tabular-nums">${esc100(v)}%</output>
+      <button type="button" data-escala-reset="${id}" class="${enlace} text-xs" title="${esc(t('Restablecer 100 %'))}">100%</button></div>`;
+  const cajaChk = (id, v, html) => `<label class="flex items-start gap-2 text-sm"><input id="${id}" type="checkbox" ${v ? 'checked' : ''} class="${chk}"><span>${html}</span></label>`;
+
+  const panelGeneral = `<div class="grid gap-4 sm:grid-cols-2">
+    ${inp('c-nombre', 'Nombre del evento', c.nombre, bloq)}
+    <div><label class="${lbl}">Identificador</label><p class="rounded-xl bg-stone-100 px-3 py-2 font-mono text-sm text-stone-600">${esc(c.slug)}</p></div>
+    <div class="sm:col-span-2">${inp('c-uinv', 'Link de la invitación', c.url_invitacion, 'inputmode="url" ' + bloq)}<p class="mt-1 text-xs text-stone-500">Se le agrega ?to=CÓDIGO. Va en el mensaje de WhatsApp.</p></div>
+    <div class="sm:col-span-2">${inp('c-ursvp', 'Link del RSVP directo (destino del QR)', c.url_rsvp, 'inputmode="url" ' + bloq)}</div>
+    ${admin ? '' : `<p class="flex items-center gap-1.5 text-xs text-stone-500 sm:col-span-2">${ico('lock', 'size-3.5')} <span>Solo el administrador puede cambiar el nombre del evento, sus links y el crédito.</span></p>`}
+    <div><label class="${lbl}" for="c-lim">Fecha límite del RSVP</label><input id="c-lim" type="datetime-local" class="${campo}" value="${localDT(c.fecha_limite)}">
+      <p class="mt-1 text-xs text-stone-500">Vacío = sin cierre. Después, el formulario queda solo de lectura.</p></div>
+    ${inp('c-max', 'Pases máximos por invitado', c.pases_max, 'type="number" min="1" max="50"')}
+    <div><label class="${lbl}" for="c-idioma">Idioma del RSVP</label><select id="c-idioma" class="${campo}">
+      ${[['es', 'Español'], ['en', 'English'], ['es,en', 'Bilingüe (botón ES / EN)']].map(([v, n]) => `<option value="${v}" ${(c.idioma || 'es') === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <p class="mt-1 text-xs text-stone-500">Los textos que escriban los novios (preguntas, mensajes) se muestran tal cual.</p></div>
+    <div class="flex items-end">${cajaChk('c-nuevos', c.permitir_nuevos, 'Permitir que invitados sin código creen su registro (link con ?pase=N)')}</div>
+    <div class="grid gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div><label class="${lbl}" for="c-pais">País por defecto de los teléfonos</label><select id="c-pais" class="${campo}">${opcionesPais(c.pais_tel || 'PE')}</select>
+        <p class="mt-1 text-xs text-stone-500">Se usa para los WhatsApp escritos sin código de país (945 709 988 → +51 945 709 988) al importar, editar y enviar.</p></div>
+      <button type="button" id="c-tel-fix" class="${btnS}">${ico('wa')} <span>Revisar teléfonos guardados</span></button></div>
+    <div class="sm:col-span-2"><label class="${lbl}" for="c-credito">Crédito “Hecho con amor por Parte y Detalles” en el RSVP</label>
+      <select id="c-credito" class="${campo}" ${bloq}>${CREDITOS.map(([v, n]) => `<option value="${v}" ${(c.credito || 'flotante') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+    ${admin ? `<div class="sm:col-span-2">${cajaChk('c-activo', c.activo, 'Evento activo · si se desactiva, el RSVP queda cerrado (solo lectura) y se conservan todos los datos')}</div>` : ''}</div>`;
+
+  const panelFormulario = `<div class="grid gap-4">
+    <div class="grid gap-2 rounded-xl bg-stone-50 p-3">
+      ${cajaChk('f-saludo', F.mostrar_saludo, 'Mostrar arriba del formulario el nombre del invitado y sus pases')}
+      ${cajaChk('f-nombre', F.mostrar_nombre_codigo, 'Mostrar el campo “Nombre completo” cuando el invitado entra con su link personal')}
+      ${cajaChk('f-pases', F.preguntar_pases, 'Preguntar cuántos asistirán (si se desactiva, se confirman todos los pases asignados)')}
+      ${cajaChk('f-acomp', F.pedir_acompanantes, 'Pedir los nombres de los acompañantes (separados por comas)')}
+      ${cajaChk('f-msg', F.permitir_mensaje, 'Permitir dejar un mensaje a los novios')}
+      ${cajaChk('f-sugerir', F.sugerir_nombres, 'Sugerir nombres parecidos al buscar (si se desactiva, solo se encuentra el nombre exacto: más privado)')}
+      ${cajaChk('f-fechas', F.mostrar_fechas, 'Mostrar al invitado “Primera respuesta”, “Última modificación” y “Ediciones”')}</div>
+    <div class="grid gap-2 rounded-xl bg-stone-50 p-3">
+      <p class="text-sm font-medium">Tarjeta con QR (Save the Date) al reverso del formulario</p>
+      ${cajaChk('f-giro', F.permitir_giro, 'Permitir que el invitado voltee la tarjeta (con el dedo, el botón o al enviar su respuesta). Si lo desactivas, la tarjeta y el QR no se muestran nunca')}
+      ${cajaChk('f-voltear', F.mostrar_voltear, 'Mostrar el botón “Voltear tarjeta” (si lo desactivas, la tarjeta solo se alcanza con el dedo o al enviar la respuesta)')}</div>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:grid-cols-[1fr_auto]">
+      ${cajaChk('f-logo', F.logo.mostrar, 'Mostrar el logo del evento arriba del formulario')}
+      <label class="flex items-center gap-2 text-sm"><span>Ancho</span><input id="f-logo-ancho" type="range" min="60" max="320" step="10" value="${esc(F.logo.ancho || 140)}" class="w-32 accent-oro-600" aria-label="Ancho del logo"><output id="f-logo-v" class="w-14 text-right tabular-nums">${esc(F.logo.ancho || 140)} px</output></label></div>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:grid-cols-[1fr_auto]">
+      <div><p class="text-sm font-medium">Tamaño de las letras del formulario</p><p class="text-xs text-stone-500">Mueve todos los textos del formulario a la vez. 100 % = tamaño original.</p></div>
+      ${barraEscala('f-escala', F.escala_fuente, 'Tamaño de las letras del formulario')}</div>
+    <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-semibold">Preguntas adicionales</h3>
+      <div class="flex min-w-0 flex-wrap gap-2"><select id="f-preset" class="${campoA} py-1.5" aria-label="Agregar pregunta sugerida"><option value="">Sugeridas…</option>${PRESETS_PREG.map((p, k) => `<option value="${k}">${esc(t(p.etiqueta))}</option>`).join('')}</select>
+        <button type="button" id="f-add" class="${btnS}">${ico('plus')} Pregunta</button></div></div>
+    <div id="f-lista" class="grid gap-3"></div>
+    <p class="text-xs text-stone-500">Las preguntas aparecen en el RSVP en este orden. Cambiar el texto de una pregunta no borra respuestas; eliminarla sí las oculta.</p></div>`;
+
+  const filaFondo = ([k, n, archivo, aspecto]) => {
+    const f = FO[k] || {}, colorV = k === 'tarjeta' ? C.papel : (f.color || (k === 'pagina' ? '#F1ECE4' : '#FFFFFF'));
+    const op = numF(f.opacidad, 100, 0, 100), z = numF(f.zoom, 100, 100, 300), px = numF(f.pos_x, 50, 0, 100), py = numF(f.pos_y, 50, 0, 100);
+    const sl = (attr, mn, mx, st, val, etq) => `<label class="flex items-center gap-2 text-sm"><span class="w-24 flex-none text-stone-600">${etq}</span><input type="range" ${attr} min="${mn}" max="${mx}" step="${st}" value="${val}" class="min-w-0 flex-1 accent-oro-600" aria-label="${esc(t(etq))}"><output class="w-12 text-right tabular-nums" data-out>${val}%</output></label>`;
+    return `<div class="rounded-xl bg-stone-50 p-3" data-fondo="${k}" data-archivo="${archivo}" data-aspecto="${aspecto}">
+      <div class="grid items-center gap-2 sm:grid-cols-[1fr_10rem_auto]">
+        <p class="text-sm font-medium">${n}</p>
+        <select class="${campo}" data-fondo-tipo aria-label="Tipo de fondo">${[['color', 'Color'], ['transparente', 'Transparente'], ['imagen', 'Imagen']].map(([v, tx]) => `<option value="${v}" ${(f.tipo || 'color') === v ? 'selected' : ''}>${tx}</option>`).join('')}</select>
+        <input type="color" value="${esc(colorV)}" data-fondo-color class="size-10 cursor-pointer rounded-lg border-0 bg-transparent p-0" aria-label="Color">
+      </div>
+      <div class="mt-3 grid gap-3 sm:grid-cols-[1fr_7.5rem]" data-fondo-avanz>
+        <div class="grid min-w-0 content-start gap-2.5">
+          ${sl('data-fondo-op', 0, 100, 5, op, 'Opacidad')}
+          <div class="grid gap-2.5" data-fondo-img>
+            <div><p class="mb-1 text-sm text-stone-600">Imagen</p><div class="flex flex-wrap gap-1.5" data-picker><span class="text-xs text-stone-400">…</span></div></div>
+            ${sl('data-fondo-zoom', 100, 300, 5, z, 'Zoom')}${sl('data-fondo-px', 0, 100, 5, px, 'Horizontal')}${sl('data-fondo-py', 0, 100, 5, py, 'Vertical')}
+            <p class="text-xs text-stone-500">100 % = la imagen cubre todo el recuadro. Más zoom la acerca; Horizontal / Vertical eligen qué parte se ve (50 = centrado).</p>
+            <button type="button" data-fondo-centrar class="${enlace} justify-self-start text-xs">Centrar y zoom 100 %</button>
+            <input type="hidden" data-fondo-origen value="${esc(f.origen === 'preset' ? 'preset' : 'evento')}"><input type="hidden" data-fondo-preset value="${esc(f.preset || '')}">
+          </div>
+        </div>
+        <div class="justify-self-center"><div class="relative overflow-hidden rounded-lg ring-1 ring-stone-300" style="width:${k === 'pagina' ? '5.5rem' : '6.5rem'};aspect-ratio:${aspecto};${TABLERO}" data-prev aria-label="${esc(t('Vista previa'))}">
+          <div class="absolute inset-0" data-prev-capa><i class="absolute inset-0" data-prev-c></i><img alt="" hidden class="absolute inset-0 h-full w-full max-w-none object-cover" data-prev-i></div></div>
+          <p class="mt-1 text-center text-xs text-stone-500">Vista previa</p></div>
+      </div></div>`; };
+  const panelTarjeta = `<div class="grid gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2"><h3 class="font-semibold">Encabezado</h3></div>
+    ${inp('t-titulo', 'Nombres en la tarjeta', T.titulo, `placeholder="${esc(c.nombre)}"`)}
+    ${inp('t-fecha', 'Fecha (texto)', T.fecha, 'placeholder="15 · 05 · 2027"')}
+    ${inp('t-lugar', 'Lugar (texto)', T.lugar, 'placeholder="Sábado · Lima, Perú"')}
+    <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Mensajes de la tarjeta</h3><p class="text-xs text-stone-500">Si escribes una “Respuesta de los novios” para un invitado, reemplaza el mensaje de agradecimiento solo para él.</p></div>
+    ${inp('t-e-pend', 'Etiqueta · sin responder', X.etiqueta_pendiente)}${inp('t-m-pend', 'Mensaje · sin responder', X.mensaje_pendiente)}
+    ${inp('t-e-si', 'Etiqueta · asistirá', X.etiqueta_si)}${inp('t-m-si', 'Mensaje · asistirá', X.mensaje_si)}
+    ${inp('t-e-no', 'Etiqueta · no asistirá', X.etiqueta_no)}${inp('t-m-no', 'Mensaje · no asistirá', X.mensaje_no)}
+    <p class="-mt-2 text-xs text-stone-500 sm:col-span-2">Usa {fecha_limite} en el mensaje sin responder para mostrar la fecha de cierre. Si dejas los textos sugeridos, en inglés se usan sus equivalentes.</p>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto]">
+      <div><p class="text-sm font-medium">Tamaño de las letras de la tarjeta</p><p class="text-xs text-stone-500">Mueve todos los textos de la tarjeta a la vez (etiqueta, nombres, fecha, lugar, mensaje y código). Si el texto no deja sitio para un QR legible, se limita solo.</p></div>
+      ${barraEscala('t-escala', T.escala_texto, 'Tamaño de las letras de la tarjeta')}</div>
+    <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Colores</h3></div>
+    <div class="grid grid-cols-3 gap-3 sm:col-span-2">${[['tinta', 'Texto'], ['acento', 'Acento'], ['suave', 'Texto suave']].map(([k, n]) =>
+      `<label class="flex items-center gap-2 rounded-xl bg-stone-50 p-2 text-sm"><input type="color" id="t-c-${k}" value="${esc(C[k])}" class="size-9 cursor-pointer rounded-lg border-0 bg-transparent p-0"><span>${n}</span></label>`).join('')}</div>
+    <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Fondos del RSVP</h3></div>
+    <p id="motor-aviso" class="rounded-xl bg-stone-50 p-2.5 text-xs text-stone-500 sm:col-span-2">Comprobando el motor del RSVP…</p>
+    <div class="grid gap-2 sm:col-span-2" id="fondos-box">${FONDOS.map(filaFondo).join('')}</div>
+    <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto]">
+      <p class="text-sm font-medium">Casillas y listas del formulario</p>
+      <input type="color" id="t-c-campo" value="${esc(C.campo || '#F9F5F2')}" class="size-10 cursor-pointer rounded-lg border-0 bg-transparent p-0" aria-label="Color">
+      <label class="flex items-center gap-2 text-sm"><span>Opacidad</span><input id="t-campo-alfa" type="range" min="0" max="100" step="5" value="${esc(T.campo_alfa ?? 100)}" class="w-28 accent-oro-600" aria-label="Opacidad"><output id="t-campo-v" class="w-12 text-right tabular-nums">${esc(T.campo_alfa ?? 100)}%</output></label></div>
+    <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Código QR de la tarjeta</h3></div>
+    <div class="grid gap-4 sm:col-span-2 sm:grid-cols-[1fr_9rem]">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div><label class="${lbl}" for="q-estilo">Estilo de los puntos</label><select id="q-estilo" class="${campo}">${[['redondeado', 'Redondeado'], ['circular', 'Circular'], ['clasico', 'Clásico (cuadrado)']].map(([v, n]) => `<option value="${v}" ${(T.qr.estilo || 'redondeado') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div><label class="${lbl}" for="q-color">Color del QR</label><input type="color" id="q-color" value="${esc(T.qr.color || C.tinta)}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div>
+        <div>${inp('t-logo', 'Iniciales al centro', T.logo_qr, 'maxlength="5" placeholder="I&S"')}<p class="mt-1 text-xs text-stone-500">Vacío = QR sin logo en el centro.</p></div>
+        <div><label class="${lbl}" for="q-forma">Forma del logo</label><select id="q-forma" class="${campo}">${[['circulo', 'Círculo'], ['redondeado', 'Cuadrado redondeado'], ['cuadrado', 'Cuadrado']].map(([v, n]) => `<option value="${v}" ${(T.qr.logo_forma || 'circulo') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div><label class="${lbl}" for="q-lfondo">Fondo del logo</label><input type="color" id="q-lfondo" value="${esc(T.qr.logo_fondo || C.acento)}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div>
+        <div><label class="${lbl}" for="q-ltexto">Letras del logo</label><input type="color" id="q-ltexto" value="${esc(T.qr.logo_texto || '#FFFFFF')}" class="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0"></div>
+        <div class="grid items-center gap-2 sm:col-span-2 sm:grid-cols-[1fr_auto]"><div><p class="${lbl} mb-0">Tamaño del código QR</p><p class="text-xs text-stone-500">100 % = el más grande que cabe en la tarjeta. Menos de 100 % lo reduce; para agrandarlo más, reduce antes las letras.</p></div>
+          ${barraEscala('q-escala', T.qr.escala, 'Tamaño del código QR')}</div></div>
+      <div class="flex flex-col items-center gap-1"><canvas id="q-prev" width="360" height="360" class="size-36 rounded-xl bg-white ring-1 ring-stone-200" aria-label="Vista previa del QR"></canvas>
+        <p class="text-center text-xs text-stone-500">Vista previa</p></div></div>
+    <p class="text-xs text-stone-500 sm:col-span-2">Usa colores con buen contraste (QR oscuro sobre fondo claro) para que se lea sin problemas.</p>
+    <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Evento para “Agregar al calendario”</h3></div>
+    <div><label class="${lbl}" for="t-ini">Inicio</label><input id="t-ini" type="datetime-local" class="${campo}" value="${localDT(E.inicio)}"></div>
+    <div><label class="${lbl}" for="t-fin">Fin</label><input id="t-fin" type="datetime-local" class="${campo}" value="${localDT(E.fin)}"></div>
+    ${inp('t-ev-tit', 'Título del evento', E.titulo, `placeholder="Boda de ${esc(T.titulo || c.nombre)}"`)}${inp('t-ev-lug', 'Dirección', E.lugar)}
+    <div class="sm:col-span-2">${inp('t-ev-det', 'Detalle', E.detalle, 'placeholder="Ceremonia 3:30 pm · Recepción 7:30 pm"')}</div>
+    <p class="text-xs text-stone-500 sm:col-span-2"><span>Sin fecha de inicio, el botón de calendario no aparece.</span> <a class="${enlace}" href="${esc(c.url_rsvp)}" target="_blank" rel="noopener">Ver el RSVP</a></p></div>`;
+
+  const idiomaIA = (c.idioma || 'es').startsWith('en') ? 'en' : 'es';
+  const panelWhatsapp = `<div class="grid gap-4">
+    <div><p class="${lbl}">Plantillas sugeridas</p><div class="flex flex-wrap gap-2">${PLANTILLAS_WA.map(p => `<button type="button" data-plantilla="${p.id}" class="${btnS}">${esc(p.nombre)}</button>`).join('')}</div></div>
+    <div class="rounded-xl bg-stone-50 p-3">
+      <p class="font-medium"><span>Mis plantillas</span> <span id="mp-n" class="text-sm font-normal text-stone-500"></span></p>
+      <p class="mt-0.5 text-xs text-stone-500">Guarda hasta 5 versiones del mensaje (formal, familiar, recordatorio, inglés…). Se guardan al instante.</p>
+      <div id="mp-lista" class="mt-3 grid gap-2 sm:grid-cols-2"></div></div>
+    <details id="ia-box" class="group rounded-2xl bg-gradient-to-br from-oro-50 to-white ring-1 ring-oro-200">
+      <summary class="flex cursor-pointer list-none items-center gap-2 p-4 font-semibold text-oro-700">${ico('spark')} <span>Redactar con IA</span><span class="ml-auto transition group-open:rotate-180">${ico('chev')}</span></summary>
+      <div class="px-4 pb-4">
+        <p class="text-xs text-stone-500">Describe cómo quieren el mensaje y la IA lo escribe en vivo con los marcadores del sistema.</p>
+        <textarea id="ia-txt" rows="2" class="${campo} mt-3" placeholder="Ej.: cálido y con humor, mencionar que es solo para adultos y que habrá barra libre"></textarea>
+        <div class="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Tono">${TONOS.map(x => `<button type="button" data-tono="${x}" aria-pressed="false" class="rounded-full px-3 py-1 text-xs font-medium ring-1 ring-stone-300 aria-pressed:bg-oro-600 aria-pressed:text-white aria-pressed:ring-oro-600">${x}</button>`).join('')}
+          <select id="ia-lang" class="${campoA} ml-auto py-1 text-xs" aria-label="Idioma del mensaje"><option value="es" ${idiomaIA === 'es' ? 'selected' : ''}>Español</option><option value="en" ${idiomaIA === 'en' ? 'selected' : ''}>English</option></select></div>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" id="ia-ir" class="${btnP}">${ico('spark')} Generar</button>
+          <button type="button" id="ia-mejorar" class="${btnS}">Mejorar el actual</button>
+          <button type="button" id="ia-stop" class="${btnS}" hidden>${ico('stop')} Detener</button>
+          <span id="ia-estado" class="text-xs text-stone-500" role="status"></span></div>
+        <p class="mt-2 text-[11px] text-stone-500">La IA puede equivocarse: revisa el mensaje antes de guardar.</p></div></details>
+    <div><div class="mb-2 flex flex-wrap gap-1">${['tratamiento', 'nombre', 'pases', 'link', 'link_rsvp', 'fecha_limite', 'codigo', 'mesa', 'novios'].map(k => `<button type="button" data-chip="{${k}}" data-notr class="rounded-full bg-oro-100 px-2 py-0.5 font-mono text-xs text-oro-700 hover:bg-oro-200">{${k}}</button>`).join('')}</div>
+      <textarea id="c-wa" rows="9" class="${campo}" aria-label="Mensaje de WhatsApp">${esc(c.mensaje_whatsapp)}</textarea>
+      <p class="mt-3 text-xs font-medium text-stone-500"><span>Vista previa</span> (<span data-notr>${esc(ejemplo.nombre)}</span>)</p>
+      <p id="c-prev" data-notr class="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-[#e7ffdb] p-3 text-sm text-stone-800"></p></div></div>`;
+
+  const panelReporte = `<div class="grid gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2">${cajaChk('c-rep', c.reporte_activo, 'Enviar un resumen diario solo los días en que algún invitado respondió, cambió su respuesta o dejó un mensaje.')}</div>
+    <div class="sm:col-span-2"><label class="${lbl}" for="c-dest">Destinatarios</label><input id="c-dest" class="${campo}" value="${esc(c.reporte_destinatarios || '')}" placeholder="novia@correo.com, novio@correo.com">
+      <p id="c-dest-ok" class="mt-1 text-xs text-stone-500"></p></div>
+    <div><label class="${lbl}" for="c-hora">Hora de envío</label><select id="c-hora" class="${campo}">${horas}</select><p class="mt-1 text-xs text-stone-500"><span>Zona horaria:</span> ${esc(c.zona_horaria || 'America/Lima')}</p></div>
+    <div class="rounded-xl bg-stone-50 p-3 text-sm sm:col-span-2"><div id="c-rep-estado" class="text-stone-600">Consultando estado…</div>
+      <div class="mt-3 flex flex-wrap gap-2"><button type="button" id="c-prev-rep" class="${btnS}">${ico('eye')} Vista previa</button>
+        <button type="button" id="c-probar" class="${btnS}">${ico('mail')} Guardar y enviar prueba</button></div></div></div>`;
+
+  const panelAccesos = `<div class="grid gap-4"><div id="a-lista" class="grid gap-2"><p class="text-sm text-stone-500">Cargando accesos…</p></div>
+    <div class="rounded-xl bg-stone-50 p-3"><p class="font-semibold">Dar acceso</p>
+      <div class="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto]"><input id="a-email" type="email" class="${campo}" placeholder="correo@ejemplo.com" aria-label="Correo">
+        <select id="a-rol" class="${campoA}" aria-label="Rol">${admin ? '<option value="novios">Novios (panel)</option>' : ''}<option value="staff">Staff (recepción)</option></select>
+        <button type="button" id="a-add" class="${btnP}">${ico('plus')} Agregar</button></div>
+      <p class="mt-2 text-xs text-stone-500">Novios: gestionan invitados y la configuración de este evento. Staff: solo el modo recepción (búsqueda y registro de ingreso).</p>
+      <p id="a-err" class="mt-1 min-h-5 text-sm text-rose-600" role="alert"></p></div>
+    <div class="rounded-xl bg-stone-50 p-3"><p class="font-semibold">Enlaces de registro</p>
+      <p class="mt-0.5 text-xs text-stone-500">Comparte el enlace y la persona crea su propia cuenta con su correo y contraseña. Recibe el acceso automáticamente.</p>
+      <div class="mt-2 grid gap-2 sm:grid-cols-[auto_auto_auto_1fr]">
+        <select id="e-rol" class="${campoA}" aria-label="Rol">${admin ? '<option value="novios">Novios (panel)</option>' : ''}<option value="staff">Staff (recepción)</option></select>
+        <select id="e-usos" class="${campoA}" aria-label="Usos">${[1, 2, 3, 5, 10].map(n => `<option value="${n}" ${n === 2 ? 'selected' : ''}>${n === 1 ? '1 persona' : n + ' personas'}</option>`).join('')}</select>
+        <select id="e-dias" class="${campoA}" aria-label="Vigencia">${[3, 7, 14, 30].map(n => `<option value="${n}" ${n === 14 ? 'selected' : ''}>${n} días</option>`).join('')}</select>
+        <button type="button" id="e-crear" class="${btnS} justify-self-start">${ico('link')} Crear enlace</button></div>
+      <div id="e-lista" class="mt-3 grid gap-2"></div></div></div>`;
+
+  const paneles = { general: panelGeneral, formulario: panelFormulario, tarjeta: panelTarjeta, whatsapp: panelWhatsapp, reporte: panelReporte, accesos: panelAccesos };
+  let sucio = false;
+  const marcarSucio = (v = true) => { sucio = v; const e = $('#c-sucio'); if (e) { e.hidden = !v; } const g = $('#c-guardado'); if (g && v) g.hidden = true; };
+  const confirmarSalida = () => !sucio || window.confirm(t('Hay cambios sin guardar. ¿Cerrar sin guardar?'));
+
+  modal(`<form id="f-cfg" novalidate>${cabecera('Configuración', esc(c.nombre))}
+    <div class="flex flex-none gap-1 overflow-x-auto border-b border-stone-200 px-3" role="tablist">${PESTANAS.map(([k, n]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === pestana}" class="shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-stone-500 hover:text-stone-800 aria-selected:border-oro-600 aria-selected:text-oro-700">${n}</button>`).join('')}</div>
+    ${cuerpo(Object.entries(paneles).map(([k, h]) => `<section role="tabpanel" data-panel="${k}" ${k === pestana ? '' : 'hidden'}>${h}</section>`).join('') + `<p id="c-err" class="mt-3 min-h-5 text-sm text-rose-600" role="alert"></p>`)}
+    ${pie(`<span id="c-sucio" class="mr-auto inline-flex items-center gap-1.5 text-sm font-medium text-amber-700" hidden><span class="size-2 rounded-full bg-amber-500"></span><span>Cambios sin guardar</span></span>
+      <span id="c-guardado" class="mr-auto text-sm text-emerald-700" hidden>✓ <span>Cambios guardados</span></span>
+      <button type="button" class="${btnS}" data-cerrar>Cerrar</button><button class="${btnP}" id="c-ok">${ico('save')} Guardar</button>`)}</form>`, d => {
+    const q = s => d.querySelector(s);
+    d.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+      d.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === b));
+      d.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab);
+      q('#c-ok').hidden = b.dataset.tab === 'accesos';
+      if (b.dataset.tab === 'accesos') cargarAccesos(d);
+    });
+    q('#c-ok').hidden = pestana === 'accesos'; if (pestana === 'accesos') cargarAccesos(d);
+    const zonaEditable = e => !e.target.closest('#a-email,#a-rol,#mp-lista,#ia-txt,#ia-lang,[data-panel="accesos"]');
+    q('#f-cfg').addEventListener('input', e => { if (zonaEditable(e)) marcarSucio(); });
+    q('#f-cfg').addEventListener('change', e => { if (zonaEditable(e)) marcarSucio(); });
+
+    /* --- teléfonos --- */
+    q('#c-tel-fix').onclick = () => revisarTelefonos(q('#c-pais').value);
+
+    /* --- fondos --- */
+    const base = c.url_rsvp || location.href;
+    const urlEvento = (f, ext) => { try { return new URL(`assets/${f.dataset.archivo}.${ext}`, base).href; } catch { return ''; } };
+    const leerFondo = f => ({
+      tipo: f.querySelector('[data-fondo-tipo]').value, color: f.querySelector('[data-fondo-color]').value,
+      opacidad: numF(f.querySelector('[data-fondo-op]').value, 100, 0, 100), zoom: numF(f.querySelector('[data-fondo-zoom]').value, 100, 100, 300),
+      pos_x: numF(f.querySelector('[data-fondo-px]').value, 50, 0, 100), pos_y: numF(f.querySelector('[data-fondo-py]').value, 50, 0, 100),
+      origen: f.querySelector('[data-fondo-origen]').value === 'preset' ? 'preset' : 'evento', preset: f.querySelector('[data-fondo-preset]').value });
+    const previa = f => {                                          // vista previa: mismas reglas que assets/rsvp.js (color/imagen · opacidad · zoom desde la posición)
+      const g = leerFondo(f), capa = f.querySelector('[data-prev-capa]'), col = f.querySelector('[data-prev-c]'), im = f.querySelector('[data-prev-i]');
+      capa.style.opacity = g.tipo === 'transparente' ? 0 : g.opacidad / 100;
+      col.style.background = g.tipo === 'color' ? g.color : 'transparent';
+      if (g.tipo !== 'imagen') { im.hidden = true; return; }
+      const u = g.origen === 'preset' && g.preset ? `${P.ruta('fondos')}th_${g.preset}.jpg` : urlEvento(f, 'jpg');
+      im.style.objectPosition = `${g.pos_x}% ${g.pos_y}%`; im.style.transformOrigin = `${g.pos_x}% ${g.pos_y}%`; im.style.transform = g.zoom > 100 ? `scale(${g.zoom / 100})` : '';
+      im.onerror = () => { if (g.origen !== 'preset' && !im.dataset.png) { im.dataset.png = '1'; im.src = urlEvento(f, 'png'); } else im.hidden = true; };
+      if (im.getAttribute('src') !== u) { delete im.dataset.png; im.src = u; } im.hidden = false;
+    };
+    const sincronizar = f => {                                     // qué controles se ven según el tipo y el motor
+      const tipo = f.querySelector('[data-fondo-tipo]').value, otro = d.dataset.motor === 'otro';
+      f.querySelector('[data-fondo-color]').style.visibility = tipo === 'color' ? 'visible' : 'hidden';
+      f.querySelector('[data-fondo-avanz]').hidden = tipo === 'transparente' || otro;
+      f.querySelector('[data-fondo-img]').hidden = tipo !== 'imagen';
+      previa(f);
+    };
+    const pickerHtml = f => {
+      const g = leerFondo(f), cat = CATALOGO_FONDOS || [], grupos = [...new Set(cat.map(x => x.grupo))], elegido = cat.find(x => g.origen === 'preset' && x.id === g.preset);
+      const cls = on => `rounded-lg p-0.5 ring-2 ${on ? 'ring-oro-600' : 'ring-transparent hover:ring-stone-300'}`;
+      const mia = `<button type="button" data-pick="evento" aria-pressed="${g.origen !== 'preset'}" title="${esc(t('Imagen propia del evento'))}: assets/${f.dataset.archivo}.jpg" class="${cls(g.origen !== 'preset')} relative flex h-[4.2rem] w-[3.2rem] flex-none flex-col items-center justify-center overflow-hidden bg-white text-center text-[10px] leading-tight text-stone-600"><span data-mia-txt><span>${t('Mi imagen')}</span><br><span class="text-stone-400">.jpg</span></span></button>`;
+      const grid = grupos.map(gr => `<span class="w-full pt-1 text-[11px] uppercase tracking-wide text-stone-400">${esc(t(gr))}</span>` + cat.filter(x => x.grupo === gr).map(x =>
+        `<button type="button" data-pick="${esc(x.id)}" aria-pressed="${g.origen === 'preset' && g.preset === x.id}" title="${esc(t(x.nombre))}" class="${cls(g.origen === 'preset' && g.preset === x.id)}"><img src="${P.ruta('fondos')}th_${esc(x.id)}.jpg" alt="${esc(t(x.nombre))}" loading="lazy" class="h-16 w-12 rounded-md object-cover"></button>`).join('')).join('');
+      return `<div class="flex items-start gap-2">${mia}<details class="min-w-0 flex-1" ${elegido ? 'open' : ''}><summary class="cursor-pointer select-none py-1 text-sm text-stone-600 hover:text-stone-900">${t('Imágenes predeterminadas')}${elegido ? ` · <b class="font-medium text-oro-700">${esc(t(elegido.nombre))}</b>` : ''} (${cat.length})</summary><div class="mt-1 flex flex-wrap gap-1.5">${grid}</div></details></div>`;
+    };
+    const pintarPicker = f => {
+      f.querySelector('[data-picker]').innerHTML = pickerHtml(f);
+      const bt = f.querySelector('[data-pick="evento"]'), txt = bt.querySelector('[data-mia-txt]'), im = new Image();      // miniatura de la imagen propia (si existe)
+      im.className = 'absolute inset-0 h-full w-full object-cover'; im.alt = '';
+      im.onload = () => { bt.appendChild(im); txt.hidden = true; };
+      im.onerror = () => { if (!im.dataset.png) { im.dataset.png = '1'; im.src = urlEvento(f, 'png'); } };
+      im.src = urlEvento(f, 'jpg');
+    };
+    d.querySelectorAll('[data-fondo]').forEach(f => {
+      f.addEventListener('input', e => {
+        const r = e.target.closest('input[type=range]'); if (r) r.parentNode.querySelector('[data-out]').textContent = r.value + '%';
+        sincronizar(f);
+      });
+      f.querySelector('[data-fondo-tipo]').addEventListener('change', () => sincronizar(f));
+      f.querySelector('[data-fondo-centrar]').onclick = () => {
+        [['[data-fondo-zoom]', 100], ['[data-fondo-px]', 50], ['[data-fondo-py]', 50]].forEach(([sel, v]) => { const r = f.querySelector(sel); r.value = v; r.parentNode.querySelector('[data-out]').textContent = v + '%'; });
+        f.querySelector('[data-fondo-origen]').dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      f.querySelector('[data-picker]').addEventListener('click', e => {
+        const b = e.target.closest('[data-pick]'); if (!b) return;
+        const id = b.dataset.pick, o = f.querySelector('[data-fondo-origen]'), p = f.querySelector('[data-fondo-preset]');
+        o.value = id === 'evento' ? 'evento' : 'preset'; p.value = id === 'evento' ? '' : id;
+        pintarPicker(f); o.dispatchEvent(new Event('input', { bubbles: true }));     // 'input' sube hasta el formulario y marca «cambios sin guardar»
+      });
+      sincronizar(f);
+    });
+    cargarCatalogo().then(() => d.querySelectorAll('[data-fondo]').forEach(pintarPicker));
+    detectarMotor(c.url_rsvp).then(m => {
+      d.dataset.motor = m.estado; const av = q('#motor-aviso');
+      av.className = `rounded-xl p-2.5 text-xs sm:col-span-2 ${m.estado === 'propio' ? 'bg-emerald-50 text-emerald-800' : m.estado === 'otro' ? 'bg-amber-50 text-amber-800' : 'bg-stone-50 text-stone-500'}`;
+      av.innerHTML = m.estado === 'propio' ? `<span>${esc(t('Motor del RSVP: el de este panel. Todas las opciones de fondo están activas.'))}</span>`
+        : m.estado === 'otro' ? `<span>${esc(t('El RSVP de este evento carga otro motor: opacidad, zoom, posición y fondos predeterminados no tendrían efecto, por eso están ocultos. Para usarlos, su rsvp.html debe cargar el motor de este panel.'))}</span> <span data-notr>(${esc(m.url)})</span>`
+        : `<span>${esc(t('No se pudo comprobar qué motor usa el RSVP del evento. Las opciones avanzadas de fondo solo funcionan si su rsvp.html carga el motor de este panel.'))}</span>`;
+      d.querySelectorAll('[data-fondo]').forEach(sincronizar);
+    });
+
+    /* --- logo, casillas y QR (vista previa en vivo) --- */
+    q('#f-logo-ancho').addEventListener('input', e => { q('#f-logo-v').textContent = e.target.value + ' px'; });
+    const giroOpc = () => { const g = q('#f-giro').checked; q('#f-voltear').disabled = !g; q('#f-voltear').closest('label').classList.toggle('opacity-50', !g); };
+    q('#f-giro').addEventListener('change', giroOpc); giroOpc();
+    d.querySelectorAll('[data-escala]').forEach(r => r.addEventListener('input', () => { q('#' + r.id + '-v').textContent = r.value + '%'; }));
+    d.querySelectorAll('[data-escala-reset]').forEach(b => b.onclick = () => { const r = q('#' + b.dataset.escalaReset); r.value = 100; r.dispatchEvent(new Event('input', { bubbles: true })); });
+    q('#t-campo-alfa').addEventListener('input', e => { q('#t-campo-v').textContent = e.target.value + '%'; });
+    const leerQR = () => ({ estilo: q('#q-estilo').value, color: q('#q-color').value, logo_forma: q('#q-forma').value, logo_fondo: q('#q-lfondo').value, logo_texto: q('#q-ltexto').value, escala: esc100(q('#q-escala').value) });
+    const previewQR = () => { if (!window.QR) return; const Q = leerQR(), L = q('#t-logo').value.trim();
+      QR.dibujar(q('#q-prev'), c.url_rsvp + '?to=AB12', { ecc: 'M', estilo: Q.estilo, color: Q.color,
+        logo: { activo: !!L, tipo: 'texto', texto: L, colorTexto: Q.logo_texto, fondo: Q.logo_fondo, forma: Q.logo_forma, fuente: 'italic 600 {px}px Georgia, serif', halo: .1, tamano: 'max', ladoMax: .3, ecc: 'H', reservaECC: .5 } }); };
+    ['#q-estilo', '#q-color', '#q-forma', '#q-lfondo', '#q-ltexto', '#t-logo'].forEach(id => q(id).addEventListener('input', previewQR));
+    previewQR();
+
+    /* --- preguntas --- */
+    const pintarPreg = () => {
+      q('#f-lista').innerHTML = preg.length ? preg.map((p, k) => `<div class="rounded-xl p-3 ring-1 ring-stone-200" data-k="${k}">
+        <div class="grid gap-2 sm:grid-cols-[1fr_11rem_auto]">
+          <input data-campo="etiqueta" class="${campo}" value="${esc(p.etiqueta)}" placeholder="Texto de la pregunta" aria-label="Pregunta">
+          <select data-campo="tipo" class="${campo}" aria-label="Tipo">${TIPOS.map(([v, n]) => `<option value="${v}" ${p.tipo === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          <div class="flex gap-0.5"><button type="button" data-mover="-1" class="${icoBtn}" aria-label="Subir" ${k ? '' : 'disabled'}>${ico('arrowup')}</button><button type="button" data-mover="1" class="${icoBtn}" aria-label="Bajar" ${k < preg.length - 1 ? '' : 'disabled'}>${ico('arrowdown')}</button>
+            <button type="button" data-quitar class="${icoBtn} hover:text-rose-600" aria-label="Eliminar pregunta">${ico('trash')}</button></div></div>
+        ${p.tipo === 'opcion' || p.tipo === 'multiple' ? `<input data-campo="opciones" class="${campo} mt-2" value="${esc(p.opciones.join(', '))}" placeholder="Opciones separadas por comas" aria-label="Opciones">` : ''}
+        <div class="mt-2 flex flex-wrap gap-4 text-sm"><label class="flex items-center gap-2"><input type="checkbox" data-campo="obligatoria" ${p.obligatoria ? 'checked' : ''} class="size-4 accent-oro-600"><span>Obligatoria</span></label>
+          <label class="flex items-center gap-2"><input type="checkbox" data-campo="solo_si_asiste" ${p.solo_si_asiste ? 'checked' : ''} class="size-4 accent-oro-600"><span>Solo si asiste</span></label></div></div>`).join('')
+        : `<p class="rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-sm text-stone-500">Sin preguntas adicionales. Agrega una o elige una sugerida.</p>`;
+    };
+    const nuevaPreg = base => ({ id: '', etiqueta: '', tipo: 'texto', opciones: [], obligatoria: false, solo_si_asiste: true, ...base, etiqueta: base ? t(base.etiqueta) : '', opciones: [...(base?.opciones || [])].map(t) });
+    pintarPreg();
+    q('#f-add').onclick = () => { preg.push(nuevaPreg()); pintarPreg(); marcarSucio(); q('#f-lista').lastElementChild.querySelector('input').focus(); };
+    q('#f-preset').onchange = e => { if (e.target.value !== '') { preg.push(nuevaPreg(PRESETS_PREG[+e.target.value])); e.target.value = ''; pintarPreg(); marcarSucio(); } };
+    q('#f-lista').addEventListener('input', e => { const it = e.target.closest('[data-k]'), cp = e.target.dataset.campo; if (!it || !cp) return;
+      const p = preg[+it.dataset.k];
+      if (cp === 'opciones') p.opciones = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+      else if (e.target.type === 'checkbox') p[cp] = e.target.checked; else p[cp] = e.target.value; });
+    q('#f-lista').addEventListener('change', e => { if (e.target.dataset.campo === 'tipo') { preg[+e.target.closest('[data-k]').dataset.k].tipo = e.target.value; pintarPreg(); } });
+    q('#f-lista').addEventListener('click', e => { const it = e.target.closest('[data-k]'); if (!it) return; const k = +it.dataset.k;
+      const m = e.target.closest('[data-mover]'); if (m) { const j = k + +m.dataset.mover; [preg[k], preg[j]] = [preg[j], preg[k]]; pintarPreg(); marcarSucio(); }
+      if (e.target.closest('[data-quitar]')) { preg.splice(k, 1); pintarPreg(); marcarSucio(); } });
+
+    /* --- WhatsApp: plantillas, mis plantillas e IA --- */
+    const ta = q('#c-wa'), prev = () => { q('#c-prev').textContent = mensajeWa(ejemplo, ta.value); };
+    ta.addEventListener('input', prev); prev();
+    const ponerTexto = tx => { ta.value = tx; prev(); marcarSucio(); };
+    d.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { const p = ta.selectionStart ?? ta.value.length; ta.setRangeText(b.dataset.chip, p, ta.selectionEnd ?? p, 'end'); ta.focus(); prev(); marcarSucio(); });
+    d.querySelectorAll('[data-plantilla]').forEach(b => b.onclick = () => ponerTexto(PLANTILLAS_WA.find(x => x.id === b.dataset.plantilla).texto));
+    /* 5 espacios fijos (null = vacío) */
+    while (plantillas.length < MAX_PLANTILLAS) plantillas.push(null);
+    plantillas = plantillas.slice(0, MAX_PLANTILLAS).map(x => x && x.texto ? x : null);
+    const pintarMisPlantillas = () => {
+      q('#mp-n').textContent = `(${plantillas.filter(Boolean).length}/${MAX_PLANTILLAS})`;
+      q('#mp-lista').innerHTML = plantillas.map((p, k) => `<div class="flex min-w-0 items-center gap-2 rounded-xl bg-white p-2 ring-1 ${p ? 'ring-stone-300' : 'ring-dashed ring-stone-200'}">
+          <span class="grid size-7 shrink-0 place-items-center rounded-lg ${p ? 'bg-oro-100 text-oro-700' : 'bg-stone-100 text-stone-400'} text-xs font-semibold">${k + 1}</span>
+          <input data-mp-nombre="${k}" data-notr maxlength="40" class="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-1 py-1 text-sm focus:ring-2 focus:ring-oro-500 focus:outline-none" value="${esc(p ? p.nombre : '')}" placeholder="${esc(t('Espacio') + ' ' + (k + 1) + ' · ' + t('vacío'))}" aria-label="${esc(t('Nombre del espacio') + ' ' + (k + 1))}">
+          <button type="button" data-mp-usar="${k}" class="${icoBtn} size-8 disabled:opacity-25" title="${esc(t('Usar este mensaje'))}" aria-label="${esc(t('Usar este mensaje'))}" ${p ? '' : 'disabled'}>${ico('down')}</button>
+          <button type="button" data-mp-guardar="${k}" class="${icoBtn} size-8" title="${esc(t('Guardar el mensaje actual aquí'))}" aria-label="${esc(t('Guardar el mensaje actual aquí'))}">${ico('save')}</button>
+          <button type="button" data-mp-borrar="${k}" class="${icoBtn} size-8 hover:text-rose-600 disabled:opacity-25" title="${esc(t('Vaciar'))}" aria-label="${esc(t('Vaciar'))}" ${p ? '' : 'disabled'}>${ico('x')}</button></div>`).join('');
+    };
+    const guardarPlantillas = async nuevas => {
+      const { data, error } = await sb.from('proyectos').update({ plantillas_wa: nuevas }).eq('id', c.id).select('plantillas_wa').single();
+      if (error) { toast(/plantillas_wa/.test(error.message || '') && /column|schema/.test(error.message || '') ? t('La base de datos no está actualizada: ejecuta supabase/01_esquema.sql.') : t(errorAmigable(error)), 'error'); return false; }
+      plantillas = (data.plantillas_wa || []).slice(); while (plantillas.length < MAX_PLANTILLAS) plantillas.push(null);
+      S.p.plantillas_wa = data.plantillas_wa; pintarMisPlantillas(); return true;
+    };
+    pintarMisPlantillas();
+    q('#mp-lista').addEventListener('click', async e => {
+      const b = e.target.closest('[data-mp-usar],[data-mp-guardar],[data-mp-borrar]'); if (!b) return;
+      if (b.dataset.mpUsar != null) { ponerTexto(plantillas[+b.dataset.mpUsar].texto); toast(t('Mensaje cargado. Pulsa Guardar para usarlo en los envíos.'), 'info'); return; }
+      const k = +(b.dataset.mpGuardar ?? b.dataset.mpBorrar), nuevas = plantillas.slice();
+      if (b.dataset.mpBorrar != null) {
+        if (!window.confirm(t('¿Vaciar este espacio?'))) return;
+        nuevas[k] = null; if (await guardarPlantillas(nuevas)) toast(t('Espacio vaciado'));
+        return;
+      }
+      const texto = ta.value.trim();
+      if (!texto) { toast(t('El mensaje está vacío.'), 'info'); return; }
+      if (plantillas[k] && !window.confirm(t('¿Reemplazar el mensaje guardado en este espacio?'))) return;
+      const nombre = q(`[data-mp-nombre="${k}"]`).value.trim() || t('Mensaje') + ' ' + (k + 1);
+      nuevas[k] = { nombre, texto };
+      if (await guardarPlantillas(nuevas)) toast(t('Guardado en el espacio') + ' ' + (k + 1));
+    });
+    q('#mp-lista').addEventListener('change', async e => {
+      const inp = e.target.closest('[data-mp-nombre]'); if (!inp) return;
+      const k = +inp.dataset.mpNombre; if (!plantillas[k]) return;
+      const nuevas = plantillas.slice(); nuevas[k] = { ...plantillas[k], nombre: inp.value.trim() || t('Mensaje') + ' ' + (k + 1) };
+      if (await guardarPlantillas(nuevas)) toast(t('Nombre actualizado'));
+    });
+    d.querySelectorAll('[data-tono]').forEach(b => b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'));
+    const ia = async base => {
+      const tonos = [...d.querySelectorAll('[data-tono][aria-pressed="true"]')].map(b => b.dataset.tono);
+      q('#ia-ir').disabled = q('#ia-mejorar').disabled = true; q('#ia-stop').hidden = false; q('#ia-estado').textContent = t('Escribiendo…');
+      const anterior = ta.value;
+      const modelo = await generarIA({ ta, instrucciones: q('#ia-txt').value.trim(), tonos, base, idioma: q('#ia-lang').value, alTexto: () => { prev(); marcarSucio(); },
+        alFin: () => { q('#ia-ir').disabled = q('#ia-mejorar').disabled = false; q('#ia-stop').hidden = true; } });
+      q('#ia-estado').innerHTML = modelo ? `${esc(t('Listo'))} · <span class="font-mono" data-notr>${esc(modelo)}</span> · <button type="button" id="ia-undo" class="${enlace} text-xs">${esc(t('Deshacer'))}</button>` : '';
+      q('#ia-undo')?.addEventListener('click', () => { ponerTexto(anterior); q('#ia-estado').textContent = ''; });
+    };
+    q('#ia-ir').onclick = () => ia('');
+    q('#ia-mejorar').onclick = () => ia(ta.value);
+    q('#ia-stop').onclick = () => S.ia?.abort();
+
+    /* --- reporte --- */
+    const dest = q('#c-dest'), destOk = () => { const v = correosValidos(dest.value); q('#c-dest-ok').textContent = v.length ? `${v.length} ✓ ${v.join(', ')}` : t('Separa varios correos con comas.'); };
+    dest.addEventListener('input', destOk); destOk();
+    estadoReporte(q('#c-rep-estado'));
+    q('#c-prev-rep').onclick = vistaPreviaReporte;
+
+    /* --- guardar (la ventana sigue abierta) --- */
+    const leer = () => {
+      const lim = q('#c-lim').value, v = s => q(s).value.trim();
+      const usados = new Set();
+      const preguntasOut = preg.filter(p => p.etiqueta.trim()).map(p => {
+        let id = p.id || slugify(p.etiqueta).replace(/-/g, '_').slice(0, 30) || 'pregunta';
+        if (!p.id) { const b = id; let n = 2; while (usados.has(id) || (c.formulario?.preguntas || []).some(x => x.id === id)) id = `${b}_${n++}`; p.id = id; }
+        usados.add(id);
+        return { id, etiqueta: p.etiqueta.trim(), tipo: p.tipo, opciones: ['opcion', 'multiple'].includes(p.tipo) ? p.opciones : [], obligatoria: !!p.obligatoria, solo_si_asiste: !!p.solo_si_asiste };
+      });
+      const texto = (id, k) => { const x = v(id); return x === DEF_TEXTOS[k] ? '' : x; };
+      const fondo = k => {                      // el color de la tarjeta va en colores.papel (como siempre); el resto de opciones, en cada fondo
+        const g = leerFondo(d.querySelector(`[data-fondo="${k}"]`)), ids = (CATALOGO_FONDOS || []).map(x => x.id);
+        if (d.dataset.motor === 'otro') return { ...((c.tarjeta?.fondos || {})[k] || {}), tipo: g.tipo, ...(k === 'tarjeta' ? {} : { color: g.color }) };   // motor distinto: solo tipo y color; lo demás queda como estaba
+        const o = { tipo: g.tipo, opacidad: Math.round(g.opacidad), origen: g.origen, preset: g.origen === 'preset' && (!ids.length || ids.includes(g.preset)) ? g.preset : '', zoom: Math.round(g.zoom), pos_x: Math.round(g.pos_x), pos_y: Math.round(g.pos_y) };
+        if (o.origen === 'preset' && !o.preset) o.origen = 'evento';
+        return k === 'tarjeta' ? o : { ...o, color: g.color };
+      };
+      const cambios = {
+        fecha_limite: lim ? new Date(lim).toISOString() : null, idioma: q('#c-idioma').value,
+        pases_max: Math.max(1, Math.min(50, parseInt(q('#c-max').value, 10) || 10)), permitir_nuevos: q('#c-nuevos').checked, pais_tel: q('#c-pais').value,
+        formulario: { mostrar_saludo: q('#f-saludo').checked, mostrar_nombre_codigo: q('#f-nombre').checked,
+                      logo: { mostrar: q('#f-logo').checked, ancho: parseInt(q('#f-logo-ancho').value, 10) || 140 }, escala_fuente: esc100(q('#f-escala').value), preguntar_pases: q('#f-pases').checked, pedir_acompanantes: q('#f-acomp').checked,
+                      permitir_mensaje: q('#f-msg').checked, sugerir_nombres: q('#f-sugerir').checked,
+                      mostrar_fechas: q('#f-fechas').checked, permitir_giro: q('#f-giro').checked, mostrar_voltear: q('#f-voltear').checked, preguntas: preguntasOut },
+        tarjeta: { titulo: v('#t-titulo'), logo_qr: v('#t-logo'), fecha: v('#t-fecha'), lugar: v('#t-lugar'),
+          colores: { papel: d.querySelector('[data-fondo="tarjeta"] [data-fondo-color]').value, tinta: q('#t-c-tinta').value, acento: q('#t-c-acento').value, suave: q('#t-c-suave').value, campo: q('#t-c-campo').value },
+          campo_alfa: parseInt(q('#t-campo-alfa').value, 10), escala_texto: esc100(q('#t-escala').value), qr: leerQR(),
+          fondos: { pagina: fondo('pagina'), formulario: fondo('formulario'), tarjeta: fondo('tarjeta') },
+          textos: { etiqueta_pendiente: texto('#t-e-pend', 'etiqueta_pendiente'), etiqueta_si: texto('#t-e-si', 'etiqueta_si'), etiqueta_no: texto('#t-e-no', 'etiqueta_no'),
+                    mensaje_pendiente: texto('#t-m-pend', 'mensaje_pendiente'), mensaje_si: texto('#t-m-si', 'mensaje_si'), mensaje_no: texto('#t-m-no', 'mensaje_no') },
+          evento: { titulo: v('#t-ev-tit'), inicio: deLocal(q('#t-ini').value), fin: deLocal(q('#t-fin').value), lugar: v('#t-ev-lug'), detalle: v('#t-ev-det') } },
+        mensaje_whatsapp: ta.value,
+        reporte_activo: q('#c-rep').checked, reporte_destinatarios: correosValidos(dest.value).join(', '), reporte_hora: parseInt(q('#c-hora').value, 10)
+      };
+      if (admin) Object.assign(cambios, { nombre: v('#c-nombre') || c.nombre, url_invitacion: v('#c-uinv'), url_rsvp: v('#c-ursvp'), activo: q('#c-activo').checked, credito: q('#c-credito').value });
+      return cambios;
+    };
+    const guardar = async () => {
+      const cambios = leer(), err = q('#c-err'); err.textContent = '';
+      const irA = (tab, msg) => { d.querySelector(`[data-tab="${tab}"]`).click(); err.textContent = t(msg); return false; };
+      if (cambios.reporte_activo && !cambios.reporte_destinatarios) return irA('reporte', ERRORES_REPORTE.sin_destinatarios);
+      const malas = cambios.formulario.preguntas.filter(p => ['opcion', 'multiple'].includes(p.tipo) && p.opciones.length < 2);
+      if (malas.length) return irA('formulario', 'Las preguntas de opciones necesitan al menos 2 opciones.');
+      if (!/\{link\}|\{link_rsvp\}/.test(cambios.mensaje_whatsapp)) return irA('whatsapp', 'El mensaje de WhatsApp debe incluir {link} o {link_rsvp}.');
+      q('#c-ok').disabled = true;
+      const { data, error } = await sb.from('proyectos').update(cambios).eq('id', c.id).select().single();
+      q('#c-ok').disabled = false;
+      if (error) { err.textContent = t(errorAmigable(error)); return false; }
+      S.p = data; Object.assign(c, data);
+      const it = S.proyectos.find(x => x.id === data.id); if (it) { it.nombre = data.nombre; it.activo = data.activo; }
+      $('#titulo').innerHTML = selectorProyecto(); enlazarSelector();
+      refrescar(); marcarSucio(false); q('#c-guardado').hidden = false;
+      return true;
+    };
+    q('#f-cfg').addEventListener('submit', async e => { e.preventDefault(); if (await guardar()) toast(t('Configuración guardada')); });
+    q('#c-probar').onclick = async ev => {
+      const b = ev.currentTarget, err = q('#c-err');
+      if (!correosValidos(dest.value).length) { err.textContent = t(ERRORES_REPORTE.sin_destinatarios); return; }
+      b.disabled = true;
+      try {
+        if (!(await guardar())) return;
+        const { data, error } = await sb.rpc('admin_reporte_probar', { p_proyecto: c.id });
+        if (error) { err.textContent = t(errorAmigable(error)); return; }
+        if (!data.ok) { err.textContent = t(ERRORES_REPORTE[data.error] || data.error); return; }
+        toast(t('Reporte de prueba enviado'), 'info');
+        setTimeout(() => estadoReporte(q('#c-rep-estado')), 3000);
+      } finally { b.disabled = false; }
+    };
+  }, { fijo: true, antesDeCerrar: confirmarSalida });
+}
+
+async function cargarAccesos(d) {
+  const box = d.querySelector('#a-lista'), err = d.querySelector('#a-err');
+  const pintar = async () => {
+    const { data, error } = await sb.from('miembros').select('id, email, rol').eq('proyecto_id', S.p.id).order('rol').order('email');
+    if (error) { box.innerHTML = `<p class="text-sm text-rose-600">${esc(t(errorAmigable(error)))}</p>`; return; }
+    const puedeBorrar = m => esAdmin() || m.rol === 'staff';
+    box.innerHTML = (data.length ? data.map(m => `<div class="flex items-center gap-3 rounded-xl px-3 py-2 ring-1 ring-stone-200">
+        <span class="grid size-8 place-items-center rounded-full ${m.rol === 'novios' ? 'bg-rose-50 text-rose-600' : 'bg-sky-50 text-sky-700'}">${ico(m.rol === 'novios' ? 'heart' : 'users', 'size-4')}</span>
+        <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium" data-notr>${esc(m.email)}</p><p class="text-xs text-stone-500">${m.rol === 'novios' ? 'Novios · panel' : 'Staff · recepción'}</p></div>
+        ${puedeBorrar(m) ? `<button type="button" class="${icoBtn} hover:text-rose-600" data-borrar-m="${m.id}" aria-label="Quitar acceso">${ico('trash')}</button>` : ''}</div>`).join('')
+      : '<p class="text-sm text-stone-500">Nadie más tiene acceso a este evento.</p>') +
+      (esAdmin() ? '<p class="text-xs text-stone-500">Accedes como administrador (todos los eventos).</p>' : '');
+  };
+  await pintar();
+  box.onclick = async e => {
+    const b = e.target.closest('[data-borrar-m]'); if (!b) return;
+    const { error } = await sb.from('miembros').delete().eq('id', +b.dataset.borrarM);
+    if (error) { err.textContent = t(errorAmigable(error)); return; }
+    toast(t('Acceso retirado')); pintar();
+  };
+  /* enlaces de registro */
+  const eLista = d.querySelector('#e-lista');
+  const linkAlta = tk => URL_PANEL + '?alta=' + encodeURIComponent(tk);   // el enlace de registro vuelve a ESTE panel (donde esté publicado)
+  const pintarEnlaces = async () => {
+    const { data, error } = await sb.rpc('admin_enlaces', { p_proyecto: S.p.id });
+    if (error) { eLista.innerHTML = `<p class="text-xs text-rose-600">${esc(t(errorAmigable(error)))}</p>`; return; }
+    eLista.innerHTML = (data || []).length ? data.map(x => `<div class="flex flex-wrap items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm ring-1 ${x.vigente ? 'ring-stone-200' : 'ring-stone-100 opacity-60'}">
+        <span class="rounded-full px-2 py-0.5 text-xs font-medium ${x.rol === 'novios' ? 'bg-rose-50 text-rose-700' : 'bg-sky-50 text-sky-700'}">${x.rol === 'novios' ? 'Novios' : 'Staff'}</span>
+        <span class="text-xs text-stone-500"><span>${x.usos}/${x.usos_max}</span> · <span>${x.vigente ? t('vence') + ' ' + fmt(x.vence) : t('vencido o completo')}</span></span>
+        ${(x.usado_por || []).length ? `<span class="min-w-0 truncate text-xs text-stone-500" data-notr>${esc(x.usado_por.join(', '))}</span>` : ''}
+        <span class="ml-auto flex gap-0.5">${x.vigente ? `<button type="button" class="${icoBtn}" data-e-copiar="${esc(x.token)}" title="Copiar enlace" aria-label="Copiar enlace">${ico('link')}</button>
+          <button type="button" class="${icoBtn}" data-e-wa="${esc(x.token)}" title="Enviar por WhatsApp" aria-label="Enviar por WhatsApp">${ico('wa')}</button>` : ''}
+          <button type="button" class="${icoBtn} hover:text-rose-600" data-e-borrar="${esc(x.token)}" title="Eliminar enlace" aria-label="Eliminar enlace">${ico('trash')}</button></span></div>`).join('')
+      : `<p class="text-xs text-stone-500">Aún no hay enlaces.</p>`;
+  };
+  await pintarEnlaces();
+  d.querySelector('#e-crear').onclick = async () => {
+    const { data, error } = await sb.rpc('admin_crear_enlace', { p_proyecto: S.p.id, p_rol: d.querySelector('#e-rol').value, p_usos: +d.querySelector('#e-usos').value, p_dias: +d.querySelector('#e-dias').value });
+    if (error) { err.textContent = t(errorAmigable(error)); return; }
+    await copiar(linkAlta(data.token)); toast(t('Enlace creado y copiado')); pintarEnlaces();
+  };
+  eLista.onclick = async e => {
+    const b = e.target.closest('[data-e-copiar],[data-e-wa],[data-e-borrar]'); if (!b) return;
+    if (b.dataset.eCopiar) { await copiar(linkAlta(b.dataset.eCopiar)); toast(t('Enlace copiado')); }
+    if (b.dataset.eWa) window.open(urlWhatsapp('', t('Te invito a gestionar el evento') + ' ' + S.p.nombre + ' ' + t('en Parte y Detalles. Crea tu cuenta aquí:') + '\n' + linkAlta(b.dataset.eWa)), '_blank', 'noopener');
+    if (b.dataset.eBorrar && window.confirm(t('¿Eliminar este enlace? Las cuentas ya creadas conservan su acceso.'))) { await sb.rpc('admin_borrar_enlace', { p_token: b.dataset.eBorrar }); pintarEnlaces(); }
+  };
+  d.querySelector('#a-add').onclick = async () => {
+    const email = d.querySelector('#a-email').value.trim().toLowerCase(), rol = d.querySelector('#a-rol').value; err.textContent = '';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = t('Escribe un correo válido.'); return; }
+    const { error } = await sb.from('miembros').insert({ email, rol, proyecto_id: S.p.id });
+    if (error) { err.textContent = t(errorAmigable(error)); return; }
+    d.querySelector('#a-email').value = ''; toast(t('Acceso agregado')); pintar();
+  };
+}
+async function estadoReporte(el) {
+  if (!el) return;
+  const { data, error } = await sb.rpc('admin_reporte_estado', { p_proyecto: S.p.id });
+  if (!el.isConnected) return;
+  if (error || !data) { el.innerHTML = `<span class="text-amber-700">${esc(t('No se pudo consultar el estado del reporte.'))}</span>`; return; }
+  const avisos = [];
+  if (!data.tiene_api_key) avisos.push('El servicio de correo aún no está configurado.');
+  if (!data.programado) avisos.push('El envío automático no está activo en el servidor.');
+  const r = data.respuesta, res = data.resultado;
+  let ultimo = `<span>${esc(t('Aún no se ha enviado ningún reporte.'))}</span>`;
+  if (res?.fecha) {
+    const ok = r && r.status >= 200 && r.status < 300, falla = r && (r.status >= 300 || r.error || r.timeout);
+    ultimo = `<span>${esc(t(res.prueba ? 'Último envío (prueba)' : 'Último envío'))}</span>: ${fmt(res.fecha)} · `
+      + (ok ? `<span class="font-medium text-emerald-700">${esc(t('correo entregado'))}</span>`
+         : falla ? `<span class="font-medium text-rose-700">${esc(t('no se pudo entregar'))}</span>`
+         : `<span class="text-stone-500">${esc(t('en proceso'))}</span>`);
+  }
+  el.innerHTML = ultimo + (avisos.length ? `<ul class="mt-2 list-disc pl-5 text-amber-700">${avisos.map(a => `<li>${esc(t(a))}</li>`).join('')}</ul>` : '');
+}
+async function vistaPreviaReporte() {
+  const { data, error } = await sb.rpc('admin_reporte_vista_previa', { p_proyecto: S.p.id });
+  if (error || !data?.html) return toast(error ? t(errorAmigable(error)) : t('No se pudo generar la vista previa'), 'error');
+  dlg2.innerHTML = `<div class="flex h-full flex-col"><div class="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+      <div><p class="font-semibold">Vista previa del reporte</p><p class="text-xs text-stone-500">${data.cambios} · ${fmt(data.desde)}</p></div>
+      <button type="button" class="${icoBtn}" id="p2-cerrar" aria-label="Cerrar">${ico('x')}</button></div>
+    <iframe title="Reporte" class="w-full flex-1 bg-[#f1ece4]" sandbox></iframe></div>`;
+  dlg2.querySelector('iframe').srcdoc = data.html;
+  dlg2.querySelector('#p2-cerrar').onclick = () => dlg2.close();
+  dlg2.showModal();
+}
+
+/* =====================================================================================
+   NUEVO EVENTO (solo admin)
+   ===================================================================================== */
+function nuevoProyecto() {
+  modal(`<form id="f-np" novalidate>${cabecera('Nuevo evento', 'Cada evento tiene sus propios invitados, configuración y accesos')}${cuerpo(`<div class="grid gap-4">
+    <div><label class="${lbl}" for="np-nombre">Nombre</label><input id="np-nombre" class="${campo}" placeholder="Ignacio & Suly" maxlength="80"></div>
+    <div><label class="${lbl}" for="np-slug">Identificador (carpeta del sitio)</label><input id="np-slug" class="${campo} font-mono" placeholder="ignacioysuly" maxlength="40">
+      <p id="np-urls" class="mt-1 break-all text-xs text-stone-500" data-notr></p></div>
+    <div><label class="${lbl}" for="np-novios">Correos de los novios (opcional, separados por comas)</label><input id="np-novios" class="${campo}" placeholder="novia@correo.com, novio@correo.com"></div>
+    <p class="text-xs text-stone-500">No se puede cambiar el identificador después de enviar links: forma parte de los códigos y de las direcciones.</p>
+    <p id="np-err" class="min-h-5 text-sm text-rose-600" role="alert"></p></div>`)}
+    ${pie(`<button type="button" class="${btnS}" data-cerrar>Cancelar</button><button class="${btnP}" id="np-ok">Crear evento</button>`)}</form>`, d => {
+    const n = d.querySelector('#np-nombre'), s = d.querySelector('#np-slug'); let tocado = false;
+    const urls = () => { d.querySelector('#np-urls').textContent = s.value ? `${P.SITIO}${s.value}/ · ${P.SITIO}${s.value}/rsvp.html` : ''; };
+    n.addEventListener('input', () => { if (!tocado) { s.value = slugify(n.value).replace(/-/g, ''); urls(); } });
+    s.addEventListener('input', () => { tocado = true; s.value = s.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); urls(); });
+    n.focus();
+    d.querySelector('#f-np').addEventListener('submit', async e => {
+      e.preventDefault(); const err = d.querySelector('#np-err'); err.textContent = '';
+      if (n.value.trim().length < 2) { err.textContent = t('Escribe el nombre del evento.'); return; }
+      if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(s.value)) { err.textContent = t('Identificador inválido: usa minúsculas, números y guiones (3 a 40 caracteres).'); return; }
+      d.querySelector('#np-ok').disabled = true;
+      const { data, error } = await sb.from('proyectos').insert({ nombre: n.value.trim(), slug: s.value }).select('id, slug, nombre, activo').single();
+      if (error) { d.querySelector('#np-ok').disabled = false; err.textContent = t(errorAmigable(error)); return; }
+      const correos = correosValidos(d.querySelector('#np-novios').value);
+      if (correos.length) { const r = await sb.from('miembros').insert(correos.map(email => ({ email, rol: 'novios', proyecto_id: data.id }))); if (r.error) toast(t(errorAmigable(r.error)), 'error'); }
+      S.proyectos.push({ ...data, rol: 'admin' }); S.proyectos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      dlg.close(); toast(t('Evento creado')); await abrirProyecto(data.id); configurar('general');
+    });
+  });
+}
+
+/* =====================================================================================
+   TELÉFONOS GUARDADOS Y RESPALDO
+   ===================================================================================== */
+/* Muestra qué teléfonos cambiarían con el país elegido y los corrige de una vez (se guardan con formato +51 945 709 988) */
+function revisarTelefonos(iso) {
+  const filas = S.lista.filter(i => i.telefono).map(i => ({ i, r: PYD_TEL.normalizar(i.telefono, iso) }));
+  const cambian = filas.filter(x => (x.r.estado === 'ok' || x.r.estado === 'agregado') && x.r.texto !== x.i.telefono), dudosos = filas.filter(x => x.r.estado === 'dudoso');
+  const sinTel = S.lista.filter(i => !i.telefono);
+  dlg2.innerHTML = `<div class="flex h-full flex-col">${cabecera(t('Teléfonos guardados'), `${filas.length} ${t('con número')} · ${sinTel.length} ${t('sin número')}`)}
+    ${cuerpo(`<div class="grid grid-cols-3 gap-2 text-center text-sm">
+      <div class="rounded-xl bg-sky-50 p-2 text-sky-800"><b class="block text-xl">${cambian.length}</b>${t('se corrigen')}</div>
+      <div class="rounded-xl bg-amber-50 p-2 text-amber-800"><b class="block text-xl">${dudosos.length}</b>${t('por revisar a mano')}</div>
+      <div class="rounded-xl bg-stone-100 p-2 text-stone-600"><b class="block text-xl">${filas.length - cambian.length - dudosos.length}</b>${t('correctos')}</div></div>
+      <table class="mt-3 w-full text-left text-xs"><tbody class="divide-y divide-stone-100">${[...dudosos, ...cambian].map(x => `<tr class="align-top"><td class="py-1.5 pr-2 font-medium" data-notr>${esc(x.i.nombre)}</td>
+        <td class="py-1.5 pr-2 text-stone-500" data-notr>${esc(x.i.telefono)}</td><td class="py-1.5 ${x.r.estado === 'dudoso' ? 'text-amber-700' : 'text-sky-700'}">${x.r.estado === 'dudoso' ? '⚠ ' + esc(t(x.r.nota)) : '→ ' + esc(x.r.texto)}</td></tr>`).join('')}</tbody></table>
+      ${dudosos.length ? `<p class="mt-3 text-xs text-stone-500">${t('Los marcados con ⚠ no se tocan: corrígelos al editar al invitado o en el Excel. Filtro: “WhatsApp por revisar”.')}</p>` : ''}`)}
+    ${pie(`<button type="button" class="${btnS}" id="tf-x">${t('Cerrar')}</button><button type="button" class="${btnP}" id="tf-ok" ${cambian.length ? '' : 'disabled'}>${t('Corregir')} ${cambian.length}</button>`)}</div>`;
+  dlg2.showModal();
+  dlg2.querySelectorAll('[data-cerrar],#tf-x').forEach(b => b.onclick = () => dlg2.close());
+  dlg2.querySelector('#tf-ok').onclick = async ev => {
+    ev.currentTarget.disabled = true;
+    const { data, error } = await sb.rpc('admin_importar', { p_proyecto: S.p.id, p_filas: cambian.map(x => ({ codigo: x.i.codigo, telefono: x.r.texto })), p_vacias_borran: false });
+    if (error) return toast(t(errorAmigable(error)), 'error');
+    await recargar(); dlg2.close(); toast(`${data.actualizados} ${t('teléfonos corregidos')}`);
+  };
+}
+/* =====================================================================================
+   EXCEL: exportar, plantilla e importar
+   ===================================================================================== */
+function sello() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
+const fecha = iso => iso ? new Date(iso) : null;
+/* ---- Excel como RESPALDO -----------------------------------------------------------------------------
+   El archivo trae 3 hojas:
+     · Invitados  → la vista para leer/editar en Excel (columnas con nombre legible, links, una columna por pregunta del formulario).
+     · Evento     → datos del respaldo (evento, fecha, alcance: completo o parcial, cantidad de invitados).
+     · Respaldo   → una fila por invitado con TODOS sus datos tal cual están guardados (respuestas del formulario en JSON, mensajes,
+                    WhatsApp enviado, ingresos de recepción, vistas, fechas y ediciones; fechas en ISO con hora exacta).
+   Al importar un archivo con la hoja «Respaldo» se ofrece restaurarlo completo. El historial de cambios no va en el Excel. */
+const CAMPOS_RESP = ['codigo', 'nombre', 'tratamiento', 'categoria', 'asistencia', 'pases_asignados', 'pases_confirmados', 'acompanantes', 'respuestas', 'mensaje', 'respuesta_novios', 'mesa', 'telefono',
+  'fecha_registro', 'primera_vista', 'ultima_vista', 'vistas', 'primera_respuesta', 'ultima_modificacion', 'ediciones', 'whatsapp_enviado', 'ingreso_pases', 'ingreso_fecha', 'ingreso_marca', 'origen'];
+const CAMPOS_TS = new Set(['fecha_registro', 'primera_vista', 'ultima_vista', 'primera_respuesta', 'ultima_modificacion', 'whatsapp_enviado', 'ingreso_fecha', 'ingreso_marca']);
+const CAMPOS_ENT = new Set(['pases_asignados', 'pases_confirmados', 'vistas', 'ediciones', 'ingreso_pases']);
+const ETQ_CAMPO = { codigo: 'Código', nombre: 'Nombre', tratamiento: 'Tratamiento', categoria: 'Categoría', asistencia: 'Asistencia', pases_asignados: 'Pases asignados', pases_confirmados: 'Pases confirmados',
+  acompanantes: 'Acompañantes', respuestas: 'Respuestas del formulario', mensaje: 'Mensaje del invitado', respuesta_novios: 'Respuesta de los novios', mesa: 'Mesa', telefono: 'WhatsApp',
+  fecha_registro: 'Fecha de registro', primera_vista: 'Primera vista', ultima_vista: 'Última vista', vistas: 'N.º de vistas', primera_respuesta: 'Primera respuesta', ultima_modificacion: 'Última modificación',
+  ediciones: 'N.º de ediciones', whatsapp_enviado: 'WhatsApp enviado', ingreso_pases: 'Ingresaron', ingreso_fecha: 'Hora de ingreso', ingreso_marca: 'Marca de ingreso', origen: 'Origen' };
+const ORIGENES = ['panel', 'importacion', 'invitacion'];
+const isoOrNull = v => { if (v == null || v === '') return null; const d = new Date(v); return isNaN(d) ? null : d.toISOString(); };
+const estable = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(x => [x, v[x]])) : v);
+/* Registro «normalizado» de un invitado (así se guarda en el Excel, se lee de él y se compara) */
+function regDe(i) {
+  const r = {};
+  for (const k of CAMPOS_RESP) {
+    const v = i[k];
+    r[k] = CAMPOS_TS.has(k) ? isoOrNull(v)
+      : k === 'respuestas' ? (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
+      : CAMPOS_ENT.has(k) ? (v == null ? (k === 'pases_confirmados' ? null : 0) : +v)
+      : k === 'asistencia' ? (v || null)
+      : k === 'origen' ? (ORIGENES.includes(v) ? v : 'importacion')
+      : v == null ? '' : String(v);
+  }
+  return r;
+}
+const celdaResp = (k, v) => CAMPOS_TS.has(k) ? (v || '') : k === 'respuestas' ? JSON.stringify(v) : v == null ? '' : v;
+
+function exportar(lista, sufijo) {
+  if (!window.XLSX) return toast(t('La librería de Excel aún está cargando, intenta en un segundo'), 'info');
+  if (!lista.length) return toast(t('No hay invitados para exportar'), 'info');
+  const pq = preguntas(), completo = lista.length === S.lista.length;
+  const fecha = iso => iso ? new Date(iso) : null;
+  const filas = lista.map(i => {
+    const o = { 'Nombre del invitado': i.nombre, 'Tratamiento': i.tratamiento, 'Código': i.codigo, 'Link': link(i), 'Link RSVP': linkRsvp(i), 'Categoría': i.categoria,
+      'Asistencia a la boda': i.asistencia === 'si' ? 'Sí, asistiré' : i.asistencia === 'no' ? 'No podré asistir' : '',
+      'Pases asignados': i.pases_asignados, 'Pases confirmados': i.pases_confirmados ?? '', 'Acompañantes': i.acompanantes };
+    pq.forEach(q => { const v = (i.respuestas || {})[q.id]; o[q.etiqueta] = v == null ? '' : Array.isArray(v) ? v.join(', ') : q.tipo === 'sino' ? (v === 'si' ? 'Sí' : 'No') : v; });
+    Object.assign(o, { 'Mensaje a los novios': i.mensaje,
+      'Fecha registro': fecha(i.fecha_registro), 'Fecha primera vista': fecha(i.primera_vista), 'Fecha última vista': fecha(i.ultima_vista), 'N.º de vistas': i.vistas,
+      'Fecha primera respuesta': fecha(i.primera_respuesta), 'Fecha última modificación': fecha(i.ultima_modificacion), 'N.º de ediciones': i.ediciones,
+      'Respuesta de los novios': i.respuesta_novios, 'Número de mesa': i.mesa, 'WhatsApp': i.telefono, 'WhatsApp enviado': fecha(i.whatsapp_enviado),
+      'Ingresaron (pases)': i.ingreso_pases || '', 'Hora de ingreso': fecha(i.ingreso_fecha) });
+    return o;
+  });
+  const ws = XLSX.utils.json_to_sheet(filas, { dateNF: 'dd/mm/yyyy hh:mm' });
+  ws['!cols'] = Object.keys(filas[0]).map(k => ({ wch: /Link/.test(k) ? 46 : /Mensaje|Respuesta de|Acompa/.test(k) ? 36 : /Nombre/.test(k) ? 28 : 14 }));
+  ws['!autofilter'] = { ref: ws['!ref'] };
+  filas.forEach((f, r) => { [3, 4].forEach(cI => { const a = XLSX.utils.encode_cell({ r: r + 1, c: cI }); if (ws[a]) ws[a].l = { Target: ws[a].v }; }); });
+  const wsR = XLSX.utils.json_to_sheet(lista.map(i => { const r = regDe(i); return Object.fromEntries(CAMPOS_RESP.map(k => [k, celdaResp(k, r[k])])); }), { header: CAMPOS_RESP });
+  wsR['!cols'] = CAMPOS_RESP.map(k => ({ wch: /mensaje|respuesta|acompa|respuestas/.test(k) ? 34 : /fecha|vista|ultima|primera|marca|whatsapp_env/.test(k) ? 26 : 14 }));
+  const wsE = XLSX.utils.aoa_to_sheet([['Clave', 'Valor'], ['formato', 'parteydetalles-invitados'], ['version', 2], ['evento_slug', S.p.slug], ['evento_nombre', S.p.nombre],
+    ['exportado', new Date().toISOString()], ['alcance', completo ? 'completo' : 'parcial'], ['invitados_en_el_archivo', lista.length], ['invitados_en_el_evento', S.lista.length], ['panel', P.VERSION || ''],
+    [], ['Nota', 'La hoja «Respaldo» es técnica: no la edites. Para cambiar datos desde Excel usa la hoja «Invitados» e impórtala eligiendo «Importar solo la hoja Invitados».'],
+    ['Nota', 'Al importar este archivo en el panel puedes restaurar a cada invitado tal como estaba (respuestas, mensajes, WhatsApp enviado, ingresos y fechas). El historial de cambios no va en el Excel.']]);
+  wsE['!cols'] = [{ wch: 26 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Invitados'); XLSX.utils.book_append_sheet(wb, wsE, 'Evento'); XLSX.utils.book_append_sheet(wb, wsR, 'Respaldo');
+  XLSX.writeFile(wb, `invitados_${S.p.slug}_${sufijo}_${sello()}.xlsx`);
+  toast(`${lista.length} ${t('invitados exportados')}`);
+}
+/* Botón «Exportar» de la barra: sin filtros = respaldo de TODOS; con filtros se pregunta qué exportar */
+function exportarMenu() {
+  const v = visibles();
+  if (!S.lista.length) return toast(t('No hay invitados para exportar'), 'info');
+  if (v.length === S.lista.length) return exportar(S.lista, 'respaldo');
+  modal(`${cabecera('Exportar a Excel')}${cuerpo(`<p class="text-sm text-stone-600">Hay un filtro o una búsqueda activa. ¿Qué quieres exportar?</p>
+    <div class="mt-4 grid gap-2">
+      <button type="button" id="x-todos" class="${btnP} justify-center">${ico('down')} <span>Respaldo de todos los invitados</span> (<b>${S.lista.length}</b>)</button>
+      <button type="button" id="x-filtro" class="${btnS} justify-center"><span>Solo los que se ven ahora</span> (<b>${v.length}</b>)</button></div>
+    <p class="mt-3 text-xs text-stone-500">El respaldo de todos permite restaurar el evento completo; la exportación de solo algunos sirve para trabajar un grupo en Excel.</p>`)}`, d => {
+    d.querySelector('#x-todos').onclick = () => { cerrarModal(); exportar(S.lista, 'respaldo'); };
+    d.querySelector('#x-filtro').onclick = () => { cerrarModal(); exportar(v, 'parcial'); };
+  });
+}
+const COLUMNAS = [
+  ['nombre', 'Nombre del invitado', true, 'Nombre único. Si se repite, agrega apellido o parentesco: “Sr. Pérez (Padre)”.', ['nombre del invitado', 'nombre', 'invitado', 'nombre completo', 'nombres', 'guest name', 'name']],
+  ['tratamiento', 'Tratamiento', false, 'Señor, Señora, Señorita, Familia… o vacío.', ['tratamiento', 'trato', 'title']],
+  ['pases_asignados', 'Pases asignados', false, 'Número entero (1 si se deja vacío en registros nuevos).', ['pases asignados', 'pases', 'cupos', 'pases reservados', 'seats']],
+  ['mesa', 'Número de mesa', false, 'Texto o número. Se muestra en la invitación.', ['numero de mesa', 'n de mesa', 'no de mesa', 'nro de mesa', 'mesa', 'table']],
+  ['telefono', 'WhatsApp', false, 'Con o sin código de país: sin código se usa el país elegido al importar (945 709 988 → +51 945 709 988).', ['whatsapp', 'telefono', 'celular', 'movil', 'numero de whatsapp', 'numero de celular', 'phone']],
+  ['categoria', 'Categoría', false, 'Etiquetas internas para filtrar y sumar (Familia novia, Amigos novio…). Varias separadas por comas. El invitado no la ve.', ['categoria', 'categorias', 'etiqueta', 'etiquetas', 'grupo', 'relacion', 'lado', 'category', 'group', 'tag', 'tags']],
+  ['respuesta_novios', 'Respuesta de los novios', false, 'Se muestra al invitado en la invitación.', ['respuesta de los novios', 'respuesta novios']],
+  ['codigo', 'Código', false, 'Clave para actualizar un invitado existente (aunque cambies su nombre). En nuevos: déjalo vacío y se genera.', ['codigo', 'cod', 'code']],
+  ['asistencia', 'Asistencia a la boda', false, '“Sí” / “No” / vacío. Útil si alguien confirmó por teléfono.', ['asistencia a la boda', 'asistencia', 'asiste', 'rsvp']],
+  ['pases_confirmados', 'Pases confirmados', false, 'No puede superar los pases asignados.', ['pases confirmados', 'confirmados']],
+  ['acompanantes', 'Acompañantes', false, 'Nombres separados por comas.', ['acompanantes', 'acompañantes', 'guests']]
+];
+const normCab = tx => norm(tx).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+function plantilla() {
+  if (!window.XLSX) return toast(t('La librería de Excel aún está cargando, intenta en un segundo'), 'info');
+  const cab = ['Nombre del invitado', 'Tratamiento', 'Pases asignados', 'Número de mesa', 'WhatsApp', 'Categoría', 'Respuesta de los novios', 'Código'];
+  const ws = XLSX.utils.aoa_to_sheet([cab, ['Juan Pérez (Padre)', 'Señor', 2, '5', '987 654 321', 'Familia novio', '', ''], ['Familia Rojas', 'Familia', 4, '', '+1 305 310 1725', 'Amigos novia, Extranjero', '', '']]);
+  ws['!cols'] = [30, 14, 15, 15, 18, 24, 36, 10].map(w => ({ wch: w }));
+  const inst = XLSX.utils.aoa_to_sheet([['Columna', 'Obligatoria', 'Descripción'], ...COLUMNAS.map(c => [c[1], c[2] ? 'Sí' : 'No', c[3]]), [],
+    ['Reglas'], ['• Un invitado por fila. Se reconoce por Código (si lo pones) o por Nombre.'], ['• Invitado existente: se reemplazan solo las columnas que incluyas. Nuevo: se agrega.'],
+    ['• Puedes subir solo Nombre + Número de mesa (o + WhatsApp, o + Categoría) para actualizar esos datos.'], ['• WhatsApp: con código de país (+1 305…) o sin él; sin código se usa el país elegido al importar.'],
+    ['• Columnas como Link, fechas o Mensaje a los novios se ignoran (el sistema las administra).'], ['• Sirve también para re-importar un Excel exportado desde este panel.'],
+    ['• Un Excel exportado desde este panel es un respaldo: al importarlo puedes restaurar a cada invitado tal como estaba (incluye respuestas del formulario, mensajes, WhatsApp enviado, ingresos y fechas).']]);
+  inst['!cols'] = [{ wch: 26 }, { wch: 12 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Invitados'); XLSX.utils.book_append_sheet(wb, inst, 'Instrucciones');
+  XLSX.writeFile(wb, 'plantilla_invitados.xlsx');
+}
+function importar() {
+  modal(`${cabecera('Importar invitados desde Excel', 'Agrega nuevos y actualiza existentes sin duplicar')}${cuerpo(`
+    <div class="grid gap-4">
+      <div class="rounded-xl bg-oro-50 p-3 text-sm text-stone-700"><p class="font-medium">Cómo funciona</p>
+        <ul class="mt-1 list-disc space-y-0.5 pl-5">
+          <li>La primera fila debe tener los títulos de columna. Solo “Nombre del invitado” es obligatorio.</li>
+          <li>Cada fila se busca por Código (si la columna existe) o por Nombre: si existe se actualiza, si no se agrega.</li>
+          <li>Solo se cambian las columnas que incluyas: para asignar mesas basta con Nombre + Número de mesa.</li>
+          <li>Los WhatsApp sin código de país reciben el del país elegido abajo. Los dudosos se marcan en la vista previa.</li>
+          <li>Si el archivo es un respaldo exportado desde este panel, podrás restaurarlo completo: cada invitado vuelve a como estaba, con sus respuestas, mensajes, WhatsApp enviado e ingresos.</li>
+          <li>Verás una vista previa antes de guardar nada.</li></ul></div>
+      <details class="rounded-xl ring-1 ring-stone-200"><summary class="cursor-pointer px-3 py-2 text-sm font-medium">Columnas reconocidas</summary>
+        <div class="overflow-x-auto px-3 pb-3"><table class="w-full text-left text-xs"><thead class="text-stone-500"><tr><th class="py-1 pr-3">Columna</th><th class="py-1 pr-3">Oblig.</th><th class="py-1">Detalle</th></tr></thead>
+        <tbody>${COLUMNAS.map(c => `<tr class="border-t border-stone-100 align-top"><td class="py-1.5 pr-3 font-medium">${c[1]}</td><td class="py-1.5 pr-3">${c[2] ? '<b class="text-rose-600">Sí</b>' : 'No'}</td><td class="py-1.5 text-stone-600">${c[3]}</td></tr>`).join('')}</tbody></table></div></details>
+      <label class="flex items-start gap-2 text-sm"><input id="i-vacias" type="checkbox" class="${chk}"><span>Las celdas vacías borran el valor actual (si no, se ignoran y se conserva lo que había)</span></label>
+      <div class="grid gap-1 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-3"><label class="text-sm" for="i-pais">Para números sin código de país, usar:</label>
+        <select id="i-pais" class="${campo}"><option value="">${t('No modificar los teléfonos')}</option>${opcionesPais(paisTel())}</select></div>
+      <label id="i-zona" class="grid cursor-pointer place-items-center gap-1 rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50 px-4 py-8 text-center hover:border-oro-400">
+        <span class="text-oro-600">${ico('up', 'size-6')}</span><span class="font-medium">Elige o arrastra tu archivo</span><span class="text-xs text-stone-500">.xlsx, .xls, .csv</span>
+        <input id="i-file" type="file" accept=".xlsx,.xls,.csv" class="sr-only"></label>
+      <p id="i-err" class="min-h-5 text-sm text-rose-600" role="alert"></p></div>`)}${pie(`<button type="button" id="i-plant" class="${btnS} mr-auto">${ico('down')} Descargar plantilla</button><button type="button" class="${btnS}" data-cerrar>Cancelar</button>`)}`, d => {
+    d.querySelector('#i-plant').onclick = plantilla;
+    const zona = d.querySelector('#i-zona'), leer = f => f && procesarArchivo(f, d.querySelector('#i-vacias').checked, d.querySelector('#i-pais').value);
+    d.querySelector('#i-file').onchange = e => leer(e.target.files[0]);
+    zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('border-oro-500'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('border-oro-500'));
+    zona.addEventListener('drop', e => { e.preventDefault(); leer(e.dataTransfer.files[0]); });
+  });
+}
+async function procesarArchivo(file, vacias, pais = '') {
+  const err = $('#i-err');
+  if (!window.XLSX) { err.textContent = t('La librería de Excel aún está cargando, intenta en un segundo'); return; }
+  let wb;
+  try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }); }
+  catch { err.textContent = t('No se pudo leer el archivo. ¿Es un Excel válido?'); return; }
+  const resp = leerRespaldo(wb);                                           // ¿es un respaldo exportado desde este panel?
+  if (resp) return vistaRestaurar(resp, file.name, () => importarHoja(wb, file.name, vacias, pais, true));
+  importarHoja(wb, file.name, vacias, pais, false);
+}
+function importarHoja(wb, nombreArchivo, vacias, pais, desdeRespaldo) {
+  const err = $('#i-err') || { set textContent(v) { toast(v, 'error'); } };
+  const hoja = wb.Sheets.Invitados || wb.Sheets[wb.SheetNames[0]];
+  const filas = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: '', raw: false, blankrows: false });
+  const h = filas.findIndex(r => r.some(c => COLUMNAS.some(col => col[4].includes(normCab(c)))));
+  if (h < 0) { err.textContent = t('No encontramos la fila de títulos. La primera fila debe tener “Nombre del invitado” (o “Código”).'); return; }
+  const mapa = {}, ignoradas = [];
+  filas[h].forEach((c, k) => { const n = normCab(c); if (!n) return;
+    const col = COLUMNAS.find(col => col[4].includes(n) || (n.startsWith('respuesta de los novios') && col[0] === 'respuesta_novios'));
+    if (col && !Object.values(mapa).includes(col[0])) mapa[k] = col[0]; else ignoradas.push(String(c).trim()); });
+  const claves = Object.values(mapa);
+  if (!claves.includes('nombre') && !claves.includes('codigo')) { err.textContent = t('Falta la columna “Nombre del invitado”.'); return; }
+  vistaPrevia(planificar(filas.slice(h + 1).map((r, k) => ({ r, fila: h + k + 2 })), mapa, vacias, pais), claves, ignoradas, vacias, nombreArchivo);
+}
+
+/* ---- RESTAURAR UN RESPALDO ----------------------------------------------------------------------------- */
+function leerRespaldo(wb) {
+  const wsR = wb.Sheets.Respaldo; if (!wsR) return null;
+  const filas = XLSX.utils.sheet_to_json(wsR, { defval: '', raw: false, blankrows: false });
+  if (!filas.length || !('nombre' in filas[0]) || !('codigo' in filas[0])) return null;
+  const meta = {};
+  if (wb.Sheets.Evento) XLSX.utils.sheet_to_json(wb.Sheets.Evento, { header: 1, defval: '', raw: false }).forEach(([k, v]) => { if (k && !(k in meta)) meta[String(k).trim()] = String(v ?? '').trim(); });
+  return { filas, meta };
+}
+/* Valida una fila de la hoja Respaldo y la lleva al mismo formato que regDe() */
+function parsearReg(r) {
+  const e = [], s = k => String(r[k] ?? '').trim(), reg = {};
+  const ent = (k, min, max, def) => { const v = s(k); if (v === '') return def; const n = Number(v); if (!Number.isInteger(n) || n < min || n > max) { e.push(`${ETQ_CAMPO[k]} fuera de rango`); return def; } return n; };
+  reg.codigo = s('codigo').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (reg.codigo && !/^[A-Z0-9]{4,8}$/.test(reg.codigo)) e.push('Código inválido');
+  reg.nombre = s('nombre').replace(/\s+/g, ' ');
+  if (reg.nombre.length < 2 || reg.nombre.length > 80) e.push('Falta el nombre (de 2 a 80 caracteres)');
+  ['tratamiento', 'categoria', 'acompanantes', 'mensaje', 'respuesta_novios', 'mesa', 'telefono'].forEach(k => { reg[k] = s(k); });
+  const a = norm(s('asistencia')); reg.asistencia = a === '' ? null : /^(si|yes|s)$/.test(a) ? 'si' : /^(no|n)$/.test(a) ? 'no' : (e.push('Asistencia no reconocida'), null);
+  reg.pases_asignados = ent('pases_asignados', 1, 50, 1);
+  reg.pases_confirmados = ent('pases_confirmados', 0, 50, null);
+  if (reg.pases_confirmados != null && reg.pases_confirmados > reg.pases_asignados) e.push('Pases confirmados mayor que los asignados');
+  reg.vistas = ent('vistas', 0, 1e6, 0); reg.ediciones = ent('ediciones', 0, 1e6, 0); reg.ingreso_pases = ent('ingreso_pases', 0, 50, 0);
+  if (reg.ingreso_pases > reg.pases_asignados) e.push('Ingresaron más pases de los asignados');
+  const rj = s('respuestas');
+  if (!rj) reg.respuestas = {};
+  else { try { const o = JSON.parse(rj); if (o && typeof o === 'object' && !Array.isArray(o)) reg.respuestas = o; else throw 0; } catch { reg.respuestas = {}; e.push('Respuestas del formulario ilegibles'); } }
+  for (const k of CAMPOS_TS) { const v = s(k); if (!v) { reg[k] = null; continue; } const d = new Date(v); if (isNaN(d)) { e.push(`${ETQ_CAMPO[k]}: fecha inválida`); reg[k] = null; } else reg[k] = d.toISOString(); }
+  reg.origen = ORIGENES.includes(s('origen')) ? s('origen') : 'importacion';
+  return { reg, e };
+}
+function planificarRespaldo(filas) {
+  const porCod = new Map(S.lista.map(i => [i.codigo, i])), porNom = new Map(S.lista.map(i => [norm(i.nombre), i]));
+  const vistos = new Set(), nombresFinales = new Map(S.lista.map(i => [norm(i.nombre), i.id])), plan = [];
+  filas.forEach((r, k) => {
+    const fila = k + 2, { reg, e } = parsearReg(r), p = { fila, reg, errores: e.slice(), cambios: [] };
+    const ex = (reg.codigo && porCod.get(reg.codigo)) || (reg.nombre && porNom.get(norm(reg.nombre))) || null;
+    p.existente = ex; p.accion = ex ? 'actualizar' : 'nuevo';
+    const clave = ex ? 'id' + ex.id : 'n' + norm(reg.nombre);
+    if (vistos.has(clave) || (reg.codigo && vistos.has('c' + reg.codigo))) p.errores.push('Repetido en el archivo'); else { vistos.add(clave); if (reg.codigo) vistos.add('c' + reg.codigo); }
+    if (reg.nombre && !p.errores.includes('Repetido en el archivo')) { const dueno = nombresFinales.get(norm(reg.nombre)); if (dueno != null && dueno !== (ex?.id ?? -1)) p.errores.push('Nombre ya usado por otro invitado'); else nombresFinales.set(norm(reg.nombre), ex?.id ?? -fila); }
+    if (ex) {
+      const antes = regDe(ex); if (!reg.codigo) reg.codigo = ex.codigo;
+      for (const c of CAMPOS_RESP) { const a = antes[c], b = reg[c]; if (c === 'respuestas' ? estable(a) !== estable(b) : String(a ?? '') !== String(b ?? '')) p.cambios.push(c); }
+      if (!p.cambios.length) p.accion = 'igual';
+    }
+    if (p.errores.length) p.accion = 'error';
+    plan.push(p);
+  });
+  return plan;
+}
+const resumenCampo = (c, v) => { const x = v == null ? '' : c === 'respuestas' ? Object.entries(v).map(([k, y]) => `${k}: ${Array.isArray(y) ? y.join('/') : y}`).join(', ') : c === 'asistencia' ? ({ si: 'Sí', no: 'No' }[v] || '') : CAMPOS_TS.has(c) ? (v ? new Date(v).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : '') : String(v); return x.length > 40 ? x.slice(0, 38) + '…' : x; };
+
+function vistaRestaurar({ filas, meta }, archivo, alternativa) {
+  const plan = planificarRespaldo(filas), c = a => plan.filter(p => p.accion === a).length;
+  const validos = plan.filter(p => p.accion === 'nuevo' || p.accion === 'actualizar'), hayErrores = c('error') > 0;
+  const completo = meta.alcance === 'completo';
+  const tocados = new Set(plan.map(p => p.existente?.id).filter(x => x != null)), extras = S.lista.filter(i => !tocados.has(i.id));
+  const otroEvento = meta.evento_slug && meta.evento_slug !== S.p.slug;
+  const etiqueta = { nuevo: ['Nuevo', 'bg-emerald-50 text-emerald-700'], actualizar: ['Actualiza', 'bg-sky-50 text-sky-700'], igual: ['Sin cambios', 'bg-stone-100 text-stone-500'], error: ['Error', 'bg-rose-50 text-rose-700'] };
+  const orden = { error: 0, nuevo: 1, actualizar: 2, igual: 3 }, mostrar = [...plan].sort((a, b) => orden[a.accion] - orden[b.accion]).slice(0, 300);
+  const cuando = meta.exportado && !isNaN(new Date(meta.exportado)) ? new Date(meta.exportado).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  modal(`${cabecera('Restaurar respaldo', `<span data-notr>${esc(archivo)}</span>`)}${cuerpo(`
+    <div class="rounded-xl bg-oro-50 p-3 text-sm text-stone-700">
+      <p><b>Respaldo exportado desde este panel</b>${meta.evento_nombre ? ` · <span data-notr>${esc(meta.evento_nombre)}</span>` : ''}${cuando ? ` · <span data-notr>${esc(cuando)}</span>` : ''} · <b>${filas.length}</b> <span>invitados</span> · <span>${completo ? 'Respaldo completo' : 'Respaldo parcial'}</span></p>
+      <p class="mt-1">Al restaurar, cada invitado vuelve a como estaba: respuestas, mensajes, WhatsApp enviado, ingresos, vistas y fechas. El historial de cambios no forma parte del Excel.</p></div>
+    ${otroEvento ? `<p class="mt-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800">⚠ <span>Este respaldo es de otro evento</span> (<span data-notr>${esc(meta.evento_slug)}</span>): <span>se importará en este evento y los códigos se conservan.</span></p>` : ''}
+    <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">${[['nuevo', 'Nuevos'], ['actualizar', 'Se actualizan'], ['igual', 'Sin cambios'], ['error', 'Con errores']].map(([a, tx]) => `<div class="rounded-xl p-3 ${etiqueta[a][1]}"><p class="text-2xl font-semibold tabular-nums">${c(a)}</p><p class="text-xs">${tx}</p></div>`).join('')}</div>
+    ${hayErrores ? `<p class="mt-2 rounded-xl bg-rose-50 p-2.5 text-xs text-rose-700">Las filas con error no se restaurarán. Corrígelas en el Excel y vuelve a subirlo, o continúa con el resto.</p>` : ''}
+    <div class="mt-4 grid gap-2 rounded-xl bg-stone-50 p-3 text-sm">
+      <label class="flex items-start gap-2"><input id="r-antes" type="checkbox" class="${chk}" checked><span>Descargar antes un respaldo del estado actual (recomendado)</span></label>
+      ${completo ? `<label class="flex items-start gap-2 ${hayErrores || !extras.length ? 'opacity-50' : ''}"><input id="r-exacto" type="checkbox" class="${chk}" ${hayErrores || !extras.length ? 'disabled' : ''}>
+        <span><span>Dejar el evento exactamente como el respaldo: eliminar los invitados que no están en el archivo</span> (<b>${extras.length}</b>)${hayErrores ? `<br><span class="text-xs text-stone-500">Corrige primero las filas con error para usar esta opción.</span>` : ''}</span></label>` : ''}
+    </div>
+    <div class="mt-3 overflow-x-auto rounded-xl ring-1 ring-stone-200"><table class="min-w-full text-xs">
+      <thead class="bg-stone-50 text-left text-stone-500"><tr><th class="px-2 py-2">Fila</th><th class="px-2 py-2">Acción</th><th class="px-2 py-2">Nombre</th><th class="px-2 py-2">Detalle</th></tr></thead>
+      <tbody class="divide-y divide-stone-100">${mostrar.map(p => `<tr class="align-top"><td class="px-2 py-1.5 tabular-nums text-stone-400">${p.fila}</td>
+        <td class="px-2 py-1.5"><span class="whitespace-nowrap rounded-full px-2 py-0.5 ${etiqueta[p.accion][1]}">${etiqueta[p.accion][0]}</span></td>
+        <td class="px-2 py-1.5 font-medium" data-notr>${esc(p.reg.nombre || p.existente?.nombre || '')}${p.existente && p.reg.nombre && norm(p.reg.nombre) !== norm(p.existente.nombre) ? `<div class="font-normal text-stone-400">← ${esc(p.existente.nombre)}</div>` : ''}</td>
+        <td class="px-2 py-1.5">${p.errores.map(e => `<div class="text-rose-700">${esc(t(e))}</div>`).join('')}${p.accion === 'actualizar' ? p.cambios.map(k => `<div class="text-sky-700"><span>${esc(t(ETQ_CAMPO[k]))}</span>: <span class="text-stone-400 line-through" data-notr>${esc(resumenCampo(k, regDe(p.existente)[k]))}</span> → <span data-notr>${esc(resumenCampo(k, p.reg[k]))}</span></div>`).join('') : ''}</td></tr>`).join('')}</tbody></table></div>
+    ${plan.length > 300 ? `<p class="mt-2 text-xs text-stone-500">300 / ${plan.length}</p>` : ''}`)}
+    ${pie(`<button type="button" id="r-hoja" class="${btnS} mr-auto">Importar solo la hoja Invitados</button><button type="button" class="${btnS}" data-cerrar>Cancelar</button>
+      <button type="button" id="r-ok" class="${btnP}" ${validos.length || extras.length ? '' : 'disabled'}><span>Restaurar</span> (${validos.length})</button>`)}`, d => {
+    const exacto = d.querySelector('#r-exacto'), antes = d.querySelector('#r-antes');
+    exacto?.addEventListener('change', () => { if (exacto.checked) { antes.checked = true; antes.disabled = true; } else antes.disabled = false; });
+    d.querySelector('#r-hoja').onclick = alternativa;
+    d.querySelector('#r-ok').onclick = () => restaurar(plan, extras, { exacto: !!exacto?.checked, antes: antes.checked, boton: d.querySelector('#r-ok') });
+  });
+}
+const registroDb = reg => ({ proyecto_id: S.p.id, ...Object.fromEntries(CAMPOS_RESP.map(k => [k, reg[k]])) });
+async function restaurar(plan, extras, { exacto, antes, boton }) {
+  const validos = plan.filter(p => p.accion === 'nuevo' || p.accion === 'actualizar'), errores = [];
+  let nuevos = 0, actualizados = 0, eliminados = 0, hecho = 0;
+  const total = validos.length + (exacto ? extras.length : 0), progreso = () => { boton.textContent = `${t('Restaurando…')} ${hecho}/${total}`; };
+  boton.disabled = true; progreso();
+  try {
+    if (antes) exportar(S.lista, 'antes_de_restaurar');                                   // copia de seguridad del estado actual
+    if (exacto) {                                                                          // primero salen los que no están en el respaldo (liberan nombres y códigos)
+      for (let k = 0; k < extras.length; k += 100) {
+        const ids = extras.slice(k, k + 100).map(i => i.id), { error } = await sb.from('invitados').delete().in('id', ids);
+        if (error) throw error; eliminados += ids.length; hecho += ids.length; progreso();
+      }
+    }
+    const lote = async (filas, existe) => {
+      for (let k = 0; k < filas.length; k += 100) {
+        const trozo = filas.slice(k, k + 100), filasDb = trozo.map(p => existe ? { id: p.existente.id, ...registroDb(p.reg) } : registroDb(p.reg));
+        const op = lista => existe ? sb.from('invitados').upsert(lista, { onConflict: 'id' }) : sb.from('invitados').insert(lista);
+        let { error } = await op(filasDb);
+        if (error) {                                                                         // el lote falló: se repite fila por fila para saber cuál es el problema
+          for (let j = 0; j < trozo.length; j++) {
+            const r = await op([filasDb[j]]);
+            if (r.error) errores.push({ fila: trozo[j].fila, nombre: trozo[j].reg.nombre, error: t(errorAmigable(r.error)) }); else existe ? actualizados++ : nuevos++;
+            hecho++; progreso();
+          }
+        } else { existe ? actualizados += trozo.length : nuevos += trozo.length; hecho += trozo.length; progreso(); }
+      }
+    };
+    await lote(validos.filter(p => p.accion === 'actualizar'), true);
+    await lote(validos.filter(p => p.accion === 'nuevo'), false);
+  } catch (e) {
+    await recargar(); boton.disabled = false; boton.textContent = t('Reintentar');
+    return toast(t(errorAmigable(e)), 'error');
+  }
+  await recargar();
+  modal(`${cabecera('Respaldo restaurado')}${cuerpo(`<p class="text-sm"><span>Nuevos</span>: <b>${nuevos}</b> · <span>Se actualizan</span>: <b>${actualizados}</b>${exacto ? ` · <span>Eliminados</span>: <b>${eliminados}</b>` : ''}</p>
+    ${errores.length ? `<p class="mt-3 text-sm font-medium text-rose-700">Hubo filas que no se pudieron restaurar:</p><ul class="mt-1 space-y-1 text-sm text-rose-700">${errores.map(e => `<li data-notr>${e.fila}${e.nombre ? ` (${esc(e.nombre)})` : ''}: ${esc(e.error)}</li>`).join('')}</ul>` : `<p class="mt-3 text-sm text-emerald-700">Todo quedó restaurado.</p>`}`)}${pie(`<button class="${btnP}" data-cerrar>Entendido</button>`)}`);
+}
+function planificar(filas, mapa, vacias, pais = '') {
+  const porCod = new Map(S.lista.map(i => [i.codigo, i])), porNom = new Map(S.lista.map(i => [norm(i.nombre), i]));
+  const vistos = new Map(), nombresFinales = new Map(S.lista.map(i => [norm(i.nombre), i.id]));
+  const max = S.p.pases_max || 10, out = [];
+  for (const { r, fila } of filas) {
+    const o = { _fila: fila }; let vacia = true;
+    for (const [k, cK] of Object.entries(mapa)) { const v = String(r[k] ?? '').trim(); o[cK] = v; if (v) vacia = false; }
+    if (vacia) continue;
+    const p = { fila, datos: o, errores: [] };
+    if ('codigo' in o) o.codigo = o.codigo.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if ('nombre' in o) o.nombre = o.nombre.replace(/\s+/g, ' ');
+    if ('categoria' in o) o.categoria = unicasEtiquetas(o.categoria);
+    if ('telefono' in o && o.telefono && pais && window.PYD_TEL) {
+      const r = PYD_TEL.normalizar(o.telefono, pais);
+      p.telOriginal = o.telefono; p.tel = r;
+      if (r.estado === 'ok' || r.estado === 'agregado') o.telefono = r.texto; else p.avisos = [...(p.avisos || []), 'WhatsApp: ' + (r.nota || 'revisar')];
+    }
+    if ('asistencia' in o && o.asistencia) { const a = norm(o.asistencia); o.asistencia = /^(si|s|yes|y|x|1|asist|confirm)/.test(a) ? 'si' : /^(no|n|0)/.test(a) ? 'no' : (p.errores.push('Asistencia no reconocida (usa Sí o No)'), ''); }
+    for (const k of ['pases_asignados', 'pases_confirmados']) if (o[k]) { const n = Number(o[k]); if (!Number.isInteger(n) || n < (k === 'pases_asignados' ? 1 : 0) || n > max) p.errores.push(k === 'pases_asignados' ? 'Pases asignados fuera de rango.' : 'Pases confirmados fuera de rango.'); else o[k] = String(n); }
+    const ex = (o.codigo && porCod.get(o.codigo)) || (o.nombre && porNom.get(norm(o.nombre))) || null;
+    p.existente = ex; p.accion = ex ? 'actualizar' : 'nuevo';
+    if (!ex && !o.nombre) p.errores.push(o.codigo ? 'El código no existe y falta el nombre' : 'Falta el nombre');
+    const clave = ex ? 'id' + ex.id : 'n' + norm(o.nombre), repetido = vistos.has(clave);
+    if (repetido) p.errores.push('Repetido en el archivo'); else vistos.set(clave, fila);
+    if (o.nombre && !repetido) { const dueño = nombresFinales.get(norm(o.nombre)); if (dueño != null && dueño !== (ex?.id ?? -1)) p.errores.push('Nombre ya usado por otro invitado: agrega apellido o parentesco'); else nombresFinales.set(norm(o.nombre), ex?.id ?? -fila); }
+    const usar = k => k in o && (vacias || o[k] !== '');
+    const fin = { ...(ex || { pases_asignados: 1, asistencia: null, pases_confirmados: null }) };
+    if (usar('pases_asignados') && o.pases_asignados) fin.pases_asignados = +o.pases_asignados;
+    if (usar('asistencia')) fin.asistencia = o.asistencia || null;
+    if (usar('pases_confirmados')) fin.pases_confirmados = o.pases_confirmados === '' ? null : +o.pases_confirmados;
+    if (fin.asistencia === 'si' && fin.pases_confirmados > fin.pases_asignados) p.errores.push('Los pases confirmados no pueden superar los pases asignados.');
+    if (ex && !p.errores.length) {
+      const cambia = ['nombre', 'tratamiento', 'mesa', 'telefono', 'categoria', 'respuesta_novios', 'pases_asignados', 'asistencia', 'pases_confirmados', 'acompanantes'].some(k => {
+        if (!(k in o)) return false; const v = o[k], a = String(ex[k] ?? '');
+        if (v === '') return vacias && a !== '' && !['nombre', 'pases_asignados'].includes(k);
+        return String(v) !== a; });
+      if (!cambia) p.accion = 'igual';
+    }
+    if (p.errores.length) p.accion = 'error';
+    out.push(p);
+  }
+  return out;
+}
+function vistaPrevia(plan, claves, ignoradas, vacias, archivo) {
+  const c = a => plan.filter(p => p.accion === a).length, validos = plan.filter(p => p.accion === 'nuevo' || p.accion === 'actualizar');
+  const etiqueta = { nuevo: ['Nuevo', 'bg-emerald-50 text-emerald-700'], actualizar: ['Actualiza', 'bg-sky-50 text-sky-700'], igual: ['Sin cambios', 'bg-stone-100 text-stone-500'], error: ['Error', 'bg-rose-50 text-rose-700'] };
+  const orden = { error: 0, nuevo: 1, actualizar: 2, igual: 3 }, filas = [...plan].sort((a, b) => orden[a.accion] - orden[b.accion] || (b.avisos ? 1 : 0) - (a.avisos ? 1 : 0)).slice(0, 300);
+  modal(`${cabecera('Vista previa de la importación', esc(archivo))}${cuerpo(`
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">${[['nuevo', 'Nuevos'], ['actualizar', 'Se actualizan'], ['igual', 'Sin cambios'], ['error', 'Con errores']].map(([a, tx]) => `<div class="rounded-xl p-3 ${etiqueta[a][1]}"><p class="text-2xl font-semibold tabular-nums">${c(a)}</p><p class="text-xs">${tx}</p></div>`).join('')}</div>
+    ${(() => { const tl = plan.filter(p => p.tel), ag = tl.filter(p => p.tel.estado === 'agregado').length, du = tl.filter(p => p.tel.estado === 'dudoso').length, lim = tl.filter(p => p.tel.estado === 'ok' && p.tel.texto !== p.telOriginal).length;
+      return tl.length ? `<p class="mt-3 rounded-xl bg-stone-50 p-2.5 text-xs text-stone-600"><b>WhatsApp</b> · ${ag} ${t('con código de país agregado')} · ${lim} ${t('con formato corregido')}${du ? ` · <b class="text-amber-700">${du} ${t('dudosos (se importan tal cual)')}</b>` : ''}</p>` : ''; })()}
+    <p class="mt-3 text-xs text-stone-500"><span>Columnas usadas:</span> <b>${claves.map(k => t(COLUMNAS.find(x => x[0] === k)[1])).join(', ')}</b>${ignoradas.length ? ` · <span>Ignoradas:</span> <span data-notr>${esc(ignoradas.join(', '))}</span>` : ''}</p>
+    ${c('error') ? `<p class="mt-2 rounded-xl bg-rose-50 p-2.5 text-xs text-rose-700">Las filas con error no se importarán. Corrígelas en el Excel y vuelve a subirlo, o continúa con el resto.</p>` : ''}
+    <div class="mt-3 overflow-x-auto rounded-xl ring-1 ring-stone-200"><table class="min-w-full text-xs">
+      <thead class="bg-stone-50 text-left text-stone-500"><tr><th class="px-2 py-2">Fila</th><th class="px-2 py-2">Acción</th><th class="px-2 py-2">Nombre</th>${claves.filter(k => k !== 'nombre').map(k => `<th class="px-2 py-2">${COLUMNAS.find(x => x[0] === k)[1]}</th>`).join('')}<th class="px-2 py-2">Detalle</th></tr></thead>
+      <tbody class="divide-y divide-stone-100">${filas.map(p => `<tr class="align-top"><td class="px-2 py-1.5 tabular-nums text-stone-400">${p.fila}</td>
+        <td class="px-2 py-1.5"><span class="whitespace-nowrap rounded-full px-2 py-0.5 ${etiqueta[p.accion][1]}">${etiqueta[p.accion][0]}</span></td>
+        <td class="px-2 py-1.5 font-medium" data-notr>${esc(p.datos.nombre || p.existente?.nombre || '')}${p.existente && p.datos.nombre && norm(p.datos.nombre) !== norm(p.existente.nombre) ? `<div class="font-normal text-stone-400">← ${esc(p.existente.nombre)}</div>` : ''}</td>
+        ${claves.filter(k => k !== 'nombre').map(k => { const v = p.datos[k] ?? '', a = p.existente ? String(p.existente[k] ?? '') : '', cambia = p.existente && v !== '' && String(v) !== a;
+          return `<td class="px-2 py-1.5 ${cambia ? 'font-medium text-sky-700' : ''}" data-notr>${esc(k === 'asistencia' ? ({ si: 'Sí', no: 'No' }[v] || v) : v)}${cambia && a ? `<div class="font-normal text-stone-400 line-through">${esc(a)}</div>` : ''}</td>`; }).join('')}
+        <td class="px-2 py-1.5 text-rose-700">${p.errores.map(e => `<div>${esc(e)}</div>`).join('')}${(p.avisos || []).map(e => `<div class="text-amber-700">⚠ ${esc(e)}</div>`).join('')}</td></tr>`).join('')}</tbody></table></div>
+    ${plan.length > 300 ? `<p class="mt-2 text-xs text-stone-500">300 / ${plan.length}</p>` : ''}`)}
+    ${pie(`<button type="button" id="p-volver" class="${btnS} mr-auto">Elegir otro archivo</button><button type="button" class="${btnS}" data-cerrar>Cancelar</button>
+      <button type="button" id="p-ok" class="${btnP}" ${validos.length ? '' : 'disabled'}><span>Importar</span> (${validos.length})</button>`)}`, d => {
+    d.querySelector('#p-volver').onclick = importar;
+    d.querySelector('#p-ok').onclick = async () => {
+      const b = d.querySelector('#p-ok'); b.disabled = true; b.textContent = t('Importando…');
+      const enviar = validos.map(p => { const o = { ...p.datos }; if (!o.codigo && p.existente) o.codigo = p.existente.codigo; return o; });
+      const { data, error } = await sb.rpc('admin_importar', { p_proyecto: S.p.id, p_filas: enviar, p_vacias_borran: vacias });
+      if (error) { b.disabled = false; b.textContent = t('Reintentar'); return toast(t(errorAmigable(error)), 'error'); }
+      await recargar();
+      if (data.errores?.length) modal(cabecera('Importación con observaciones') + cuerpo(`<p class="text-sm"><span>Nuevos</span>: <b>${data.nuevos}</b> · <span>Se actualizan</span>: <b>${data.actualizados}</b> · <span>Sin cambios</span>: <b>${data.sin_cambios}</b></p>
+          <ul class="mt-3 space-y-1 text-sm text-rose-700">${data.errores.map(e => `<li data-notr>${e.fila}${e.nombre ? ` (${esc(e.nombre)})` : ''}: ${esc(e.error)}</li>`).join('')}</ul>`) + pie(`<button class="${btnP}" data-cerrar>Entendido</button>`));
+      else { dlg.close(); toast(`${t('Importación lista')} · +${data.nuevos} · ↻${data.actualizados}`); }
+    };
+  });
+}
+
+/* =====================================================================================
+   ARRANQUE
+   ===================================================================================== */
+if (!P.configurado) {
+  $('#app').innerHTML = `<p class="m-6 rounded-xl bg-amber-50 p-4 text-amber-800">Configura SUPABASE_URL y SUPABASE_ANON en assets/pyd-config.js.</p>`;
+} else {
+  sb.auth.onAuthStateChange((ev, ses) => {
+    if (ev === 'PASSWORD_RECOVERY') { S.recuperando = true; setTimeout(pantallaNuevaClave); return; }
+    if (ses && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) setTimeout(() => entrar(ses));
+    if (ev === 'SIGNED_OUT' || (ev === 'INITIAL_SESSION' && !ses)) {
+      if (S.canal) { sb.removeChannel(S.canal); S.canal = null; }
+      S.user = null; S.p = null; localStorage.removeItem('pyd.staff');
+      if (S.recuperando && ev === 'INITIAL_SESSION') { S.recuperando = false; return pantallaLogin(t('El enlace venció o ya fue usado. Solicita uno nuevo.')); }
+      altaPendiente() && ev === 'INITIAL_SESSION' ? pantallaAlta() : pantallaLogin();
+    }
+  });
+}
+</script>
+</body>
+</html>

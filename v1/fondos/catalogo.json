@@ -1,0 +1,84 @@
+{
+ "version": 1,
+ "tamano": [
+  1200,
+  1600
+ ],
+ "imagenes": [
+  {
+   "id": "papel-blanco",
+   "nombre": "Papel blanco",
+   "grupo": "Papel"
+  },
+  {
+   "id": "papel-marfil",
+   "nombre": "Papel marfil",
+   "grupo": "Papel"
+  },
+  {
+   "id": "papel-crema",
+   "nombre": "Papel crema",
+   "grupo": "Papel"
+  },
+  {
+   "id": "papel-arena",
+   "nombre": "Papel arena",
+   "grupo": "Papel"
+  },
+  {
+   "id": "lino-natural",
+   "nombre": "Lino natural",
+   "grupo": "Lino"
+  },
+  {
+   "id": "lino-blanco",
+   "nombre": "Lino blanco",
+   "grupo": "Lino"
+  },
+  {
+   "id": "acuarela-rosa",
+   "nombre": "Acuarela rosa",
+   "grupo": "Acuarela"
+  },
+  {
+   "id": "acuarela-salvia",
+   "nombre": "Acuarela salvia",
+   "grupo": "Acuarela"
+  },
+  {
+   "id": "acuarela-azul",
+   "nombre": "Acuarela azul",
+   "grupo": "Acuarela"
+  },
+  {
+   "id": "acuarela-lavanda",
+   "nombre": "Acuarela lavanda",
+   "grupo": "Acuarela"
+  },
+  {
+   "id": "acuarela-champagne",
+   "nombre": "Acuarela champagne",
+   "grupo": "Acuarela"
+  },
+  {
+   "id": "marmol-blanco",
+   "nombre": "Mármol blanco",
+   "grupo": "Mármol"
+  },
+  {
+   "id": "marmol-rosado",
+   "nombre": "Mármol rosado",
+   "grupo": "Mármol"
+  },
+  {
+   "id": "perla",
+   "nombre": "Perla",
+   "grupo": "Degradado"
+  },
+  {
+   "id": "amanecer",
+   "nombre": "Amanecer",
+   "grupo": "Degradado"
+  }
+ ]
+}
