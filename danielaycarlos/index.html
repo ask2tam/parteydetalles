@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es" class="bloqueado">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F8F7EF">
+<title>Daniela &amp; Carlos</title>
+<meta property="og:title" content="Daniela &amp; Carlos · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 9 de enero 2027." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/danielaycarlos/miniatura.jpg" />
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+<link rel="preconnect" href="https://oydjnnbdwtbyufsqrqyh.supabase.co" crossorigin>
+<script>window.PYD_CREDITO_LADO = 'izquierda';   /* crédito en modo «discreto»: el corazón va abajo a la IZQUIERDA (la derecha la ocupa el botón de música) */</script>
+<!-- Motor v1 (primero, SIN defer): llaves, rutas del motor y una sola lectura del invitado (la comparten la tarjeta del sobre y el RSVP) -->
+<script src="../v1/assets/pyd-config.js"></script>
+<script src="../v1/assets/boda-api.js"></script>
+<!-- Precarga de lo indispensable para mostrar el sobre (empieza a bajar desde el <head>) -->
+<link rel="preload" as="image" href="assets/portada_fondo.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="assets/sobre_fondo.webp"><link rel="preload" as="image" href="assets/sobre_adelante.webp">
+<link rel="preload" as="image" href="assets/solapa_frontal.webp"><link rel="preload" as="image" href="assets/solapa_reverso.webp">
+<link rel="preload" as="image" href="assets/tarjeta.webp"><link rel="preload" as="image" href="assets/sello.webp">
+<link rel="preload" as="font" type="font/woff" href="assets/77fbf36c56a33ec9d32065083bba3023.woff" crossorigin>
+<!-- Tipografía de la portada: la misma del diseño de Canva (Cormorant). Se declara aquí: dentro de un Shadow DOM Chrome ignora @font-face -->
+<style id="fuentes-portada">
+@font-face{font-family:"DC-Serif";font-weight:300 700;font-style:normal;font-display:block;src:url(assets/77fbf36c56a33ec9d32065083bba3023.woff) format("woff")}
+</style>
+<style id="fuentes-canva"></style><!-- aquí se copian los @font-face de la invitación de Canva -->
+<style>
+  /* Paleta del diseño: azul tinta (textos), crema (fondo), bronce (sello), dorado (acentos) y azul acero (tarjeta de confirmación).
+     NOTA: este documento NO usa @media (prefers-reduced-motion): las animaciones corren siempre. */
+  :root { --azul:#243B55; --crema:#F8F7EF; --bronce:#99683F; --oro:#D19C63; --acero:#718A96; }
+  * { -webkit-tap-highlight-color:transparent; box-sizing:border-box; }
+  html, body { margin:0; padding:0; background:var(--crema); }
+  html { scrollbar-gutter: stable; }
+  html.bloqueado, html.bloqueado body { overflow:hidden !important; }
+  html.bloqueado body { touch-action:none; }
+
+  /* ---------- Invitación (Canva en Shadow DOM) ---------- */
+  #invitacion-host { position:relative; visibility:hidden; }          /* maquetada en segundo plano; no se pinta hasta «Ver invitación» */
+  #invitacion-host.visible { visibility:visible; }
+  #invitacion-host.entrando { animation:entrada-suave 2.4s cubic-bezier(.22,.61,.36,1) both; }
+  @keyframes entrada-suave { from { opacity:0; transform:translateY(34px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ---------- Portada: sobre en HTML/CSS/JS (Shadow DOM, ver <template id="portada-plantilla">) ---------- */
+  #portada-host { position:fixed; inset:0; z-index:100; display:block; background:var(--crema); }
+
+  /* ---------- Modal del RSVP (el mismo componente de rsvp.html, montado aquí) ---------- */
+  /* Cerrado: invisible Y sin captar toques. OJO: el RSVP vive en un Shadow DOM con «all:initial» (visibility:visible), así que
+     visibility:hidden del modal no lo oculta del todo; por eso se usa también clip-path (después del fundido) y el atributo inert. */
+  #rsvp-modal { position:fixed; inset:0; z-index:200; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+                background-color:var(--crema); opacity:0; visibility:hidden; clip-path:inset(0 0 100% 0);
+                transition:opacity .5s ease, background-color .4s ease, visibility 0s linear .5s, clip-path 0s linear .5s; }
+  #rsvp-modal.abierto { opacity:1; visibility:visible; clip-path:none; transition:opacity .5s ease, background-color .4s ease, visibility 0s, clip-path 0s; }
+  /* Fondo de página «transparente» o translúcido (Panel › Configuración › Fondos › Página): se quita el crema sólido del modal y se ve la
+     invitación detrás; el color/imagen y su opacidad los pinta #rsvp-pagina (rsvp.js). Mientras no llega la configuración, el modal conserva el crema. */
+  #rsvp-modal.ver-detras { background-color:transparent; }
+  /* Fondo de TODA la página del RSVP (lo pinta rsvp.js con la configuración del panel: color o imagen, opacidad, zoom y posición) */
+  #rsvp-pagina { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .rsvp-contenedor { position:relative; z-index:1; width:100%; max-width:460px; margin:0 auto;
+                     padding:max(64px, calc(env(safe-area-inset-top) + 56px)) 0 max(56px, calc(env(safe-area-inset-bottom) + 40px));
+                     transform:translateY(26px); transition:transform .7s cubic-bezier(.16,1,.3,1); }
+  #rsvp-modal.abierto .rsvp-contenedor { transform:translateY(0); }
+  #rsvp { width:100%; --rsvp-relleno:0 16px 8px; }
+  .rsvp-cab { width:100%; display:flex; justify-content:flex-start; padding:0 16px 10px; }
+  .rsvp-cab[hidden] { display:none; }
+  .rsvp-idiomas { display:flex; border:1px solid color-mix(in srgb, var(--rsvp-acento, var(--bronce)) 50%, transparent); border-radius:999px; overflow:hidden; }
+  .rsvp-idiomas button { border:0; background:transparent; color:var(--rsvp-acento, var(--bronce)); font:600 11px/1 system-ui, sans-serif; letter-spacing:.08em; padding:7px 10px; cursor:pointer; }
+  .rsvp-idiomas button[aria-pressed="true"] { background:var(--rsvp-acento, var(--bronce)); color:#fff; }
+  #rsvp-carga { position:fixed; inset:0; z-index:2; display:grid; place-items:center; pointer-events:none; opacity:0; transition:opacity .4s ease; }
+  #rsvp-modal.abierto:not(.listo):not(.con-error) #rsvp-carga { opacity:1; }
+  #rsvp-carga i { width:26px; height:26px; border-radius:50%; border:2px solid rgba(153,104,63,.28); border-top-color:var(--bronce); animation:rsvp-gira .9s linear infinite; }
+  @keyframes rsvp-gira { to { transform:rotate(360deg); } }
+  #rsvp-error { margin:30px 22px; text-align:center; color:var(--azul); font:500 14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif; }
+  #rsvp-error[hidden] { display:none; }
+  #rsvp-error button { margin-top:12px; border:1px solid var(--bronce); background:#fff; color:var(--bronce); border-radius:999px; padding:10px 20px; font:600 12px/1 system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; }
+  #rsvp-cerrar { position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:210; width:44px; height:44px; padding:0;
+                 border-radius:50%; border:1px solid rgba(248,247,239,.6); background:var(--azul); color:var(--crema);
+                 display:grid; place-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(20,32,48,.35);
+                 opacity:0; pointer-events:none; transition:opacity .35s ease, transform .2s ease; }
+  #rsvp-modal.abierto #rsvp-cerrar { opacity:1; pointer-events:auto; transition-delay:.15s; }
+  #rsvp-cerrar:hover { transform:scale(1.06); }
+  #rsvp-cerrar:focus-visible, #musica-btn:focus-visible, #rsvp-error button:focus-visible { outline:2px solid var(--bronce); outline-offset:3px; }
+
+  /* ---------- Botón de música (paleta del diseño: azul + crema) ---------- */
+  #musica-btn { position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:300; width:44px; height:44px; padding:0;
+                border-radius:50%; border:1px solid rgba(248,247,239,.6); background:var(--azul); color:var(--crema);
+                display:none; place-items:center; cursor:pointer; box-shadow:0 4px 14px rgba(20,32,48,.35);
+                opacity:0; transform:scale(.8); transition:opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1), background .2s ease;
+                -webkit-tap-highlight-color:transparent; }
+  #musica-btn.mostrar { display:grid; }
+  #musica-btn.activo { opacity:1; transform:none; }
+  #musica-btn:hover { background:#1a2c42; }
+  #musica-btn svg { display:block; }
+
+  /* ---------- Pantalla de carga ---------- */
+  #cargador { position:fixed; inset:0; z-index:1000; background:var(--crema); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+              transition:opacity .9s ease, visibility 0s linear .9s; }
+  #cargador.fuera { opacity:0; visibility:hidden; pointer-events:none; }
+  .anillo { position:relative; width:104px; height:104px; }
+  .anillo svg { width:100%; height:100%; display:block; transform:rotate(-90deg); }
+  .anillo circle { fill:none; stroke-width:3; }
+  .anillo .riel { stroke:rgba(36,59,85,.13); }
+  .anillo .avance { stroke:var(--bronce); stroke-linecap:round; }
+  .anillo .pct { position:absolute; inset:0; display:grid; place-items:center; color:var(--azul); font:500 18px/1 system-ui,-apple-system,'Segoe UI',sans-serif; letter-spacing:.04em; }
+  .cargador-txt { color:rgba(36,59,85,.6); font:400 11px/1 system-ui,-apple-system,'Segoe UI',sans-serif; letter-spacing:.3em; text-transform:uppercase; text-align:center; padding:0 24px; }
+</style>
+</head>
+<body>
+
+<audio id="musica" src="assets/musica.mp3" preload="metadata" loop></audio>
+
+<div id="invitacion-host"></div>
+<div data-credito></div><!-- crédito «Hecho con amor» cuando el evento lo configura como «Al final de la página» -->
+<div id="portada-host"></div>
+
+<!-- RSVP: se abre desde «Confirma aquí». rsvp.js lo dibuja en #rsvp con la configuración del evento (Panel › Configuración). -->
+<div id="rsvp-modal" role="dialog" aria-modal="true" aria-label="Confirmar asistencia" inert>
+  <div id="rsvp-pagina" aria-hidden="true"><i class="fc-c" style="position:absolute;inset:0"></i><img class="fc-i" alt="" hidden style="position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block"></div>
+  <div class="rsvp-contenedor">
+    <header class="rsvp-cab" id="rsvp-cab" hidden>
+      <div class="rsvp-idiomas" id="rsvp-idiomas" role="group" aria-label="Idioma / Language">
+        <button type="button" data-l="es" aria-pressed="false">ES</button><button type="button" data-l="en" aria-pressed="false">EN</button>
+      </div>
+    </header>
+    <div id="rsvp"></div>
+    <div id="rsvp-error" role="alert" hidden>
+      <span>No pudimos cargar el formulario. Revisa tu conexión e inténtalo de nuevo.</span><br>
+      <button type="button" id="rsvp-reintentar">Reintentar</button>
+    </div>
+  </div>
+  <div id="rsvp-carga" role="status" aria-label="Cargando"><i></i></div>
+  <button id="rsvp-cerrar" type="button" aria-label="Cerrar" hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+
+<button id="musica-btn" type="button" aria-label="Silenciar música">
+  <svg id="ico-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+  <svg id="ico-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+</button>
+
+<div id="cargador" role="status" aria-live="polite">
+  <div class="anillo">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="riel" cx="50" cy="50" r="46"/><circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"/></svg>
+    <div class="pct" id="anillo-pct">0%</div>
+  </div>
+  <div class="cargador-txt" id="cargador-txt">Preparando tu invitaci&oacute;n</div>
+</div>
+
+<!-- =====================================================================================
+     PORTADA EN SHADOW DOM (mismo esquema que ignacioysuly): ningún estilo de Canva ni del RSVP la alcanza.
+     Escenario de referencia = el lienzo de Canva de la portada: 465 × 1072. Cabecera, sobre, sello y pista se ubican en % de ese
+     escenario (y los textos en cqw), así quedan alineados en cualquier pantalla. El fondo floral cubre toda la pantalla.
+     Sobre: capas (fondo · tarjeta · frente) + solapa que gira (exterior → interior) + lacre que se despega y cae a un costado
+     + tarjeta que sube con los datos del invitado + «movimiento de cámara» (la cabecera sube y el sobre baja y se acerca).
+     ===================================================================================== -->
+<template id="portada-plantilla">
+<style>
+  :host { all: initial; display: block; position: fixed; inset: 0; }
+  .gate { position: absolute; inset: 0; overflow: hidden; background: #F8F7EF url('assets/portada_fondo.jpg') center / cover no-repeat; font-synthesis: none;
+          -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+          --t-solapa: .9s; --t-reverso: .9s; --d-tarjeta: 1.8s; --t-tarjeta: 1.2s; --d-camara: 1.7s; --t-camara: 1.9s; --d-cab: .6s; --t-cab: 1.5s; --d-boton: 3s; --d-titulo: .35s; --t-titulo: 2.4s; }
+  .gate *, .gate *::before, .gate *::after { box-sizing: border-box; }
+  #stage { position: absolute; left: 0; top: 0; container-type: inline-size; }
+
+  /* ---------- Cabecera «¡NOS CASAMOS! · DANIELA & CARLOS» (texto real, tipografía y medidas del diseño de Canva) ----------
+     Aparece de izquierda a derecha con una máscara que se desliza (-webkit-mask para Safari/iPhone). */
+  .cab { position: absolute; inset: 0; pointer-events: none; transform: translateY(0);
+         transition: transform var(--t-cab) cubic-bezier(.45,.05,.25,1) var(--d-cab); }
+  .gate.abierto .cab { transform: translateY(-40cqw); }
+  .cab-h { position: absolute; left: 0; width: 100%; top: 32.6%; margin: 0; padding: 0; text-align: center; color: #243B55;
+           font: 400 4.56cqw/1 'DC-Serif', Georgia, serif;
+           -webkit-mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+                   mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+           -webkit-mask-size: 300% 100%; mask-size: 300% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+           -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  .gate.lista .cab-h { -webkit-mask-position: 0 0; mask-position: 0 0;
+           transition: -webkit-mask-position var(--t-titulo) cubic-bezier(.45,.05,.2,1) var(--d-titulo), mask-position var(--t-titulo) cubic-bezier(.45,.05,.2,1) var(--d-titulo); }
+  .cab-1 { display: block; font-size: 4.56cqw; text-transform: uppercase; letter-spacing: .32em; text-indent: .32em; line-height: 1.2; }
+  .cab-2 { display: block; margin-top: 3.4cqw; font-size: 7.91cqw; letter-spacing: -.03em; line-height: 1.15; white-space: nowrap; }
+  .cab-2 .amp { font-size: 5.65cqw; margin: 0 .35em; vertical-align: .18em; }
+
+  /* ---------- El sobre (en la posición y tamaño del sobre de Canva: 81,6 % del ancho, centrado en y≈600) ---------- */
+  .cam-pos { position: absolute; left: 9.0625%; width: 81.5625%; top: 43.75%; }
+  .cam { transform-origin: 50% 100%; opacity: 0;
+         transition: opacity 1.2s ease, transform var(--t-camara) cubic-bezier(.45,.05,.25,1) var(--d-camara); }
+  .gate.lista .cam { opacity: 1; }
+  .gate.abierto .cam { transform: translateY(47%) scale(1.21); }
+  .env { position: relative; width: 100%; aspect-ratio: 1.44 / 1; }
+  .env.listo { animation: latido 2.5s infinite ease-in-out; }
+  @keyframes latido { 0% { transform: scale(1); } 15% { transform: scale(1.02); } 30% { transform: scale(1); } 45% { transform: scale(1.02); } 60%, 100% { transform: scale(1); } }
+
+  .capa { position: absolute; left: 0; top: -66%; width: 100%; height: 166%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
+  .fondo  { background-image: url('assets/sobre_fondo.webp'); z-index: 1; }
+  .frente { background-image: url('assets/sobre_adelante.webp'); z-index: 4; filter: drop-shadow(0 6px 9px rgba(36,59,85,.16)); }
+
+  /* Solapa: exterior (cerrada, hacia abajo) → de canto a los 90° → interior (abierta, hacia arriba) */
+  .solapa, .solapa-rev { position: absolute; left: 0; width: 100%; top: -73%; height: 73%; background-size: 100% 100%; background-repeat: no-repeat; transform-origin: 50% 100%; pointer-events: none; }
+  .solapa { background-image: url('assets/solapa_frontal.webp'); z-index: 5; filter: drop-shadow(3px -4px 4px rgba(46,36,22,.36));
+            transform: perspective(1500px) rotateX(180deg); opacity: 1;
+            transition: transform var(--t-solapa) cubic-bezier(.4,0,.2,1), opacity .1s linear calc(var(--t-solapa) - .05s); }
+  .gate.abierto .solapa { transform: perspective(1500px) rotateX(90deg); opacity: 0; }
+  .solapa-rev { background-image: url('assets/solapa_reverso.webp'); z-index: 2; filter: drop-shadow(0 4px 6px rgba(60,45,30,.16));
+                transform: perspective(1500px) rotateX(90deg) scaleY(.86); opacity: 0;
+                transition: transform var(--t-reverso) cubic-bezier(.4,0,.2,1) var(--t-solapa), opacity .1s linear var(--t-solapa); }
+  .gate.abierto .solapa-rev { transform: perspective(1500px) rotateX(0deg) scaleY(.86); opacity: 1; }
+
+  /* Lacre D&C: se despega, se levanta un poco y cae a la esquina inferior derecha del sobre */
+  .sello-caja { position: absolute; left: 51.34%; top: 65.5%; width: 23%; z-index: 6; transform: translate(-50%, -50%); pointer-events: none; }
+  .sello-lat { width: 100%; transform-origin: 50% 50%; }
+  .sello-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 5px rgba(60,40,20,.32)); }
+  /* Latido «lub-dub» del lacre (dos pulsos y reposo). Corre siempre, aunque el sistema pida reducir movimiento. */
+  .gate.lat-sello:not(.abierto) .sello-lat { animation: sello-latido var(--lat-ciclo, 1.8s) infinite ease-in-out; }
+  @keyframes sello-latido { 0% { transform: scale(1); } 12% { transform: scale(var(--lat-esc, 1.12)); } 24% { transform: scale(1); }
+                            36% { transform: scale(var(--lat-esc2, 1.08)); } 52%, 100% { transform: scale(1); } }
+  .gate.abierto .sello-caja { animation: romper-caja .95s cubic-bezier(.25,1,.5,1) forwards; }
+  .gate.abierto .sello-img { animation: romper-img .95s cubic-bezier(.25,1,.5,1) forwards; }
+  @keyframes romper-caja { 0% { transform: translate(-50%, -50%); } 30% { transform: translate(-50%, -62%); } 100% { transform: translate(calc(-50% + 160%), calc(-50% + 112%)); } }
+  @keyframes romper-img { 0% { transform: scale(1) rotate(0deg); } 30% { transform: scale(1.16) rotate(-7deg); filter: drop-shadow(0 12px 12px rgba(60,40,20,.38)); }
+                          100% { transform: scale(.84) rotate(22deg); filter: drop-shadow(0 3px 5px rgba(60,40,20,.3)); } }
+
+  /* Área táctil (invisible) sobre el lacre + «TOCA PARA ABRIR» con brillo dorado sobre el azul del diseño */
+  #sello { position: absolute; z-index: 8; transform: translate(-50%, -50%); aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%;
+           background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  #sello:focus-visible { outline: 2px solid #243B55; outline-offset: 4px; }
+  .pista { position: absolute; z-index: 8; left: 50%; transform: translate(-50%, -50%); margin: 0; padding: .8em 1.2em; cursor: pointer;
+           font: 500 3.2cqw/1 'DC-Serif', Georgia, serif; letter-spacing: .3em; text-indent: .3em; white-space: nowrap; text-transform: uppercase;
+           background: linear-gradient(105deg, transparent 36%, rgba(209,156,99,.9) 45%, #e2b986 50%, rgba(209,156,99,.9) 55%, transparent 64%),
+                       linear-gradient(105deg, #243B55 0%, #243B55 100%);
+           background-size: 200% 100%, 100% 100%; background-repeat: no-repeat;
+           -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+           animation: reluce 2.6s linear infinite; }
+  @keyframes reluce { from { background-position: 125% 0, 0 0; } to { background-position: -25% 0, 0 0; } }
+  #sello, .pista { opacity: 0; transition: opacity .9s ease .5s; }
+  .gate.lista #sello, .gate.lista .pista { opacity: 1; }
+  .gate.abriendo #sello, .gate.abriendo .pista { opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .gate.abriendo .pista { animation: none; }
+
+  /* ---------- La tarjeta: sube del sobre con el florón del diseño y los datos del invitado ---------- */
+  .tarjeta { position: absolute; z-index: 3; left: 12%; width: 76%; top: 13%; height: 84%; container-type: inline-size;
+             background: url('assets/tarjeta.webp') 0 0 / 100% 100% no-repeat; filter: drop-shadow(0 6px 8px rgba(36,59,85,.14));
+             display: flex; flex-direction: column; align-items: center; justify-content: center;
+             padding: 5% 7.6% 6%; text-align: center; color: #243B55; cursor: pointer;
+             transition: transform var(--t-tarjeta) cubic-bezier(.25,1,.5,1) var(--d-tarjeta); }
+  .gate.abierto .tarjeta { transform: translateY(-108%); }
+  .tarjeta > * { opacity: 0; transform: translateY(6px); transition: opacity 1s ease, transform 1.1s cubic-bezier(.16,1,.3,1); }
+  .gate.abierto .tarjeta > * { opacity: 1; transform: none; }
+  .gate.abierto .tarjeta > :nth-child(1) { transition-delay: calc(var(--d-tarjeta) + .3s); }  .gate.abierto .tarjeta > :nth-child(2) { transition-delay: calc(var(--d-tarjeta) + .45s); }
+  .gate.abierto .tarjeta > :nth-child(3) { transition-delay: calc(var(--d-tarjeta) + .6s); }  .gate.abierto .tarjeta > :nth-child(4) { transition-delay: calc(var(--d-tarjeta) + .75s); }
+  .gate.abierto .tarjeta > :nth-child(5) { transition-delay: calc(var(--d-tarjeta) + .85s); } .gate.abierto .tarjeta > :nth-child(6) { transition-delay: calc(var(--d-tarjeta) + 1s); }
+  .gate.abierto .tarjeta > :nth-child(7) { transition-delay: calc(var(--d-tarjeta) + 1.2s); }
+  .t-floron { display: block; height: 16cqw; width: auto; margin-bottom: 2.4cqw; pointer-events: none; }
+  .t-etiqueta { font: 500 4.3cqw/1.2 'DC-Serif', Georgia, serif; letter-spacing: .28em; text-indent: .28em; text-transform: uppercase; color: #D19C63; }
+  .t-trat { margin-top: 2.6cqw; font: 400 4.6cqw/1.2 'DC-Serif', Georgia, serif; letter-spacing: .16em; text-transform: uppercase; color: #4a5d73; }
+  .t-trat:empty { display: none; }
+  .t-nombre { max-width: 100%; margin: 2.2cqw 0 2.8cqw; white-space: nowrap; font: 400 10cqw/1.12 'DC-Serif', Georgia, serif; text-transform: uppercase; letter-spacing: -.01em; color: #243B55; }
+  .t-trat:empty + .t-nombre { margin-top: 3.4cqw; }
+  .t-nombre.multilinea { white-space: normal; }
+  .t-linea { display: block; width: 24%; height: 1px; background: #D19C63; opacity: .8; }
+  .t-pases { margin-top: 3.2cqw; font: 500 4.5cqw/1.25 'DC-Serif', Georgia, serif; letter-spacing: .12em; text-indent: .12em; text-transform: uppercase; color: #243B55; }
+  .t-pases[hidden] { display: none; }
+  .t-ver { margin-top: 4.6cqw; padding: .95em 2.3em; border: 0; border-radius: 999px; cursor: pointer; -webkit-appearance: none; appearance: none; pointer-events: none;
+           background: #243B55; color: #F8F7EF; font: 500 4cqw/1 'DC-Serif', Georgia, serif; letter-spacing: .2em; text-indent: .2em; text-transform: uppercase;
+           box-shadow: 0 3px 10px rgba(36,59,85,.22); transition: opacity 1s ease, transform .2s ease, background .2s ease; }
+  .gate.boton .t-ver { pointer-events: auto; }
+  .t-ver:hover { background: #1a2c42; transform: scale(1.03); }
+  .t-ver:focus-visible { outline: 2px solid #D19C63; outline-offset: 3px; }
+  .t-ver.espera { pointer-events: none; animation: ver-espera 1.1s ease-in-out infinite; }
+  @keyframes ver-espera { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+</style>
+<div class="gate" id="gate">
+  <div id="stage">
+    <div class="cab">
+      <h1 class="cab-h" id="cab-h"><span class="cab-1" id="cab-1">¡Nos casamos!</span><span class="cab-2">DANIELA<span class="amp">&amp;</span>CARLOS</span></h1>
+    </div>
+    <div class="cam-pos"><div class="cam" id="cam">
+      <div class="env" id="env">
+        <div class="capa fondo"></div>
+        <div class="tarjeta" id="tarjeta" role="group" aria-label="Tu invitación">
+          <img class="t-floron" src="assets/08d18f99fdbb0ecfef2487f35b6fa044.png" alt="" draggable="false">
+          <span class="t-etiqueta" id="t-etiqueta">Reservado para</span>
+          <span class="t-trat" id="t-trat"></span>
+          <span class="t-nombre" id="t-nombre">Invitado especial</span>
+          <span class="t-linea"></span>
+          <span class="t-pases" id="t-pases">Hemos reservado (1) pase para ti</span>
+          <button class="t-ver" id="t-ver" type="button" tabindex="-1">Ver invitación</button>
+        </div>
+        <div class="capa frente"></div>
+        <div class="solapa"></div>
+        <div class="solapa-rev"></div>
+        <div class="sello-caja"><div class="sello-lat" id="sello-lat"><img class="sello-img" src="assets/sello.webp" alt="" draggable="false"></div></div>
+      </div>
+    </div></div>
+    <button id="sello" type="button" aria-label="Abrir la invitación"></button>
+    <p class="pista" id="pista">Toca para abrir</p>
+  </div>
+</div>
+</template>
+
+<script src="../v1/assets/responsive.js"></script>
+<script src="../v1/assets/animacion.js"></script>
+<!-- qr.js y rsvp.js (PYD.ruta('qr') / PYD.ruta('rsvp')) se cargan DESPUÉS de mostrar el sobre -->
+<script>
+(function () {
+  'use strict';
+  history.scrollRestoration = 'manual';
+
+  /* =================================== CONFIGURACIÓN =================================== */
+  /* Clases CSS de ESTA exportación de Canva (cambian en cada exportación: se leen con el inspector). */
+  var CANVA = { selectorPagina: 'div.ZRRuDw', selectorTexto: '._28USrA' };
+
+  /* Sobre (HTML/CSS/JS). Medidas en px del escenario de referencia = lienzo de la portada de Canva (465 × 1072). */
+  var SOBRE = {
+    ancho: 465, alto: 1072,
+    zonaSegura: [140, 880],                // franja vertical que nunca se recorta: cabecera (también ya subida), sobre, tarjeta y pista
+    maxAnchoPx: 560,                       // en pantallas anchas el escenario no crece más (el fondo floral cubre los lados)
+    sello: { x: 234, y: 641, d: 112 },     // área táctil sobre el lacre: centro y diámetro
+    pistaY: 800,                           // «TOCA PARA ABRIR» (donde en Canva iba «HEMOS RESERVADO…»)
+    /* Tiempos de la apertura, en segundos desde el toque (cámbialos para probar):
+       solapa / reverso = giro de la solapa · d-tarjeta / t-tarjeta = subida de la tarjeta · d-camara / t-camara = el sobre baja y se acerca
+       d-cab / t-cab = la cabecera sube · d-boton = cuándo se puede pulsar «Ver invitación» · d-titulo / t-titulo = aparición de la cabecera */
+    tiempos: { 't-solapa': .9, 't-reverso': .9, 'd-tarjeta': 1.8, 't-tarjeta': 1.2, 'd-camara': 1.7, 't-camara': 1.9, 'd-cab': .6, 't-cab': 1.5, 'd-boton': 3.1, 'd-titulo': .35, 't-titulo': 2.4 },
+    fuentes: ['400 16px "DC-Serif"', '500 16px "DC-Serif"'],
+    latido: { sello: true, escala: 1.12, ciclo: 1.8, sobre: false },   // heartbeat del lacre mientras espera el toque
+    maxMs: 9000                            // salida de seguridad si algo no avanza
+  };
+  var SALIDA = { ms: 1900, revelarEn: 0.35 };   // fundido sobre → invitación y punto en que arrancan sus animaciones
+  var PIEZAS = ['assets/portada_fondo.jpg', 'assets/sobre_fondo.webp', 'assets/sobre_adelante.webp', 'assets/solapa_frontal.webp',
+                'assets/solapa_reverso.webp', 'assets/tarjeta.webp', 'assets/sello.webp', 'assets/08d18f99fdbb0ecfef2487f35b6fa044.png'];
+
+  /* ---------------------------------------------------------------------------------------------------------------
+     ANIMACIONES DE LA INVITACIÓN — criterio: el movimiento sale del lugar donde está el elemento en el diseño.
+       · Fotos a sangre ............ «alejar»: la cámara retrocede despacio (apertura, foto del RSVP y cierre).
+       · Tarjetas y velos .......... «fundido»: solo opacidad (si se movieran, sus textos —que son independientes— se desfasarían).
+       · Contenido a la izquierda .. «izquierdaADerecha» · a la derecha .. «derechaAIzquierda» (ceremonia ↔ recepción, novia ↔ novio).
+       · Títulos centrados ......... «arribaAbajo» (caen) · textos de apoyo centrados .. «abajoArriba» (suben).
+       · Sellos, botón, marcos ..... «zoom» (se «estampan»).
+       · Frases y nombres clave .... «textos»: letras (nombres, encabezados cortos) o palabras (frases).
+       · Elementos ROTADOS -90° ..... sus ejes locales giran: arribaAbajo llega desde la IZQUIERDA y derechaAIzquierda cae desde ARRIBA.
+     «retrasos» (segundos): escalona los elementos para que cada bloque se arme en orden.
+     --------------------------------------------------------------------------------------------------------------- */
+  var DISENOS = {
+    invitacion: { url: 'invitacion.html', host: 'invitacion-host', resp: { anchoOriginal: 465, modo: 'ancho' },
+                  anim: { duracion: 9.5, umbral: 0.3,
+                          alejar: ['LBRhKsTTwCdN0NGm',                                  // foto de apertura
+                                   'LB3FhWrJ2Q51z8l8',                                  // foto sobre el RSVP
+                                   'LBGCjprKTMRxMhCx'],                                 // foto de cierre
+                          fundido: ['LBrZ6T2KDSGpjzZ5',                                 // velo sobre la foto de apertura
+                                    'LBfB9gStZSb5fPFV',                                 // tarjeta «Nuestro matrimonio»
+                                    'LBFY4QfwDbk4hscp',                                 // tarjeta azul de la fecha
+                                    'LBk7S62r2tfPyHHP',                                 // tarjeta ceremonia / recepción
+                                    'LBwlWhZ0gryyNW8Q',                                 // tarjeta azul «confirma tu asistencia»
+                                    'LBBtsWJ01lK2CkbS',                                 // tarjeta dress code
+                                    'LBl6TpG6wz3gpCwM',                                 // tarjeta mesa de regalos
+                                    'LBQSbjd2rc6m10dt'],                                // cuenta regresiva
+                          zoom: ['LBcGb0MzzBxLTSh5',                                    // florón entre el verso y los padres
+                                 'LB6TzF5VzmkRGg46',                                    // marco fino de la tarjeta de la fecha
+                                 'LB1g9dmH33NW81rG', 'LBwyYKWx3m9xMq4b',                // sellos de lacre
+                                 'LB0hxtjCsRQQdSfW', 'LBKKl1JKS9d84QHC'],               // botón «Confirma aquí» (cápsula + texto)
+                          izquierdaADerecha: [
+                            'LBh0nC2WnnHyt039',                                         // monograma: la «D» llega desde la izquierda…
+                            'LBMzMRC5ggtNwfc9',                                         // línea superior del nombre
+                            'LBtJDSNJCQTkVLZd', 'LB3YPKbTVmpgXYfM', 'LBGyh2M7fS8pvtND', // padres de la novia (lado izquierdo)
+                            'LB85z5t6kdXLb60x', 'LBhSYQp0rjXFpjDs', 'LBFKFFc2ZMzxKwsl', 'LB6xL8h6VRflNKfY',   // ceremonia (columna izquierda)
+                            'LBKYKKxVz6w5SJDZ', 'LBHZJdNPvsHY6xDC', 'LBDrDqXtLPqjw3hj', // dress code (texto alineado a la izquierda)
+                            'LB7rJ4lLlSYXK64w'],                                        // ramo inferior izquierdo de la mesa de regalos
+                          derechaAIzquierda: [
+                            'LB060xWpQclxDMqx',                                         // …y la «C» desde la derecha: se juntan
+                            'LBwFqhYls505DrVc',                                         // línea inferior del nombre
+                            'LBfSJ7c1rDpQ8ssB', 'LBvrnQ8kdNYg9Cnm', 'LBdNKQZrzfvSk0tR', // padres del novio (lado derecho)
+                            'LBFJw7Vj4GV8n1xf',                                         // ramo superior derecho de la tarjeta de la ceremonia
+                            'LBVPSb98wkyh2xS4',                                         // divisor vertical (gira -90°: cae desde arriba)
+                            'LBGQJqtsPj4pL61H', 'LBfFPbYmvvy99vfh', 'LBMCSrbcm8lpyDmX', 'LBTQDvYkmGP3hp1R',   // recepción (columna derecha)
+                            'LBMJtzZVyqsRfLgw',                                         // ramo superior derecho de la mesa de regalos
+                            'LBgnLgky6WQv1SkQ',                                         // divisor vertical de la mesa de regalos (cae desde arriba)
+                            'LBP7Y1BWp1SmH4c2'],                                        // texto y cuentas de la mesa de regalos
+                          arribaAbajo: [
+                            'LB8FbDcZxJ2PKFVW',                                         // corona de flores sobre la tarjeta de la fecha
+                            'LBcxZWrbP2kLDYlw',                                         // ramo inferior izquierdo de la recepción (gira -90°: llega desde la izquierda)
+                            'LBhdSBnwMcxrsRRW'],                                        // «SOLO ADULTOS»
+                          abajoArriba: [
+                            'LBcWTdDY16vqTC4G',                                         // frase de la portada de la invitación
+                            'LBC3T8vSVxYCH1p9',                                         // «Con la bendición de Dios y nuestros padres»
+                            'LBtp9Q7Z9TL56HZP',                                         // hora de la fecha
+                            'LBffwfS7Hbbl56Jb',                                         // «HEMOS RESERVADO (N) PASE(S) PARA TI»
+                            'LBTyS4tKCP3PYylY'],                                        // texto de «Solo adultos»
+                          textos: [
+                            { id: 'LB1wfZXZq77jzGkP', tipo: 'palabras', velocidad: 260 },  // «NUESTRO MATRIMONIO»
+                            { id: 'LBFgmrNYgLX54spH', tipo: 'letras',   velocidad: 110 },  // «Daniela & Carlos»
+                            { id: 'LB34yvFblHSCjRG7', tipo: 'palabras', velocidad: 150 },  // «Deseamos compartir con ustedes…»
+                            { id: 'LByWWKmbWwhK976W', tipo: 'palabras', velocidad: 200 },  // «acompáñanos a celebrar ese día especial»
+                            { id: 'LB3DMJJqnFXbbzQn', tipo: 'letras',   velocidad: 120 },  // «SÁBADO»
+                            { id: 'LB9zM3Ndx4cFrcVy', tipo: 'palabras', velocidad: 300 },  // «9 de enero 2027»
+                            { id: 'LBLYsHD9lDpBFKtS', tipo: 'letras',   velocidad: 70  },  // «CEREMONIA religiosa»
+                            { id: 'LBC6jmgVPT7twmY6', tipo: 'letras',   velocidad: 70  },  // «RECEPCIÓN»
+                            { id: 'LBVlw8C3qPyrRtG0', tipo: 'palabras', velocidad: 220 },  // «POR FAVOR, CONFIRMA TU ASISTENCIA»
+                            { id: 'LBbdfY8YhQN2KS6R', tipo: 'palabras', velocidad: 300 },  // «MESA DE REGALOS»
+                            { id: 'LBtKWKCpgjlKcQdy', tipo: 'palabras', velocidad: 300 }   // «NOS VEMOS EN»
+                          ] },
+                  retrasos: {
+                    LBrZ6T2KDSGpjzZ5: 0, LBh0nC2WnnHyt039: .8, LB060xWpQclxDMqx: 1.1, LBcWTdDY16vqTC4G: 1.9,                      // apertura: velo → D y C → frase
+                    LBcGb0MzzBxLTSh5: .6, LBMzMRC5ggtNwfc9: .4, LBwFqhYls505DrVc: .4, LBC3T8vSVxYCH1p9: .2,                      // nombre y bendición
+                    LBtJDSNJCQTkVLZd: .2, LB3YPKbTVmpgXYfM: .35, LBGyh2M7fS8pvtND: .5,
+                    LBfSJ7c1rDpQ8ssB: .2, LBvrnQ8kdNYg9Cnm: .35, LBdNKQZrzfvSk0tR: .5,
+                    LB6TzF5VzmkRGg46: .3, LB8FbDcZxJ2PKFVW: .5, LBtp9Q7Z9TL56HZP: .6,                                              // tarjeta de la fecha
+                    LB1g9dmH33NW81rG: .3, LBFJw7Vj4GV8n1xf: .3, LBcxZWrbP2kLDYlw: .3, LBVPSb98wkyh2xS4: .4,                       // ceremonia y recepción
+                    LB85z5t6kdXLb60x: .3, LBhSYQp0rjXFpjDs: .45, LBFKFFc2ZMzxKwsl: .6, LB6xL8h6VRflNKfY: .6,
+                    LBGQJqtsPj4pL61H: .3, LBfFPbYmvvy99vfh: .45, LBMCSrbcm8lpyDmX: .6, LBTQDvYkmGP3hp1R: .6,
+                    LBffwfS7Hbbl56Jb: .4, LBwyYKWx3m9xMq4b: .3, LB0hxtjCsRQQdSfW: .9, LBKKl1JKS9d84QHC: .9,                       // confirmación
+                    LBKYKKxVz6w5SJDZ: .2, LBHZJdNPvsHY6xDC: .4, LBDrDqXtLPqjw3hj: .6, LBTyS4tKCP3PYylY: .2,                       // dress code y solo adultos
+                    LBMJtzZVyqsRfLgw: .3, LB7rJ4lLlSYXK64w: .3, LBgnLgky6WQv1SkQ: .3, LBP7Y1BWp1SmH4c2: .5,                       // mesa de regalos
+                    LBQSbjd2rc6m10dt: .5 } }                                                                                         // cuenta regresiva
+  };
+  var SEL_CONFIRMA = '#LB0hxtjCsRQQdSfW, #LBKKl1JKS9d84QHC';   // «Confirma aquí»: cápsula y texto (abren el RSVP)
+  var MAX_PASES = 10;                        // tope si no se puede leer el del evento (Panel › Pases máximos por invitado)
+  var PESO = { sobre: 70, fuentes: 14, datos: 16 };   // suman 100: SOLO lo indispensable para mostrar el sobre
+  var MIN_MS = 700, LIMITE_MS = 15000, DATOS_MAX_MS = 2500;
+  /* ===================================================================================== */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var raices = {}, ajustes = {}, controlesAnim = {}, P = window.PYD || {};
+
+  /* ---------------------------------------------------------------- progreso */
+  var T = {}; Object.keys(PESO).forEach(function (k) { T[k] = { w: PESO[k], p: 0 }; });
+  function avance(k, p) { if (T[k]) T[k].p = Math.max(T[k].p, Math.min(1, p)); }
+  function total() { var s = 0; for (var k in T) s += T[k].w * T[k].p; return s / 100; }
+
+  /* ---------------------------------------------------------------- PORTADA (Shadow DOM) */
+  var hostP = $('portada-host'), raizP = hostP.attachShadow({ mode: 'open' });
+  raizP.appendChild($('portada-plantilla').content.cloneNode(true));
+  var p$ = function (id) { return raizP.getElementById(id); };
+  var gate = p$('gate'), stage = p$('stage'), env = p$('env');
+  var sello = p$('sello'), selloLat = p$('sello-lat'), pista = p$('pista'), tarjeta = p$('tarjeta'), btnVer = p$('t-ver');
+  var pct = function (v, base) { return (v / base * 100) + '%'; };
+  Object.keys(SOBRE.tiempos).forEach(function (k) { gate.style.setProperty('--' + k, SOBRE.tiempos[k] + 's'); });
+  var L = SOBRE.latido;
+  gate.style.setProperty('--lat-esc', String(L.escala)); gate.style.setProperty('--lat-esc2', String(1 + (L.escala - 1) * .7)); gate.style.setProperty('--lat-ciclo', L.ciclo + 's');
+  sello.style.left = pct(SOBRE.sello.x, SOBRE.ancho); sello.style.top = pct(SOBRE.sello.y, SOBRE.alto); sello.style.width = pct(SOBRE.sello.d, SOBRE.ancho);
+  pista.style.top = pct(SOBRE.pistaY, SOBRE.alto);
+
+  /* Encuadre: el escenario conserva su proporción (sin deformar) y nunca recorta la zona segura; el fondo floral cubre toda la pantalla. */
+  function encuadre() {
+    var gw = gate.clientWidth, gh = gate.clientHeight; if (!gw || !gh) return;
+    var vw = Math.min(gw, SOBRE.maxAnchoPx), seg = SOBRE.zonaSegura, hSeg = seg[1] - seg[0];
+    var k = Math.min(Math.max(vw / SOBRE.ancho, gh / SOBRE.alto), gh / hSeg, gw / SOBRE.ancho * 1.15);
+    var w = SOBRE.ancho * k, h = SOBRE.alto * k;
+    var top = gh / 2 - (seg[0] + hSeg / 2) * k;
+    top = h >= gh ? Math.min(0, Math.max(gh - h, top)) : (gh - h) / 2;
+    stage.style.width = w + 'px'; stage.style.height = h + 'px';
+    stage.style.left = (gw - w) / 2 + 'px'; stage.style.top = top + 'px';
+  }
+  new ResizeObserver(encuadre).observe(gate);
+  if (window.visualViewport) visualViewport.addEventListener('resize', encuadre);
+
+  /* ---------------------------------------------------------------- NÚMERO DE PASES Y DATOS DEL INVITADO
+     Prioridad: 1) ?to=CÓDIGO → los pases asignados al invitado (los mismos que verá en el RSVP)
+                2) ?pase=N (o ?pases=N) → con tope = «pases máximos» del evento · 3) sin nada → 1 pase.
+     Vacío, 0, texto o negativo → 1. «PASE» con 1 y «PASES» con 2 o más (tarjeta del sobre y texto de la invitación). */
+  var q = new URLSearchParams(location.search);
+  var CODIGO = (q.get('to') || q.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  var PASE_URL = null; ['pase', 'pases'].forEach(function (k) { if (PASE_URL === null && q.get(k) !== null) PASE_URL = q.get(k); });
+  function aEntero(v) { var n = parseInt(v, 10); return (isFinite(n) && n >= 1) ? n : 1; }
+  var datos = { encontrado: false, nombre: '', tratamiento: '', pases: aEntero(PASE_URL), asistencia: '', pasesConfirmados: null };
+  var PASES = datos.pases; window.PASES = PASES;
+  var lang = 'es';
+  var TXT = {
+    es: { etq: 'Reservado para', anon: 'Invitado especial', ver: 'Ver invitación', abrir: 'Toca para abrir', reintentar: 'Reintentar', cab1: '¡Nos casamos!',
+          pases: function (n, c) { return c ? n + (n === 1 ? ' pase confirmado' : ' pases confirmados') : 'Hemos reservado (' + n + ') ' + (n === 1 ? 'pase' : 'pases') + ' para ti'; } },
+    en: { etq: 'Reserved for', anon: 'Special guest', ver: 'Open invitation', abrir: 'Tap to open', reintentar: 'Retry', cab1: 'We are getting married!',
+          pases: function (n, c) { return c ? n + (n === 1 ? ' seat confirmed' : ' seats confirmed') : 'We have reserved (' + n + ') ' + (n === 1 ? 'seat' : 'seats') + ' for you'; } }
+  };
+  function tx(k) { return (TXT[lang] || TXT.es)[k]; }
+  function cargarDatos() {
+    var API = window.BODA;
+    if (!API || !P.configurado || (!CODIGO && PASE_URL === null)) return Promise.resolve();
+    var c = CODIGO
+      ? API.invitado(CODIGO).then(function (j) {
+          if (j && j.encontrado && j.invitado) { var g = j.invitado;
+            datos = { encontrado: true, nombre: g.nombre || '', tratamiento: g.tratamiento || '', pases: aEntero(g.pases), asistencia: g.asistenciaCodigo || '', pasesConfirmados: g.pasesConfirmados }; } })
+      : API.proyecto().then(function (p) { datos.pases = Math.min(datos.pases, Math.max(1, (p && parseInt(p.pasesMax, 10)) || MAX_PASES)); });
+    return c.catch(function () { datos.pases = Math.min(datos.pases, MAX_PASES); }).then(function () { fijarPases(datos.pases); });
+  }
+  /* Idioma inicial (misma regla que rsvp.js): ?lang= · el elegido antes · si el evento es bilingüe, el del navegador */
+  function idiomaInicial() {
+    if (!window.BODA || !window.BODA.proyecto) return Promise.resolve();
+    return window.BODA.proyecto().then(function (p) {
+      var d = String((p && p.idioma) || 'es').split(',').filter(function (x) { return TXT[x]; }); if (!d.length) d = ['es'];
+      var u = (q.get('lang') || '').toLowerCase().slice(0, 2), g = ''; try { g = sessionStorage.getItem('pyd.lang.' + P.slug) || ''; } catch (e) {}
+      var l = d.indexOf(u) >= 0 ? u : d.indexOf(g) >= 0 ? g : d.length > 1 ? (/^en/i.test(navigator.language || '') ? 'en' : d[0]) : d[0];
+      if (l !== lang) { lang = l; pintarTarjeta(); }
+    }).catch(function () {});
+  }
+  function pintarTarjeta() {
+    var trat = datos.encontrado ? (datos.tratamiento || '') : '';
+    if (trat && datos.nombre.toLowerCase().indexOf(trat.toLowerCase()) === 0) trat = '';
+    p$('cab-1').textContent = tx('cab1');
+    p$('t-etiqueta').textContent = tx('etq');
+    p$('t-trat').textContent = trat;
+    p$('t-nombre').textContent = datos.encontrado && datos.nombre ? datos.nombre : tx('anon');
+    var conf = datos.asistencia === 'si', n = conf ? (datos.pasesConfirmados || datos.pases) : datos.pases;
+    p$('t-pases').textContent = tx('pases')(parseInt(n, 10) || 1, conf);
+    p$('t-pases').hidden = datos.asistencia === 'no';
+    btnVer.textContent = invFallo ? tx('reintentar') : tx('ver');
+    if (!abierta) pista.textContent = tx('abrir');
+    ajustarNombre();
+  }
+  // El nombre baja de tamaño hasta caber en una línea; si aún no cabe, pasa a dos líneas
+  function ajustarNombre() {
+    var el = p$('t-nombre'); if (!el.clientWidth) return;
+    el.classList.remove('multilinea'); el.style.fontSize = '';
+    var fs = parseFloat(getComputedStyle(el).fontSize), min = fs * 0.6;
+    while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= .5; el.style.fontSize = fs + 'px'; }
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('multilinea');
+  }
+  new ResizeObserver(function () { ajustarNombre(); }).observe(tarjeta);
+
+  /* ---------------------------------------------------------------- sobre: precarga de sus piezas (con progreso real) */
+  var tareaSobre = (function () {
+    var n = 0;
+    return Promise.all(PIEZAS.map(function (u) {
+      return new Promise(function (res) {
+        var im = new Image(), ok = function () { avance('sobre', ++n / PIEZAS.length * .95); (im.decode ? im.decode().catch(function () {}) : Promise.resolve()).then(res); };
+        im.onload = ok; im.onerror = function () { console.warn('[sobre] No se pudo cargar', u); avance('sobre', ++n / PIEZAS.length * .95); res(); }; im.src = u;
+      });
+    })).then(function () { avance('sobre', 1); });
+  })();
+  var tareaFuentes = (function () {
+    var lista = SOBRE.fuentes || [], n = 0;
+    if (!lista.length || !document.fonts || !document.fonts.load) { avance('fuentes', 1); return Promise.resolve(); }
+    return Promise.all(lista.map(function (f) {
+      return document.fonts.load(f, 'AaÁÑ0&¡').catch(function () {}).then(function () { avance('fuentes', ++n / lista.length * .95); });
+    })).then(function () { avance('fuentes', 1); });
+  })();
+
+  /* ---------------------------------------------------------------- PASES en el texto de la invitación de Canva
+     El diseño dice «(1) PASE»: se cambia el número y se pone «PASE» o «PASES», conservando mayúsculas y el formato «(N)». */
+  function aplicarPases(raiz) {
+    var w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT), nodos = [], n;
+    while ((n = w.nextNode())) nodos.push(n);
+    var RE_NUM = /\(\s*\d+\s*\)/, RE_PASE = /^(\s*)(pases?)\b/i, pal = PASES === 1 ? 'pase' : 'pases';
+    for (var i = 0; i < nodos.length; i++) {
+      var t = nodos[i], m = RE_NUM.exec(t.nodeValue); if (!m) continue;
+      var resto = t.nodeValue.slice(m.index + m[0].length), destino = null, mp = RE_PASE.exec(resto);
+      if (mp) destino = { nodo: t, ini: m.index + m[0].length + mp[1].length, pal: mp[2] };
+      else if (!resto.trim()) {                                    // «(1)» al final de un párrafo y «PASE» al inicio del siguiente
+        for (var j = i + 1; j < nodos.length; j++) {
+          var v = nodos[j].nodeValue; if (!v.trim()) continue;
+          var m2 = RE_PASE.exec(v); if (m2) destino = { nodo: nodos[j], ini: m2[1].length, pal: m2[2] };
+          break;
+        }
+      }
+      if (!destino) continue;                                      // un «(1)» que no es de pases: no se toca
+      var nueva = destino.pal === destino.pal.toUpperCase() ? pal.toUpperCase() : (destino.pal[0] === destino.pal[0].toUpperCase() ? pal[0].toUpperCase() + pal.slice(1) : pal);
+      var d = destino.nodo.nodeValue;
+      destino.nodo.nodeValue = d.slice(0, destino.ini) + nueva + d.slice(destino.ini + destino.pal.length);   // 1.º la palabra (va después del número)
+      t.nodeValue = t.nodeValue.replace(RE_NUM, function (x) { return x.replace(/\d+/, PASES); });          // 2.º el número, con su formato original
+    }
+  }
+  function fijarPases(n) { PASES = n; window.PASES = n; if (raices.invitacion) aplicarPases(raices.invitacion); pintarTarjeta(); }
+
+  /* ---------------------------------------------------------------- INVITACIÓN (Canva en Shadow DOM), en segundo plano */
+  function adaptarCss(css) {
+    return css
+      .replace(/:root/g, ':host')
+      .replace(/(^|[}{,;])\s*html(?=[\s,{.:\[])/g, '$1:host')
+      .replace(/(^|[}{,;])\s*body(?=[\s,{.:\[])/g, '$1.__body')
+      .replace(/\(prefers-reduced-motion:\s*reduce\)/g, '(min-width:99999px)');   // nunca «reducir movimiento»: siempre animado
+  }
+  var reglasFuente = new Set(), familiasUsadas = new Set();
+  function montarDiseno(clave, html) {
+    var d = DISENOS[clave], host = $(d.host);
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script').forEach(function (s) { s.remove(); });          // el script del video de Canva no hace falta
+    doc.querySelectorAll('img[crossorigin]').forEach(function (i) { i.removeAttribute('crossorigin'); });
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    (css.match(/@font-face\s*\{[^}]*\}/g) || []).forEach(function (r) { reglasFuente.add(r); });
+    css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+    (css + doc.body.innerHTML).replace(/font-family:\s*([A-Za-z0-9_-]+)/g, function (m, f) { familiasUsadas.add(f); return m; });
+    var raiz = host.attachShadow({ mode: 'open' });
+    var st = document.createElement('style');
+    st.textContent = adaptarCss(css) +
+      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}\n.a_GcMg{cursor:pointer}\n' + SEL_CONFIRMA + '{cursor:pointer}';
+    raiz.appendChild(st);
+    /* Las 2 primeras secciones (lo que se ve al abrir) bajan con prioridad; el resto en diferido (cuando el invitado se acerca) */
+    var primeras = Array.prototype.slice.call(doc.querySelectorAll('section'), 0, 2);
+    Array.prototype.forEach.call(doc.querySelectorAll('img'), function (i) {
+      var arriba = primeras.some(function (s) { return s.contains(i); });
+      i.loading = arriba ? 'eager' : 'lazy'; i.decoding = 'async'; if (arriba) i.setAttribute('fetchpriority', 'high');
+    });
+    while (doc.body.firstChild) raiz.appendChild(document.adoptNode(doc.body.firstChild));
+    raices[clave] = raiz;
+  }
+  // Escalona las animaciones: animacion.js las dispara a la vez; aquí se les añade un retraso (animation-delay)
+  function aplicarRetrasos(raiz, retrasos) {
+    var css = Object.keys(retrasos || {}).map(function (id) { return '[id="' + id + '"].clase_anim_' + id + '{animation-delay:' + retrasos[id] + 's!important}'; }).join('\n');
+    if (!css) return; var st = document.createElement('style'); st.textContent = css; raiz.appendChild(st);
+  }
+  function esperarImg(img) {
+    return new Promise(function (res) {
+      var ok = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(res); };
+      if (img.complete) ok(); else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', res, { once: true }); }
+    });
+  }
+  var pInv = null, invListo = false, invFallo = null;
+  function iniciarInvitacion() {
+    if (pInv) return pInv;
+    var d = DISENOS.invitacion;
+    pInv = fetch(d.url).then(function (r) { if (!r.ok) throw new Error(d.url + ' → HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      montarDiseno('invitacion', html); aplicarPases(raices.invitacion);
+      $('fuentes-canva').textContent = Array.from(reglasFuente).join('\n');
+      return new Promise(requestAnimationFrame);
+    }).then(function () {
+      var imgs = Array.prototype.filter.call(raices.invitacion.querySelectorAll('img'), function (i) { return i.loading !== 'lazy'; });
+      var faces = Array.from(document.fonts).filter(function (f) { return familiasUsadas.has(f.family.replace(/["']/g, '')); });
+      return Promise.all(imgs.map(esperarImg).concat(faces.map(function (f) { return f.load().catch(function () {}); })));
+    }).then(function () {
+      ajustes.invitacion = Responsive.montar(raices.invitacion, Object.assign({ selectorPaginaCanva: CANVA.selectorPagina }, d.resp));
+      controlesAnim.invitacion = Animacion.montar(raices.invitacion, Object.assign({ cuandoVisible: puertas.invitacion, selectorTexto: CANVA.selectorTexto }, d.anim));
+      aplicarRetrasos(raices.invitacion, d.retrasos);
+      enlazarEventos();
+      return (document.fonts && document.fonts.ready) || null;
+    }).then(function () {
+      ajustes.invitacion && ajustes.invitacion.reajustar();
+      invListo = true; invFallo = null;
+    }, function (e) { invFallo = e; console.error('[carga] invitación:', e); btnVer.textContent = tx('reintentar'); throw e; });
+    return pInv;
+  }
+
+  /* Puerta de animacion.js: las animaciones de la invitación esperan a que se vea ('invitacion:visible') */
+  var puertas = {};
+  (function () {
+    var cola = [], abierta = false;
+    puertas.invitacion = function (fn) { abierta ? fn() : cola.push(fn); };
+    window.addEventListener('invitacion:visible', function () { abierta = true; cola.splice(0).forEach(function (f) { f(); }); }, { once: true });
+  })();
+
+  /* ---------------------------------------------------------------- CARGA: solo lo indispensable para mostrar el sobre */
+  var pDatos = cargarDatos().then(idiomaInicial).then(function () { pintarTarjeta(); });   // si llegan tarde, la tarjeta se actualiza sola
+  var tareaDatos = Promise.race([pDatos, new Promise(function (r) { setTimeout(r, DATOS_MAX_MS); })]).then(function () { avance('datos', 1); });
+  Promise.race([Promise.all([tareaSobre, tareaFuentes, tareaDatos]), new Promise(function (res) { setTimeout(res, LIMITE_MS); })])
+    .then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); });
+
+  var circ = $('anillo-avance'), pctTxt = $('anillo-pct'), C = 2 * Math.PI * 46;
+  circ.style.strokeDasharray = C.toFixed(2); circ.style.strokeDashoffset = C.toFixed(2);
+  var t0 = Date.now(), mostrado = 0;
+  (function tick() {
+    var obj = total();
+    mostrado = Math.min(obj, mostrado + Math.max(.004, (obj - mostrado) * .08));
+    circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+    pctTxt.textContent = Math.round(mostrado * 100) + '%';
+    if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) {
+      circ.style.strokeDashoffset = '0'; pctTxt.textContent = '100%';
+      setTimeout(function () {
+        $('cargador').classList.add('fuera');
+        encuadre(); pintarTarjeta();
+        setTimeout(function () {
+          gate.classList.add('lista');
+          setTimeout(function () { if (abierta) return; if (L.sello) gate.classList.add('lat-sello'); if (L.sobre) env.classList.add('listo'); }, 1300);
+        }, 300);
+        setTimeout(function () { iniciarInvitacion().catch(function () {}); }, 450);   // ya se ve el sobre: la invitación baja en segundo plano
+        setTimeout(cargarRsvp, 1200);
+        setTimeout(function () { try { musica.preload = 'auto'; musica.load(); } catch (e) {} }, 1500);   // la música baja cuando el sobre ya se ve (no compite con él)
+        setTimeout(function () { var c = $('cargador'); c && c.parentNode && c.parentNode.removeChild(c); }, 1000);
+      }, 280);
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  /* ---------------------------------------------------------------- MÚSICA */
+  var musica = $('musica'), btnMusica = $('musica-btn'), icoOn = $('ico-on'), icoOff = $('ico-off');
+  function iconos(pausado) {
+    icoOn.style.display = pausado ? 'none' : 'block'; icoOff.style.display = pausado ? 'block' : 'none';
+    btnMusica.setAttribute('aria-label', pausado ? 'Activar música' : 'Silenciar música');
+  }
+  btnMusica.addEventListener('click', function () { if (musica.paused) { musica.play(); iconos(false); } else { musica.pause(); iconos(true); } });
+
+  /* ---------------------------------------------------------------- SECUENCIA: toque en el lacre → sobre se abre → tarjeta → invitación */
+  var abierta = false, tarjetaVista = false, saliendo = false;
+  function abrirSobre() {
+    if (abierta || !gate.classList.contains('lista')) return;
+    abierta = true;
+    var pm = musica.play();                                         // dentro del gesto del usuario: el navegador lo permite
+    if (pm && pm.then) pm.then(function () { iconos(false); }, function () { iconos(true); }); else iconos(false);
+    btnMusica.classList.add('mostrar');                             // el botón de música aparece apenas empieza la canción (aunque quede sobre el sobre)
+    requestAnimationFrame(function () { requestAnimationFrame(function () { btnMusica.classList.add('activo'); }); });
+    gate.classList.add('abriendo');
+    var pararLatido = function (nodo, quitar) {                      // el latido se detiene suave (sin salto de escala)
+      var m = getComputedStyle(nodo).transform; quitar();
+      if (m && m !== 'none') { nodo.style.transform = m; void nodo.offsetWidth; nodo.style.transition = 'transform .28s ease'; nodo.style.transform = 'none'; }
+    };
+    pararLatido(selloLat, function () { gate.classList.remove('lat-sello'); });
+    pararLatido(env, function () { env.classList.remove('listo'); });
+    gate.classList.add('abierto');                                  // dispara todas las transiciones (CSS)
+    var boton = function () { if (tarjetaVista) return; gate.classList.add('boton'); btnVer.tabIndex = 0; tarjetaVista = true; ajustarNombre(); };
+    setTimeout(boton, SOBRE.tiempos['d-boton'] * 1000);
+    setTimeout(boton, SOBRE.maxMs);
+  }
+  sello.addEventListener('click', abrirSobre);
+  pista.addEventListener('click', abrirSobre);
+  env.addEventListener('click', function () { if (!abierta) abrirSobre(); });
+  tarjeta.addEventListener('click', function () { if (tarjetaVista) verInvitacion(); });
+
+  /* Fundido sobre → invitación (fotograma a fotograma, opacidad en línea: nada la pisa) */
+  var suave = function (p) { return -(Math.cos(Math.PI * p) - 1) / 2; };
+  function animar(ms, paso, fin) {
+    var ini = performance.now(), hecho = false;
+    var terminar = function () { if (hecho) return; hecho = true; paso(1); fin && fin(); };
+    (function f(now) { if (hecho) return; var p = Math.min(1, (now - ini) / ms); paso(suave(p)); if (p < 1) requestAnimationFrame(f); else terminar(); })(ini);
+    setTimeout(terminar, ms + 1500);
+  }
+  var esperando = false;
+  function verInvitacion() {
+    if (saliendo) return;
+    if (invFallo) { location.reload(); return; }
+    if (!invListo) {                                                // el invitado llegó antes que la invitación: espera sin perder el toque
+      if (esperando) return; esperando = true; btnVer.classList.add('espera');
+      iniciarInvitacion().then(function () { esperando = false; btnVer.classList.remove('espera'); verInvitacion(); },
+        function () { esperando = false; btnVer.classList.remove('espera'); btnVer.textContent = tx('reintentar'); });
+      return;
+    }
+    saliendo = true;
+    ajustes.invitacion && ajustes.invitacion.reajustar();
+    var inv = $('invitacion-host');
+    inv.classList.add('visible', 'entrando');
+    inv.addEventListener('animationend', function fin(e) { if (e.target !== inv) return; inv.classList.remove('entrando'); inv.removeEventListener('animationend', fin); });
+    hostP.style.setProperty('pointer-events', 'none', 'important');
+    var revelado = false;
+    animar(SALIDA.ms, function (p) {
+      hostP.style.setProperty('opacity', (1 - p).toFixed(4), 'important');
+      if (!revelado && p >= SALIDA.revelarEn) { revelado = true; revelar(); }
+    }, function () { if (!revelado) revelar(); hostP.parentNode && hostP.parentNode.removeChild(hostP); });
+  }
+  function revelar() {
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, 0);
+    window.__invitacionVisible = true;
+    window.dispatchEvent(new Event('invitacion:visible'));          // arranca animacion.js
+  }
+  window.addEventListener('rsvp:idioma', function (e) { if (TXT[e.detail] && e.detail !== lang) { lang = e.detail; pintarTarjeta(); } });
+
+  /* ------------- 2) «Confirma aquí» → modal del RSVP (conserva el scroll) ------------- */
+  var modal = $('rsvp-modal'), btnCerrar = $('rsvp-cerrar'), scrollGuardado = 0, rsvpAbierto = false, rsvpEstado = 'pendiente';   // pendiente | cargando | listo | error
+  btnCerrar.hidden = false;
+  function cargarJs(src) {
+    return new Promise(function (res) {
+      var s = document.createElement('script'); s.src = src; s.async = false;
+      s.onload = function () { res(true); }; s.onerror = function () { console.warn('[rsvp] No se pudo cargar', src); res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  function cargarRsvp() {
+    if (rsvpEstado === 'cargando' || rsvpEstado === 'listo') return;
+    var P = window.PYD;
+    rsvpEstado = 'cargando'; $('rsvp-error').hidden = true; modal.classList.remove('con-error');
+    window.RSVP_PAGINA = true;                                      // rsvp.js dibuja el fondo de la página (#rsvp-pagina) con la configuración del panel
+    cargarJs(P.ruta('qr')).then(function (ok) { return ok && cargarJs(P.ruta('rsvp')); }).then(function (ok) {
+      rsvpEstado = ok ? 'listo' : 'error';
+      if (!ok) { modal.classList.add('con-error'); $('rsvp-error').hidden = false; }
+    });
+  }
+  $('rsvp-reintentar').addEventListener('click', cargarRsvp);
+  window.addEventListener('rsvp:listo', function () { modal.classList.add('listo'); });
+  // Selector de idioma (solo si el evento es bilingüe), igual que en rsvp.html
+  var cab = $('rsvp-cab');
+  window.addEventListener('rsvp:proyecto', function (e) {
+    var p = e.detail || {}, ac = ((p.tarjeta || {}).colores || {}).acento;
+    if (ac) modal.style.setProperty('--rsvp-acento', ac);
+    // rsvp.js ya pintó #rsvp-pagina con la configuración del panel: opacidad 0 = «transparente»; entre 0 y 1 = translúcido.
+    // En ambos casos el modal no debe taparlo con su crema sólido (se vería un color plano en vez de la invitación detrás).
+    var op = parseFloat($('rsvp-pagina').style.opacity);
+    modal.classList.toggle('ver-detras', isFinite(op) && op < 1);
+    cab.hidden = String(p.idioma || 'es').split(',').length < 2;
+  });
+  window.addEventListener('rsvp:idioma', function (e) {
+    modal.setAttribute('lang', e.detail);
+    cab.querySelectorAll('[data-l]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.l === e.detail)); });
+  });
+  cab.addEventListener('click', function (e) { var b = e.target.closest('[data-l]'); if (b && window.RSVP_IDIOMA) RSVP_IDIOMA.cambiar(b.dataset.l); });
+
+  function abrirRsvp() {
+    if (rsvpAbierto) return; rsvpAbierto = true;
+    if (rsvpEstado === 'pendiente' || rsvpEstado === 'error') cargarRsvp();   // si aún no se había cargado (conexión lenta) se pide ahora
+    scrollGuardado = window.pageYOffset || document.documentElement.scrollTop || 0;
+    document.documentElement.classList.add('bloqueado');
+    modal.scrollTop = 0;
+    modal.inert = false;
+    modal.classList.add('abierto');
+    try { history.pushState({ rsvp: 1 }, ''); } catch (e) {}
+    btnCerrar.focus({ preventScroll: true });
+  }
+  function cerrarRsvpReal() {
+    if (!rsvpAbierto) return; rsvpAbierto = false;
+    modal.classList.remove('abierto');
+    modal.inert = true;
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, scrollGuardado);                             // vuelve exactamente a donde estaba
+    requestAnimationFrame(function () { window.scrollTo(0, scrollGuardado); });
+  }
+  function cerrarRsvp() {
+    if (history.state && history.state.rsvp) history.back();        // popstate hace el cierre real
+    else cerrarRsvpReal();
+  }
+  window.addEventListener('popstate', function () { if (rsvpAbierto) cerrarRsvpReal(); });
+  btnCerrar.addEventListener('click', cerrarRsvp);
+  modal.addEventListener('click', function (e) { if (e.target === modal) cerrarRsvp(); });   // clic fuera del formulario
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && rsvpAbierto) cerrarRsvp(); });
+
+  /* ----------------- «Confirma aquí» dentro de la invitación → RSVP (los demás enlaces, como los mapas, funcionan normal) ----------------- */
+  function enlazarEventos() {
+    raices.invitacion.addEventListener('click', function (e) {
+      var t = e.target;
+      if (t.closest && t.closest(SEL_CONFIRMA)) { e.preventDefault(); abrirRsvp(); return; }
+      var a = t.closest && t.closest('a');
+      if (a && (a.getAttribute('href') || '').charAt(0) === '#') e.preventDefault();
+    });
+  }
+})();
+</script>
+</body>
+</html>
