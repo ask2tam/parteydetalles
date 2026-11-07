@@ -1706,6 +1706,7 @@ function importar() {
       <div class="rounded-xl bg-oro-50 p-3 text-sm text-stone-700"><p class="font-medium">Cómo funciona</p>
         <ul class="mt-1 list-disc space-y-0.5 pl-5">
           <li>La primera fila debe tener los títulos de columna. Solo “Nombre del invitado” es obligatorio.</li>
+          <li>Se lee la hoja «Invitados»; si no existe, la hoja que estaba activa al guardar el Excel, y si esa no sirve, la primera hoja visible con títulos. Las hojas ocultas se usan solo como último recurso.</li>
           <li>Cada fila se busca por Código (si la columna existe) o por Nombre: si existe se actualiza, si no se agrega.</li>
           <li>Solo se cambian las columnas que incluyas: para asignar mesas basta con Nombre + Número de mesa.</li>
           <li>Los WhatsApp sin código de país reciben el del país elegido abajo. Los dudosos se marcan en la vista previa.</li>
@@ -1739,19 +1740,49 @@ async function procesarArchivo(file, vacias, pais = '') {
   if (resp) return vistaRestaurar(resp, file.name, () => importarHoja(wb, file.name, vacias, pais, true));
   importarHoja(wb, file.name, vacias, pais, false);
 }
-function importarHoja(wb, nombreArchivo, vacias, pais, desdeRespaldo) {
-  const err = $('#i-err') || { set textContent(v) { toast(v, 'error'); } };
-  const hoja = wb.Sheets.Invitados || wb.Sheets[wb.SheetNames[0]];
-  const filas = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: '', raw: false, blankrows: false });
+/* Qué hoja del libro se importa. No se asume que sea la primera: se prueban en este orden y gana la primera que tenga
+   una fila de títulos con «Nombre del invitado» (o «Código»):
+     1.º la hoja «Invitados» (la del panel: plantilla, exportación y respaldo)
+     2.º la hoja ACTIVA del libro (la que estaba abierta al guardar el Excel: en Excel/Sheets es la «hoja por defecto»)
+     3.º el resto de hojas VISIBLES, en su orden
+     4.º las hojas ocultas (último recurso: suelen ser cálculos auxiliares)
+   Así da igual que la lista esté en la 2.ª hoja o que delante haya una hoja oculta de cálculos. */
+function analizarHoja(ws) {
+  const filas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, blankrows: false });
   const h = filas.findIndex(r => r.some(c => COLUMNAS.some(col => col[4].includes(normCab(c)))));
-  if (h < 0) { err.textContent = t('No encontramos la fila de títulos. La primera fila debe tener “Nombre del invitado” (o “Código”).'); return; }
+  if (h < 0) return { motivo: 'titulos' };
   const mapa = {}, ignoradas = [];
   filas[h].forEach((c, k) => { const n = normCab(c); if (!n) return;
     const col = COLUMNAS.find(col => col[4].includes(n) || (n.startsWith('respuesta de los novios') && col[0] === 'respuesta_novios'));
     if (col && !Object.values(mapa).includes(col[0])) mapa[k] = col[0]; else ignoradas.push(String(c).trim()); });
   const claves = Object.values(mapa);
-  if (!claves.includes('nombre') && !claves.includes('codigo')) { err.textContent = t('Falta la columna “Nombre del invitado”.'); return; }
-  vistaPrevia(planificar(filas.slice(h + 1).map((r, k) => ({ r, fila: h + k + 2 })), mapa, vacias, pais), claves, ignoradas, vacias, nombreArchivo);
+  if (!claves.includes('nombre') && !claves.includes('codigo')) return { motivo: 'nombre' };
+  return { filas, h, mapa, ignoradas, claves };
+}
+function ordenHojas(wb) {
+  const nombres = wb.SheetNames || [], info = (wb.Workbook && wb.Workbook.Sheets) || [], vista = (wb.Workbook && wb.Workbook.WBView && wb.Workbook.WBView[0]) || {};
+  const oculta = n => { const k = nombres.indexOf(n), h = info[k] && info[k].Hidden; return !!h && h !== '0'; };   // Hidden: 0 visible · 1 oculta · 2 muy oculta
+  const activa = nombres[parseInt(vista.activeTab, 10)];
+  const orden = [];
+  const add = n => { if (n && wb.Sheets[n] && !orden.includes(n)) orden.push(n); };
+  add(nombres.find(n => normCab(n) === 'invitados'));               // «Invitados» (sin importar mayúsculas ni tildes)
+  if (activa && !oculta(activa)) add(activa);                       // hoja activa al guardar
+  nombres.filter(n => !oculta(n)).forEach(add);                     // demás hojas visibles
+  nombres.forEach(add);                                             // ocultas
+  return orden;
+}
+function importarHoja(wb, nombreArchivo, vacias, pais, desdeRespaldo) {
+  const err = $('#i-err') || { set textContent(v) { toast(v, 'error'); } };
+  let r = null, motivo = 'titulos', hoja = '';
+  for (const n of ordenHojas(wb)) {
+    const a = analizarHoja(wb.Sheets[n]);
+    if (a.filas) { r = a; hoja = n; break; }
+    if (a.motivo === 'nombre') motivo = 'nombre';                   // alguna hoja tenía títulos pero sin «Nombre del invitado»
+  }
+  if (!r) { err.textContent = motivo === 'nombre' ? t('Falta la columna “Nombre del invitado”.') : t('No encontramos la fila de títulos. La primera fila debe tener “Nombre del invitado” (o “Código”).'); return; }
+  const { filas, h, mapa, ignoradas, claves } = r;
+  const etiqueta = wb.SheetNames.length > 1 ? `${nombreArchivo} · ${t('hoja')} «${hoja}»` : nombreArchivo;   // si hay varias hojas, se indica cuál se leyó
+  vistaPrevia(planificar(filas.slice(h + 1).map((r, k) => ({ r, fila: h + k + 2 })), mapa, vacias, pais), claves, ignoradas, vacias, etiqueta);
 }
 
 /* ---- RESTAURAR UN RESPALDO ----------------------------------------------------------------------------- */
