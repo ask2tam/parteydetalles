@@ -1,0 +1,479 @@
+
+
+taskkill /F /IM msedge.exe
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --allow-file-access-from-files
+
+
+portada -> https://invitaciones.parteydetalles.com/cynthia-y-eduardo
+invitación -> https://invitaciones.parteydetalles.com/cynthia-y-eduardo/cynthia--eduardo
+tips -> https://invitaciones.parteydetalles.com/cynthia-y-eduardo/cynthia--eduardo-2
+
+https://bodas.parteydetalles.com/cynthiayeduardo
+https://bodas.parteydetalles.com/cynthiayeduardo?pase=2
+https://bodas.parteydetalles.com/cynthiayeduardo?pase=3
+https://bodas.parteydetalles.com/cynthiayeduardo?pase=4
+https://bodas.parteydetalles.com/cynthiayeduardo?pase=5
+
+
+450
+  var DISENOS = {
+    portada:    { url: 'portada.html',    host: 'portada-host',    resp: { anchoOriginal: 435, modo: 'cubrir', colorFondo: '#FFFBF4' } },
+    invitacion: { url: 'invitacion.html', host: 'invitacion-host', resp: { anchoOriginal: 435, modo: 'ancho' } },
+    tips:       { url: 'tips.html',       host: 'tips-host',       resp: { anchoOriginal: 435, anchoMaximo: 600, modo: 'cubrir' } }
+  };
+  
+
+
+Integremos 3 diseños canva en un solo index.html en este orden: portada.html es la pagina inicial, al hacer click en el sello (__id739), inicia la musica, se muestran los controles de musica (escoger colores adecuados de acuerdo a la paleta de diseño), se desvanece el canva portada.html para revelar invitacion.html esta a su vez tiene en su contenido un boton "ingresa aqui" que debe abrir un modal tips.html y permitir su cierre para regresar a invitacion.html sin olvidar donde quedo el scroll. Son diseños canva complejos que deben estar en un shadow DOM individual. La carga inicial promise_all debe asegurarse de cargar los elementos al inicio DOM, musica, etc hasta no tener ello mostrar la pantalla negra con la barra de carga circular y el avance progresivo y fluido segun elementos que se tenga. Tengo librerias especificas que he utilizado en otros proyectos para animar ciertos elementos a discreción (animación.js) y otra que se encarga de la responsibidad y adecuar la altura de invitación.html pero esta vez tendrán que trabajar en los 3 DOMs (responsive.js). Como referencia de estos elementos de carga en promise_all te comparto como idea lo trabajado en otro proyecto (ejemplo.html) esperando no partir desde cero y pueda ayudar a iterar menos veces. Recuerda que no trabajamos con la opción de reducir movimiento, las animaciones siempre se muestran.
+
+Necesito programar un parametro de numero de pases en el url. De tal forma que cuando es index.html?pase=2, en la portada el texto sea "HEMOS RESERVADO ( 2 ) PASES PARA USTED" y que funcione con pase=3, pase=4, etc. Lo mismo si se deja en blanco o pase=1 debe asignar 1 pase. 
+
+Trabajemos en los colores del countdown acordes a la paleta de colores, proponme los colores
+
+
+<!DOCTYPE html>
+<html lang="es" class="bloqueado">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cynthia &amp; Eduardo</title>
+<meta property="og:title" content="Cynthia &amp; Eduardo · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 19 de diciembre." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/cynthiayeduardo/miniatura.jpg" />
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+
+
+[COUNTER]
+<div id="LB2k374LF08x0H2p">
+		<link rel="stylesheet" href="assets/flip.min.css" />
+        <style>
+            .tick {
+                padding-bottom: 1em;
+                font-size: 1rem;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+                    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            }
+
+            /* ---- Etiquetas (Dias, Horas, Minutos, Segundos) ---- */
+            .tick-label {
+                font-size: 0.5em;
+                text-align: center;
+                color: #9D7B56;          /* color de las etiquetas: café de la invitación.
+                                            Alternativas:  #7A5C3C café profundo (más contraste)
+                                                           #7D7C50 oliva
+                                                           #5F5E3A oliva oscuro */
+                margin-top: 0.5em;      /* ESPACIO ENTRE LOS NUMEROS Y LAS ETIQUETAS. 0 = sin ajuste.
+                                            Para pegarlas mas usa negativos: -0.6em, -1em, -1.5em...
+                                            (la "em" aqui es relativa al tamano de la etiqueta, que es pequeno) */
+            }
+
+            /* IMPORTANTE: la libreria fuerza display:inline-block en las etiquetas (".tick span[data-view]").
+               En ese modo el margin-top NO mueve la etiqueta, porque queda alineada a la linea base del texto.
+               Pasandola a bloque, el margin-top si tiene efecto. No borres esta regla. */
+            .tick span.tick-label[data-view] {
+                display: block;
+                line-height: 1.2;
+            }
+
+            /* ---- Espaciados ---- */
+            .tick-group {
+                margin: 0 0.25em;        /* ESPACIO ENTRE GRUPOS (Dias | Horas | Minutos | Segundos) */
+                text-align: center;
+            }
+
+            .tick-flip {
+                margin: 0 0.0625em;      /* ESPACIO ENTRE UN DIGITO Y EL SIGUIENTE (valor original de la libreria) */
+                vertical-align: top;     /* quita el hueco que deja el texto bajo las tarjetas (alineacion a la linea base) */
+            }
+
+            /* ---- Numeros y tarjetas: deja UNA sola opcion activa ---- */
+            /* color = numero, background-color = tarjeta */
+            .tick-flip-panel { color: #FFFBF4; background-color: #7A5C3C; }      /* B: café profundo, número crema (activa) */
+            /* .tick-flip-panel { color: #FFFBF4; background-color: #9D7B56; } */ /* A: café de la invitación */
+            /* .tick-flip-panel { color: #FFFBF4; background-color: #7D7C50; } */ /* C: oliva */
+            /* .tick-flip-panel { color: #7A5C3C; background-color: #F6D5BB; } */ /* D: durazno suave */
+
+            /* ---- Sombras del efecto de volteo (la libreria las trae en negro puro) ----
+               Aqui se reemplazan por un cafe oscuro de la paleta.
+               --sombra son los canales R, G, B (sin #). Cambia solo esta linea para ajustar el tono:
+                 60, 40, 20     cafe profundo (activo, va con la opcion B)
+                 90, 62, 34     cafe medio (va con la opcion A)
+                 70, 70, 40     oliva oscuro (va con la opcion C)
+                 157, 123, 86   cafe de la invitacion (va con la opcion D) */
+            .tick { --sombra: 60, 40, 20; }
+
+            .tick-flip-panel-front-shadow { background-image: linear-gradient(0deg, rgba(var(--sombra), .8), rgba(var(--sombra), .3)); }
+            .tick-flip-panel-back-shadow  { background-image: linear-gradient(180deg, rgba(var(--sombra), .7), rgba(var(--sombra), .5)); }
+            .tick-flip-panel-back:after   { background-image: linear-gradient(180deg, rgba(var(--sombra), .3) 1px, rgba(var(--sombra), .15) 0, transparent 30%); }
+            .tick-flip-panel-back         { box-shadow: inset 0 -1px rgba(var(--sombra), .1); }
+            .tick-flip-card-shadow        { box-shadow: 0 .125em .25em rgba(var(--sombra), .5), 0 .125em .5em rgba(var(--sombra), .75); }
+            .tick-flip-shadow             { box-shadow: 0 .125em .3125em rgba(var(--sombra), .25), 0 .02125em .06125em rgba(var(--sombra), .25); }
+
+            /* ---- Contenedor flotante del contador ----
+               .cd-ancla  = punto de altura 0 (no empuja nada de lo que hay debajo).
+               .cd-caja   = cuadro que se superpone a partir del ancla.
+               Se configura en el style="" del div .cd-ancla (abajo en el HTML):
+                 --cd-top     distancia hacia abajo desde el ancla (admite negativos, ej. -40px)
+                 --cd-left    distancia hacia la derecha desde el ancla (se ignora con la clase cd-centrado)
+                 --cd-ancho   ancho del cuadro (px, %, etc.)
+                 --cd-z       capa (z-index), por defecto 10
+               Agrega la clase cd-centrado al div .cd-ancla para centrar el cuadro horizontalmente. */
+            .cd-ancla { position: relative; height: 0; overflow: visible; }
+            .cd-caja  { position: absolute; top: var(--cd-top, 0); left: var(--cd-left, 0); width: var(--cd-ancho, 100%);
+                        z-index: var(--cd-z, 10); text-align: center;
+                        /* Marco opcional: descomenta lo que necesites */
+                        /* background: #FFFBF4; border: 1px solid #9D7B56; border-radius: 14px; padding: 1.2em 0.5em 0; */ }
+            .cd-ancla.cd-centrado .cd-caja { left: 50%; transform: translateX(-50%); }
+        </style>
+
+        <!-- ANCLA: pega este div donde quieras que quede el punto de referencia. El contador se superpone desde aqui. -->
+        <div class="cd-ancla cd-centrado" style="--cd-top: 69px; --cd-left: 0px; --cd-ancho: 210px;">
+            <div class="cd-caja">
+                <div class="tick" data-credits="false" data-did-init="handleTickInit">
+                    <div
+                        data-repeat="true"
+                        data-layout="horizontal center fit"
+                        data-transform="preset(d, h, m, s) -> delay"
+                    >
+                        <div class="tick-group">
+                            <div
+                                data-key="value"
+                                data-repeat="true"
+                                data-transform="pad(00) -> split -> delay"
+                            >
+                                <span data-view="flip"></span>
+                            </div>
+
+                            <span data-key="label" data-view="text" class="tick-label"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function handleTickInit(tick) {
+                // Traduccion de etiquetas al espanol.
+                // Las letras con acento van como codigos Unicode (barra invertida + u + 4 digitos) para que se vean
+                // bien aunque la pagina se lea con una codificacion distinta de UTF-8.
+                var locale = {
+                    YEAR_PLURAL: 'A\u00f1os',
+                    YEAR_SINGULAR: 'A\u00f1o',
+                    MONTH_PLURAL: 'Meses',
+                    MONTH_SINGULAR: 'Mes',
+                    WEEK_PLURAL: 'Semanas',
+                    WEEK_SINGULAR: 'Semana',
+                    DAY_PLURAL: 'D\u00edas',
+                    DAY_SINGULAR: 'D\u00eda',
+                    HOUR_PLURAL: 'Horas',
+                    HOUR_SINGULAR: 'Hora',
+                    MINUTE_PLURAL: 'Minutos',
+                    MINUTE_SINGULAR: 'Minuto',
+                    SECOND_PLURAL: 'Segundos',
+                    SECOND_SINGULAR: 'Segundo',
+                    MILLISECOND_PLURAL: 'Milisegundos',
+                    MILLISECOND_SINGULAR: 'Milisegundo'
+                };
+
+                for (var key in locale) {
+                    if (!locale.hasOwnProperty(key)) { continue; }
+                    tick.setConstant(key, locale[key]);
+                }
+
+                // Configurado para el viernes 6 de noviembre de 2026 a las 19:30 (7:30 PM) HORA DE LIMA,
+                // igual que la fecha de la invitacion. Cambia solo este valor si la fecha cambia.
+                Tick.count.down('2026-12-19T15:30:00-05:00').onupdate = function (value) {
+                    tick.value = value;
+                };
+            }
+        </script>
+        <script src="assets/flip.min.js"></script>
+</div>
+
+
+
+[PASO 1]
+
+
+(() => {
+  // 1. Sobrescribir estilos que ocultan contenido fuera de pantalla
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * { 
+      content-visibility: visible !important; 
+      animation: none !important; 
+      transition: none !important; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Simular un contenedor con scroll de altura completa
+  document.body.style.overflow = 'visible';
+  document.documentElement.style.overflow = 'visible';
+  // document.body.style.height = 'auto';
+
+  console.log('Fuerza bruta aplicada. Por favor, haz scroll manual hasta el final de la página.');
+})();
+
+
+[PASO 2]
+
+
+(async () => {
+  console.log('🔍 Analizando solo fuentes e imágenes ACTIVAS en pantalla...');
+
+  const downloads = [];
+  const deduplicacion = new Map();
+
+  const getExactFileName = (urlStr, contentType = '') => {
+    try {
+      const parsed = new URL(urlStr, document.baseURI);
+      let filename = parsed.pathname.split('/').pop().split('?')[0];
+      filename = decodeURIComponent(filename);
+      if (filename && filename.includes('.') && filename.length > 3) {
+        return filename;
+      }
+    } catch {}
+
+    let ext = 'asset';
+    if (contentType.includes('image/png')) ext = 'png';
+    else if (contentType.includes('image/jpeg')) ext = 'jpg';
+    else if (contentType.includes('image/webp')) ext = 'webp';
+    else if (contentType.includes('image/svg')) ext = 'svg';
+    else if (contentType.includes('video/mp4')) ext = 'mp4';
+    else if (contentType.includes('font/woff2')) ext = 'woff2';
+    else if (contentType.includes('font/woff')) ext = 'woff';
+
+    let hash = 0;
+    for (let i = 0; i < urlStr.length; i++) {
+      hash = (hash << 5) - hash + urlStr.charCodeAt(i);
+      hash |= 0;
+    }
+    return `file_${Math.abs(hash)}.${ext}`;
+  };
+
+  const fetchResource = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || '';
+      return { blob, contentType };
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Identificar familias de fuentes verdaderamente usadas en el DOM
+  const activeFontFamilies = new Set();
+  document.querySelectorAll('*').forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent.trim().length > 0) {
+      const fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim().toLowerCase();
+      if (fontFamily) activeFontFamilies.add(fontFamily);
+    }
+  });
+
+  console.log('✏️ Fuentes realmente usadas en el texto:', Array.from(activeFontFamilies));
+
+  // 2. Clonar el DOM y limpiar scripts/srcset
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
+  clone.querySelectorAll('img').forEach((img) => img.removeAttribute('srcset'));
+
+  // 3. Procesar imágenes <img> visibles
+  const liveImages = Array.from(document.querySelectorAll('img'));
+  for (const liveImg of liveImages) {
+    const style = window.getComputedStyle(liveImg);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+    const srcAttr = liveImg.getAttribute('src') || liveImg.src;
+    if (srcAttr && !srcAttr.startsWith('data:')) {
+      const absUrl = new URL(srcAttr, document.baseURI).href;
+
+      if (!deduplicacion.has(absUrl)) {
+        const data = await fetchResource(absUrl);
+        if (data) {
+          const fileName = getExactFileName(absUrl, data.contentType);
+          const localPath = `assets/${fileName}`;
+          deduplicacion.set(absUrl, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+      }
+
+      const matchingCloneImg = clone.querySelector(`img[src="${srcAttr}"]`) || clone.querySelectorAll('img')[liveImages.indexOf(liveImg)];
+      if (matchingCloneImg && deduplicacion.has(absUrl)) {
+        matchingCloneImg.src = deduplicacion.get(absUrl);
+      }
+    }
+  }
+
+  // 4. Procesar Vídeo activo
+  const liveVideo = document.querySelector('video');
+  if (liveVideo) {
+    let raw = liveVideo.src || liveVideo.querySelector('source')?.src || '';
+    if (raw) {
+      const parsedUrl = new URL(raw, document.baseURI);
+      let startTrim = 0;
+      let endTrim = null;
+      const hashMatch = parsedUrl.hash.match(/#t=([\d.]+),?([\d.]*)/);
+      if (hashMatch) {
+        startTrim = parseFloat(hashMatch[1]) || 0;
+        if (hashMatch[2]) endTrim = parseFloat(hashMatch[2]);
+      }
+
+      const data = await fetchResource(parsedUrl.href);
+      if (data) {
+        const fileName = getExactFileName(parsedUrl.href, data.contentType);
+        const localPath = `assets/${fileName}`;
+
+        if (!deduplicacion.has(parsedUrl.href)) {
+          deduplicacion.set(parsedUrl.href, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+
+        const videoClonado = clone.querySelector('video');
+        if (videoClonado) {
+          videoClonado.removeAttribute('controls');
+          videoClonado.setAttribute('playsinline', 'true');
+          videoClonado.setAttribute('autoplay', 'true');
+          videoClonado.setAttribute('muted', 'true');
+          videoClonado.setAttribute('data-start', startTrim);
+          if (endTrim !== null) videoClonado.setAttribute('data-end', endTrim);
+          videoClonado.innerHTML = '';
+          videoClonado.src = localPath;
+        }
+      }
+    }
+  }
+
+  // 5. Filtrar CSS: Mantener solo fuentes usadas (priorizando .woff2) y descartar redundancias
+  console.log('🎨 Filtrando reglas CSS y tipografías activas...');
+  let cssIncrustado = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      const sheetBase = sheet.href || document.baseURI;
+
+      for (const rule of Array.from(rules)) {
+        // Si es una regla @font-face, verificar si pertenece a una fuente activa
+        if (rule.type === CSSRule.FONT_FACE_RULE) {
+          const fontFamily = rule.style.fontFamily.replace(/['"]/g, '').trim().toLowerCase();
+          if (!activeFontFamilies.has(fontFamily)) {
+            continue; // Omitir fuentes que no se usan en ningún texto
+          }
+        }
+
+        let cssText = rule.cssText;
+        const matches = [...cssText.matchAll(/url\((['"]?)(?!data:)([^'"]+)\1\)/g)];
+
+        for (const match of matches) {
+          const rawUrl = match[2];
+          const absUrl = new URL(rawUrl, sheetBase).href;
+
+          // Filtrar formatos obsoletos de fuentes (.eot, .ttf si existe woff2)
+          if (absUrl.match(/\.(eot|ttf)(\?.*)?$/i) && !absUrl.includes('fontawesome')) {
+            continue; 
+          }
+
+          if (absUrl.match(/\.(woff2?|otf|png|jpe?g|svg|webp|gif)(\?.*)?$/i)) {
+            if (!deduplicacion.has(absUrl)) {
+              const data = await fetchResource(absUrl);
+              if (data) {
+                const fileName = getExactFileName(absUrl, data.contentType);
+                const localPath = `assets/${fileName}`;
+                deduplicacion.set(absUrl, localPath);
+                downloads.push({ fileName, blob: data.blob });
+              }
+            }
+
+            if (deduplicacion.has(absUrl)) {
+              cssText = cssText.replace(match[0], `url("${deduplicacion.get(absUrl)}")`);
+            }
+          }
+        }
+        cssIncrustado += cssText + '\n';
+      }
+    } catch {}
+  }
+
+  // 6. Controlador de vídeo
+  const customVideoControllerScript = `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.querySelector('video');
+      if (!video) return;
+
+      const start = parseFloat(video.getAttribute('data-start')) || 0;
+      const end = parseFloat(video.getAttribute('data-end'));
+
+      const applyStartTime = () => {
+        if (start > 0) video.currentTime = start;
+      };
+
+      if (video.readyState >= 1) {
+        applyStartTime();
+      } else {
+        video.addEventListener('loadedmetadata', applyStartTime, { once: true });
+      }
+
+      video.addEventListener('timeupdate', () => {
+        if (end && video.currentTime >= end) {
+          video.currentTime = start;
+        }
+      });
+
+      video.muted = true;
+      video.play().catch(() => {});
+
+      document.addEventListener('click', (e) => {
+        if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      });
+    });
+  </script>
+  `;
+
+  // 7. Generar HTML final
+  const htmlFinal = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${document.title}</title>
+  <style>
+${cssIncrustado}
+video { cursor: pointer; }
+  </style>
+</head>
+${clone.outerHTML}
+${customVideoControllerScript}
+</html>`;
+
+  // Descargar HTML
+  const htmlBlob = new Blob([htmlFinal], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'invitacion_optimizada.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Descargar conjunto limpio
+  console.log(`⬇️ Descargando exclusivamente ${downloads.length} archivos indispensables para assets/...`);
+  for (const item of downloads) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(item.blob);
+    link.download = item.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    await new Promise((r) => setTimeout(r, 300));
+    URL.revokeObjectURL(link.href);
+  }
+
+  console.log('✅ ¡Proceso completado! Archivos reducidos drásticamente.');
+})();
+
