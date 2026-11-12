@@ -1,1 +1,886 @@
-Aqui va la invitación de Mili y Neville
+<!DOCTYPE html>
+<html lang="en" class="bloqueado">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mili &amp; Neville</title>
+<meta property="og:title" content="Mili &amp; Neville · We're getting married!">
+<meta property="og:description" content="June 14, 2027 · Castell d'Empordà, Girona · Spain">
+<meta property="og:image" content="https://bodas.parteydetalles.com/miliyneville/miniatura.jpg">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#2b2f15">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<!-- Antes de pyd-config.js: el crédito lo pone esta página (solo al final de la invitación) y las animaciones corren aunque el sistema pida «reducir movimiento». -->
+<script>window.PYD_SIN_CREDITO = true; window.PYD_SIEMPRE_ANIMAR = true;</script>
+<script src="../v1/assets/pyd-config.js"></script>   <!-- rutas del motor, crédito «Hecho con amor» y redirección del rol staff -->
+<!-- Precarga de lo indispensable para mostrar la portada (empieza a bajar desde el <head>, sin esperar al script) -->
+<link rel="preload" as="image" href="assets/portada_fondo.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="assets/sobre_cuerpo.webp"><link rel="preload" as="image" href="assets/solapa_frente.webp">
+<link rel="preload" as="image" href="assets/solapa_dentro.webp"><link rel="preload" as="image" href="assets/sello.webp">
+<link rel="preload" as="font" type="font/woff2" href="assets/56e5d1605fcb82bfe99b502b9f978182.woff2" crossorigin>
+<style id="fuentes-portada">
+/* Tipografía del título de la portada: la misma de Canva (YAEw2GhSLyw_0, peso 400), ya en woff2 con solo letras latinas */
+@font-face{font-family:"YAEw2GhSLyw_0";font-weight:400;font-style:normal;font-display:block;src:url(assets/56e5d1605fcb82bfe99b502b9f978182.woff2) format("woff2")}
+</style>
+<style id="fuentes-canva"></style><!-- @font-face de Canva: dentro de un Shadow DOM Chrome los ignora, por eso viven aquí -->
+<style>
+  :root { --olivo: #586121; --olivo-osc: #2b2f15; --crema: #F8F4F1; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--crema); }
+  html { scrollbar-gutter: stable; }
+  html.bloqueado { scrollbar-gutter: auto; }
+  html.bloqueado, html.bloqueado body { overflow: hidden !important; }
+  html.bloqueado body { touch-action: none; }
+
+  /* ---------- Invitación (Canva en Shadow DOM) ---------- */
+  #invitacion { position: relative; visibility: hidden; }        /* maquetada desde el inicio; se pinta al abrir */
+  #invitacion.visible { visibility: visible; }
+  .canva-host { display: block; position: relative; }
+
+  /* ---------- Gesto «desliza» (aparece una vez, cuando se abre la invitación) ---------- */
+  #pista-scroll { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 4px;
+                  padding: 11px 20px 7px; border-radius: 22px; transform: translateX(-50%); pointer-events: none; opacity: 0; transition: opacity .9s ease; color: #fff;
+                  background: rgba(34, 36, 18, .46); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 22px rgba(0,0,0,.18); }
+  #pista-scroll[hidden] { display: none; }
+  #pista-scroll.ver { opacity: 1; }
+  #pista-scroll .ps-txt { font: 400 11px/1 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .34em; text-indent: .34em; text-transform: uppercase; }
+  #pista-scroll .ps-fl { position: relative; display: block; width: 22px; height: 26px; }
+  #pista-scroll .ps-fl i { position: absolute; left: 50%; top: 0; width: 11px; height: 11px; margin-left: -5.5px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+                           transform: rotate(45deg); opacity: 0; animation: ps-baja 1.9s ease-in-out infinite; }
+  #pista-scroll .ps-fl i:nth-child(2) { animation-delay: .28s; }
+  @keyframes ps-baja { 0% { opacity: 0; transform: translateY(-5px) rotate(45deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(13px) rotate(45deg); } }
+
+  /* ---------- Control de música (abajo a la derecha; el crédito va a la izquierda) ---------- */
+  #musica { position: fixed; right: calc(14px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 70;
+            width: 44px; height: 44px; padding: 0; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; color: #fff;
+            background: rgba(43, 47, 21, .62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 18px rgba(0,0,0,.18);
+            display: grid; place-items: center; -webkit-appearance: none; appearance: none;
+            opacity: 0; transform: scale(.8); pointer-events: none; transition: opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1); }
+  #musica[hidden] { display: none; }
+  #musica.ver { opacity: 1; transform: none; pointer-events: auto; }
+  #musica:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  #musica .barras { display: flex; align-items: flex-end; gap: 2.5px; height: 16px; }
+  #musica .barras i { display: block; width: 3px; height: 4px; border-radius: 2px; background: currentColor; transform-origin: 50% 100%; }
+  #musica.sonando .barras i { animation: eq 1s ease-in-out infinite; }
+  #musica.sonando .barras i:nth-child(2) { animation-duration: .8s; animation-delay: -.3s; }
+  #musica.sonando .barras i:nth-child(3) { animation-duration: 1.15s; animation-delay: -.6s; }
+  #musica.sonando .barras i:nth-child(4) { animation-duration: .9s; animation-delay: -.15s; }
+  @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+  #musica .tachado { position: absolute; width: 22px; height: 1.6px; background: currentColor; transform: rotate(-45deg); border-radius: 2px; opacity: 1; transition: opacity .25s; }
+  #musica.sonando .tachado { opacity: 0; }
+
+  /* ---------- Crédito «Hecho con amor» (modo discreto): a la IZQUIERDA para no chocar con el control de música ---------- */
+  #pyd-credito.pc-disc { right: auto; left: calc(12px + env(safe-area-inset-left)); justify-content: flex-start; }
+  #pyd-credito.pc-disc .pc-linea { right: auto; left: 0; justify-content: flex-start; transform-origin: 0 100%; }
+
+  /* ---------- Portada ---------- */
+  #portada-host { position: fixed; inset: 0; z-index: 100; display: block; background: #3a3f1f; }
+
+  /* ---------- Pantalla de carga ---------- */
+  #cargador { position: fixed; inset: 0; z-index: 1000; background: var(--olivo-osc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+              transition: opacity .9s ease, visibility 0s linear .9s; }
+  #cargador.fuera { opacity: 0; visibility: hidden; pointer-events: none; }
+  .anillo { position: relative; width: 104px; height: 104px; }
+  .anillo svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+  .anillo circle { fill: none; stroke-width: 3; }
+  .anillo .riel { stroke: rgba(248,244,241,.14); }
+  .anillo .avance { stroke: #e6e1c4; stroke-linecap: round; }
+  .anillo .pct { position: absolute; inset: 0; display: grid; place-items: center; color: var(--crema); font: 500 18px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .04em; }
+  .cargador-txt { color: rgba(248,244,241,.55); font: 400 11px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .3em; text-transform: uppercase; text-align: center; padding: 0 24px; }
+</style>
+</head>
+<body>
+
+<div id="invitacion" aria-hidden="true">
+  <div id="inv" class="canva-host"></div>
+  <div data-credito></div>
+</div>
+
+<div id="pista-scroll" aria-hidden="true" hidden><span class="ps-txt" id="ps-txt">Scroll</span><span class="ps-fl"><i></i><i></i></span></div>
+
+<button id="musica" type="button" aria-label="Play music" aria-pressed="false" hidden>
+  <span class="barras" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="tachado" aria-hidden="true"></span>
+</button>
+
+<div id="portada-host"></div>
+
+<div id="cargador" role="status" aria-live="polite">
+  <div class="anillo">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="riel" cx="50" cy="50" r="46"/><circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"/></svg>
+    <div class="pct" id="anillo-pct">0%</div>
+  </div>
+  <div class="cargador-txt" id="cargador-txt">Preparing your invitation</div>
+</div>
+
+<!-- =====================================================================================
+     PORTADA EN SHADOW DOM (reconstruida con las piezas de portada.html de Canva, a pantalla completa).
+     El escenario (#stage) mide 485 × 1072 de referencia = la página de Canva: título, sobre, sello y «TAP TO OPEN» se ubican en %
+     de ese escenario (alineados en cualquier pantalla). El paisaje y su velo oliva cubren SIEMPRE toda la pantalla.
+     Sobre: cuerpo (interior + bolsillo) · solapa exterior (cerrada) → de canto a los 90° → solapa interior (abierta) · sello.
+     Secuencia: el lacre se desplaza → la solapa se abre → la cámara entra al sobre y la portada se funde con la invitación.
+     ===================================================================================== -->
+<template id="portada-plantilla">
+<style>
+  :host { all: initial; display: block; position: fixed; inset: 0; }
+  .gate { position: absolute; inset: 0; overflow: hidden; background: #3a3f1f; font-synthesis: none;
+          -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+          /* tiempos de la apertura (los pone CONFIG.portada.tiempos) */
+          --d-sello: 0s; --t-sello: 1s; --d-titulo: .3s; --t-titulo: .9s; --d-solapa: .35s; --t-solapa: .7s; --t-dentro: .8s; --t-camara: 1.9s; --t-entrada: 2.2s; }
+  .gate *, .gate *::before, .gate *::after { box-sizing: border-box; }
+
+  /* Paisaje (ya compuesto al 85 % sobre el papel, como en Canva) + velo oliva rgb(52,57,19) al 60 % (el «filtro» de Canva) */
+  .paisaje { position: absolute; left: 0; top: 0; background: url('assets/portada_fondo.jpg') 0 0 / 100% 100% no-repeat; transform-origin: 0 0; will-change: transform; }
+  .velo { position: absolute; inset: 0; background: var(--velo, rgba(52, 57, 19, .6)); pointer-events: none; }
+  #stage { position: absolute; left: 0; top: 0; container-type: inline-size; }
+
+  /* ---------- Título «WE´RE GETTING MARRIED!» (mismo tipo, tamaño y posición que en Canva) ---------- */
+  .titulo { position: absolute; left: 12.718%; top: 31.087%; width: 74.39%; margin: 0; text-align: center; color: rgb(250, 250, 250);
+            font: 400 6.98cqw/8.375cqw 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: 0; text-transform: uppercase; white-space: nowrap;
+            text-shadow: 0 1px 12px rgba(30, 32, 12, .25);
+            opacity: 0; transform: translateY(1.6cqw); filter: blur(3px);
+            transition: opacity var(--t-entrada) cubic-bezier(.16,1,.3,1), transform var(--t-entrada) cubic-bezier(.16,1,.3,1), filter var(--t-entrada) cubic-bezier(.16,1,.3,1); }
+  .gate.lista .titulo { opacity: 1; transform: none; filter: none; }
+  .gate.abierto .titulo { opacity: 0; transform: translateY(-4cqw); filter: blur(2px);
+            transition: opacity var(--t-titulo) ease var(--d-titulo), transform var(--t-titulo) ease var(--d-titulo), filter var(--t-titulo) ease var(--d-titulo); }
+
+  /* ---------- El sobre (marco común de las piezas: 686 × 690 px del PNG de Canva) ---------- */
+  .cam-pos { position: absolute; left: 13.604%; top: 42.05%; width: 73.111%; }
+  .cam { position: relative; width: 100%; aspect-ratio: 686 / 690; transform-origin: 50% 36%; opacity: 0; transform: translateY(2.5cqw);
+         transition: opacity 1.4s ease .25s, transform var(--t-entrada) cubic-bezier(.16,1,.3,1) .25s; }
+  .gate.lista .cam { opacity: 1; transform: none; }
+  .gate.saliendo .cam { transform: translateY(-4%) scale(2.8); transition: transform var(--t-camara) cubic-bezier(.5,0,.2,1); }
+  .env { position: absolute; inset: 0; }
+  .env.listo { animation: latido 2.5s infinite ease-in-out; }
+  @keyframes latido { 0%, 30%, 60%, 100% { transform: scale(1); } 15%, 45% { transform: scale(1.015); } }
+  .pieza { position: absolute; left: 0; width: 100%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
+  .cuerpo { top: 0; height: 100%; background-image: url('assets/sobre_cuerpo.webp'); z-index: 1; filter: drop-shadow(0 10px 18px rgba(20, 22, 8, .35)); }
+  /* Solapa exterior: bisagra en su fila 6 de 500 (1.2 %). Gira hacia el espectador hasta quedar de canto (90°) */
+  .solapa { top: 0; height: 72.464%; background-image: url('assets/solapa_frente.webp'); z-index: 4; transform-origin: 50% 1.2%;
+            filter: drop-shadow(0 2px 2.5px rgba(50, 42, 25, .30));
+            transform: perspective(1400px) rotateX(0deg); transition: transform var(--t-solapa) cubic-bezier(.55,0,.85,.45) var(--d-solapa), opacity 0s linear calc(var(--d-solapa) + var(--t-solapa)); }
+  .gate.abierto .solapa { transform: perspective(1400px) rotateX(90deg); opacity: 0; }
+  /* Solapa interior: arriba del sobre, nace de canto (−90°) y termina abierta (0°), un poco escorzada */
+  .solapa-dentro { top: -70.725%; height: 71.594%; background-image: url('assets/solapa_dentro.webp'); z-index: 2; transform-origin: 50% 100%;
+                   filter: drop-shadow(0 -2px 6px rgba(40, 35, 20, .18)); opacity: 0;
+                   transform: perspective(1400px) rotateX(-90deg) scaleY(.9);
+                   transition: transform var(--t-dentro) cubic-bezier(.15,.55,.35,1) calc(var(--d-solapa) + var(--t-solapa)), opacity 0s linear calc(var(--d-solapa) + var(--t-solapa)); }
+  .gate.abierto .solapa-dentro { transform: perspective(1400px) rotateX(0deg) scaleY(.9); opacity: 1; }
+
+  /* Sello: se despega, se levanta un poco y se desplaza a la esquina inferior derecha del sobre */
+  .sello-caja { position: absolute; left: 39.28%; top: 61.67%; width: 20.57%; z-index: 6; pointer-events: none; }
+  .sello-lat { width: 100%; transform-origin: 50% 50%; }
+  .sello-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 4px rgba(40, 30, 10, .35)); -webkit-user-drag: none; }
+  .gate.lat-sello:not(.abierto) .sello-lat { animation: sello-latido var(--lat-ciclo, 1.7s) infinite ease-in-out; }
+  @keyframes sello-latido { 0% { transform: scale(1); } 12% { transform: scale(var(--lat-esc, 1.1)); } 24% { transform: scale(1); } 36% { transform: scale(var(--lat-esc2, 1.07)); } 52%, 100% { transform: scale(1); } }
+  .gate.abierto .sello-caja { animation: sello-sale var(--t-sello) cubic-bezier(.3,.9,.4,1) var(--d-sello) forwards; }
+  .gate.abierto .sello-img { animation: sello-gira var(--t-sello) cubic-bezier(.3,.9,.4,1) var(--d-sello) forwards; }
+  @keyframes sello-sale { 0% { transform: none; } 28% { transform: translate(4%, -16%); } 100% { transform: translate(152%, 98%); } }
+  @keyframes sello-gira { 0% { transform: none; } 28% { transform: scale(1.14) rotate(-6deg); filter: drop-shadow(0 12px 12px rgba(40,30,10,.38)); } 100% { transform: scale(.86) rotate(21deg); filter: drop-shadow(0 3px 4px rgba(40,30,10,.35)); } }
+
+  /* Área táctil (invisible) sobre el sello + «TAP TO OPEN» con brillo que recorre las letras */
+  #sello { position: absolute; z-index: 8; transform: translate(-50%, -50%); aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%;
+           background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  #sello:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+  .pista { position: absolute; z-index: 8; left: 50%; transform: translate(-50%, -50%); margin: 0; padding: .8em 1.2em; cursor: pointer;
+           font: 400 2.9cqw/1 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .32em; text-indent: .32em; white-space: nowrap;
+           background: linear-gradient(105deg, transparent 36%, rgba(255,255,255,.95) 45%, #fff 50%, rgba(255,255,255,.95) 55%, transparent 64%),
+                       linear-gradient(105deg, rgba(248,244,241,.78) 0%, rgba(248,244,241,.78) 100%);
+           background-size: 200% 100%, 100% 100%; background-repeat: no-repeat;
+           -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+           filter: drop-shadow(0 1px 3px rgba(20, 22, 8, .35));
+           animation: reluce 2.6s linear infinite; }
+  @keyframes reluce { from { background-position: 125% 0, 0 0; } to { background-position: -25% 0, 0 0; } }
+  #sello, .pista { opacity: 0; transition: opacity .9s ease .9s; }
+  .gate.lista #sello, .gate.lista .pista { opacity: 1; }
+  .gate.abriendo #sello, .gate.abriendo .pista { opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .gate.abriendo .pista { animation: none; }
+  .gate.esperando .pista { opacity: 1; transition: opacity .6s; animation: reluce 2.6s linear infinite, espera 1.4s ease-in-out infinite; }
+  @keyframes espera { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+</style>
+<div class="gate" id="gate">
+  <div class="paisaje" id="paisaje"></div>
+  <div class="velo"></div>
+  <div id="stage">
+    <h1 class="titulo" id="titulo">We´re Getting<br>Married!</h1>
+    <div class="cam-pos"><div class="cam" id="cam">
+      <div class="env" id="env" aria-hidden="true">
+        <div class="pieza cuerpo"></div>
+        <div class="pieza solapa-dentro"></div>
+        <div class="pieza solapa"></div>
+        <div class="sello-caja"><div class="sello-lat" id="sello-lat"><img class="sello-img" src="assets/sello.webp" alt="" draggable="false"></div></div>
+      </div>
+    </div></div>
+    <button id="sello" type="button" aria-label="Open the invitation"></button>
+    <p class="pista" id="pista">TAP TO OPEN</p>
+  </div>
+</div>
+</template>
+
+<script src="../v1/assets/responsive.js"></script>
+<script src="../v1/assets/animacion.js"></script>
+<script>
+(function () {
+  'use strict';
+  history.scrollRestoration = 'manual';
+
+  /* =================================== CONFIGURACIÓN =================================== */
+  var CONFIG = {
+    invitacion: 'invitacion.html',          // export de Canva (ancho 485 px)
+    anchoCanva: 485, anchoMaximo: 700,
+    /* Clases CSS de ESTE export de Canva: cambian en cada exportación (revísalas si re-exportas el diseño). */
+    canva: { selectorPagina: 'div.ZRRuDw', selectorTexto: '._28USrA' },
+
+    /* Música: suena desde el toque que abre el sobre (los celulares solo dejan reproducir audio tras un toque).
+       Pon el archivo en assets/ con este nombre (mp3 de 128 kbps es suficiente). Si no existe, el control no aparece. */
+    musica: { src: 'assets/musica.mp3', volumen: 0.7, esperaMax: 2500 },
+
+    /* Cuenta regresiva propia (reemplaza el iframe de tickcounter, sin logo ni publicidad). Hora de la ceremonia en España (CEST, UTC+2). */
+    contador: { id: 'LBbVQnF85Dbxy042', fecha: '2027-06-14T17:00:00+02:00', etiquetas: ['DAYS', 'HOURS', 'MINUTES', 'SECONDS'] },
+
+    /* Tarjetas que giran (con el dedo o con un toque). frente / dorso: ids de Canva de cada cara (se agrupan en una «escena»).
+       disparador: qué se toca para girar al dorso ('todo' = toda la tarjeta). En el dorso, un toque en cualquier parte la regresa.
+       marco: (opcional) el dorso usa el MISMO papel del frente para que el giro se vea como una sola tarjeta. */
+    giros: [
+      { id: 'giro-actividades', frente: ['LBlhL43PmZMH2yDb', 'LBfh4wccvvMqrf1b', 'LBytGdyZtfrjVYQ9', 'LBMlrNbJTsqFH7xL', 'LBhG5vTPT0pV4NWN'],
+        dorso: 'LBjk3Vp3xTcDTFzx', marco: { frente: 'LBlhL43PmZMH2yDb', dorso: 'LBZTLbTHzmvy8xdS' },
+        disparador: ['LBfh4wccvvMqrf1b', 'LBhG5vTPT0pV4NWN'], volver: true },                          // Optional Activities · «view options»
+      { id: 'giro-faq-1', frente: ['LBwLHh5mntqH6smT'], dorso: 'LBkHhftYXVtsPlLg', disparador: 'todo', pista: true },   // check in antes de las 3
+      { id: 'giro-faq-2', frente: ['LBLwjMZ3BkqkmkGG'], dorso: 'LBgC1FwxzBz5PHjM', disparador: 'todo', pista: true },   // restaurante
+      { id: 'giro-faq-3', frente: ['LBCzYyxfWxq3YpJg'], dorso: 'LBmgdVbQ2b5LDWKj', disparador: 'todo', pista: true },   // piscinas
+      { id: 'giro-faq-4', frente: ['LBWyb1PVHLX977BG'], dorso: 'LBZT84sHLKMrlJY1', disparador: 'todo', pista: true },   // pueblos cercanos
+      { id: 'giro-faq-5', frente: ['LBRXwXS9fcC9np6k'], dorso: 'LBcNDPPSgNKnbvTQ', disparador: 'todo', pista: true },   // farmacia
+      { id: 'giro-faq-6', frente: ['LBxR4Mh66Vn3vjVY'], dorso: 'LB7jfVGnN0X1gFlZ', disparador: 'todo', pista: true }    // taxi
+    ],
+    textosGiro: { volver: 'Back', girar: 'Tap to turn' },
+
+    /* Partes de un botón de Canva sin enlace propio: llevan al mismo destino que su texto */
+    enlaces: [
+      { id: 'LBQ8sWVCrhwW6MHY', url: 'https://maps.app.goo.gl/FkEKbz1WFkto9T1RA' },   // fondo del botón VIEW LOCATION
+      { id: 'LBhtLVTsdp1CfWx5', url: 'https://maps.app.goo.gl/FkEKbz1WFkto9T1RA' }    // ícono del pin
+    ],
+
+    /* Portada a pantalla completa. Medidas en px de la página de Canva (485 × 1072). */
+    portada: {
+      ancho: 485, alto: 1072,
+      zonaSegura: [318, 885],                // franja vertical que nunca se recorta: título, sobre y «TAP TO OPEN»
+      maxAnchoPx: 600,                       // en pantallas más anchas el escenario no crece más (el paisaje sigue cubriendo los lados)
+      paisaje: { x: -678.261, y: -308.188, w: 1841.52, h: 1380.19 },   // dónde puso Canva la imagen del fondo
+      velo: 'rgba(52, 57, 19, .6)',          // el «filtro» de Canva sobre el paisaje (oliva al 60 %)
+      sello: { x: 241.7, y: 704.8, d: 112 }, // área táctil sobre el sello: centro y diámetro
+      pistaY: 862,                           // «TAP TO OPEN» (debajo del sobre)
+      /* Tiempos (s) desde el toque: el sello se desplaza · el título se va · la solapa gira a 90° y luego se abre del todo ·
+         'salida' = cuándo entra la cámara al sobre y empieza el fundido hacia la invitación */
+      tiempos: { 'd-sello': 0, 't-sello': 1.0, 'd-titulo': .3, 't-titulo': .9, 'd-solapa': .4, 't-solapa': .65, 't-dentro': .8, 't-camara': 2.0, 't-entrada': 2.2 },
+      salida: 1.95,
+      latido: { sello: true, escala: 1.1, ciclo: 1.7, sobre: false },
+      fuentes: ['400 16px "YAEw2GhSLyw_0"']
+    },
+    fundido: { ms: 1600, retraso: .45, revelarEn: 0.2 },   // fundido portada → invitación: duración, cuánto después de que la cámara empieza a entrar, y punto en que arrancan sus animaciones
+
+    /* Animaciones (animacion.js). Criterio: cada bloque entra en orden de lectura; los títulos letra por letra o palabra por palabra,
+       los íconos crecen (zoom), las listas suben (abajoArriba), los pares izquierda/derecha entran desde su lado,
+       y las fotos a sangre del inicio y del final «se alejan» (cámara que retrocede). */
+    anim: { duracion: 9.5, umbral: 0.5,
+      alejar: ['PBccwTDpX8K96KzF', 'PBZKkXpdYyxsM1bf'], alejarZoom: 1.22, alejarDuracion: 14,         // foto inicial · foto final
+      textos: [
+        { id: 'LBjr2L5jLm540RFw', tipo: 'letras',   velocidad: 95 },    // Mili & Neville
+        { id: 'LBdwV1dQkYxB1KXF', tipo: 'palabras', velocidad: 150 },   // The big day is coming up!
+        { id: 'LBjgy3CkKr9btYWt', tipo: 'palabras', velocidad: 110 },   // «I love you without knowing how…» · Neruda
+        { id: 'LBlsn85xNfY15872', tipo: 'letras',   velocidad: 70 },    // Schedule of events
+        { id: 'LBjPskjpxJmZ44y6', tipo: 'letras',   velocidad: 80 },    // Castell d´Empordà
+        { id: 'LBdtNskNgGBpdspJ', tipo: 'letras',   velocidad: 110 },   // Attire
+        { id: 'LBNd4B8L7FLCgQzp', tipo: 'letras',   velocidad: 75 },    // Accommodations
+        { id: 'LBZZW4cKYddycqrl', tipo: 'palabras', velocidad: 220 },   // Travel & Transportation
+        { id: 'LB9MXJvDy8MC1rck', tipo: 'letras',   velocidad: 120 },   // Gifts
+        { id: 'LBSVPXPq3rbCGrrV', tipo: 'letras',   velocidad: 120 },   // FAQs
+        { id: 'LByT2tYLZldNxS3n', tipo: 'letras',   velocidad: 70 },    // Tupananchiskama
+        { id: 'LBfK9VzpPPz40b6W', tipo: 'letras',   velocidad: 65 }     // Love, Mili & Nev (como una firma)
+      ],
+      arribaAbajo: ['LBbGn5vD8CZ0xvHM',                                          // We´re Getting Married! (portada de la invitación)
+                    'LBmLbGkj1hcF1VDR'],                                         // (Until we meet again).
+      zoom: ['LBxYldYHcWq7lGVt', 'LB83JhycrkXx1TQ4',                             // píldora «Castell d´Empordà» (fondo + texto, juntos)
+             'LBJNYPdl1ffZJrN7',                                                 // recuadro de la cuenta regresiva
+             'LBSNDSVtXLmVjkk2',                                                 // ícono del mapa
+             'LBQ8sWVCrhwW6MHY', 'LBhtLVTsdp1CfWx5', 'LBFF8WJwQx3kzts5',         // botón VIEW LOCATION (fondo + pin + texto)
+             'giro-actividades',                                                 // tarjeta Optional Activities
+             'LBtyWh34Ff9B2lXB',                                                 // cama (Accommodations)
+             'LBr24vyyPpQbqM8m', 'LBz4wXmGcbjYxxTL',                             // tarjeta IMPORTANT NOTE + su ícono
+             'LBrnp9fLSHGQ8FD6',                                                 // regalos
+             'LBnMvmbZ07fNknFw'],                                                // ícono de FAQs
+      fundido: ['LBbVQnF85Dbxy042',                                              // la cuenta regresiva (números)
+                'LBNbbKJXLDC947j0',                                              // línea bajo «Schedule of events»
+                'LBdQ6S6mb0YHX2zq',                                              // ilustración de la pareja (Attire)
+                'LB1P23wybh9YkBLz', 'LB5YkBKZd2B4hLHj',                          // AIRPORTS · TRANSFERS & PARKING
+                'LBdvxZr0srKqQKWV', 'LBpKMBgBl2CF7bVd', 'LBPzrx4PyxpHjn0V',      // textos de IMPORTANT NOTE (aparecen sobre su tarjeta)
+                'LB8MSX6h1blCkWwz'],                                             // cita de E. E. Cummings
+      izquierdaADerecha: ['LBbynyn79kthH7ZZ', 'LBPcw21P1PnsWJHs', 'LBlZ29GKYkYWFfJQ',   // encabezados de día (fecha · ícono · nombre)
+                          'LByXDkP57QkkBpKF', 'LBJP6zXYLGmdSB5f',                       // JUNE 13 | … · JUNE 14 | … (Attire)
+                          'LBGb3ZJVfcz5tdfs'],                                          // avión: llega volando desde la izquierda
+      derechaAIzquierda: ['LBMY07ntzC23T0TB',                                           // Summer Smart Casual
+                          'LBn2RyH7GfcGR8vM'],                                          // auto: llega desde la derecha
+      abajoArriba: ['LB5qQPCvqcjjLjVl',                                                 // June 14, 2027
+                    'LBv8FJJ5wvBcmDBg', 'LBYvp8dQRsn4g5GS', 'LBx7JKLryYKHQd4B', 'LBCgCYrHg8pH8drZ', 'LBTF0SzXLMhC2qlH',   // día 13
+                    'LBT1vjhQFJGDlmKR', 'LB1YhQ1WH2MF6RSb', 'LBbPRkRFVsHzFDd2', 'LBvTjKQFTCK0FQq9', 'LBTgmJhrBptJ4HSl',   // día 14
+                    'LBY215jcn57vnwd4', 'LBC1v1ys7PPN6KSV', 'LBFH6JNC0Tw6qyRQ', 'LBfQGwZlhmR1v7nK',
+                    'LB4CBKtvyfJB04Wp', 'LBrF7tkTcl1500zC',                                                              // día 15
+                    'LB806sLYPNWT08nv', 'LBPhWxtcNQHpzzlC', 'LB0c69rHWsBCKYh0',          // All events… · Girona · Spain · foto del castillo
+                    'LBpjxyppX16Nqm2s',                                                  // Mediterranean Garden Chic…
+                    'LBbH1wnHlpHY4LK7',                                                  // texto de Accommodations
+                    'LBd5t5H3SxGlw1Qk', 'LB90Yg7p8cTFlfsY', 'LBkrRlHGSdvzLY0n',          // aeropuertos · traslados
+                    'LB3kyPDWMkslrmKk', 'LBwsQr3PKg5gvCdV',                              // No gifts please · texto
+                    'giro-faq-1', 'giro-faq-2', 'giro-faq-3', 'giro-faq-4', 'giro-faq-5', 'giro-faq-6',   // tarjetas FAQ (suben una a una)
+                    'LBNfxsgqcXWtPLV8'] },                                               // A beautiful expression in Quechua…
+    /* Retrasos (s) para que un grupo que aparece a la vez entre en secuencia y no todo de golpe */
+    retrasos: { 'LBbGn5vD8CZ0xvHM': 1.2, 'LBxYldYHcWq7lGVt': 1.9, 'LB83JhycrkXx1TQ4': 1.9, 'LB5qQPCvqcjjLjVl': 2.5,   // portada de la invitación
+                'LBbVQnF85Dbxy042': .45,                                                                        // números tras su recuadro
+                'LBQ8sWVCrhwW6MHY': .3, 'LBhtLVTsdp1CfWx5': .3, 'LBFF8WJwQx3kzts5': .3,                         // botón tras «Girona · Spain»
+                'LBz4wXmGcbjYxxTL': .35, 'LBdvxZr0srKqQKWV': .55, 'LBpKMBgBl2CF7bVd': .75, 'LBPzrx4PyxpHjn0V': .95,   // IMPORTANT NOTE
+                'LBn2RyH7GfcGR8vM': .35,                                                                        // el auto, tras el avión
+                'LBmLbGkj1hcF1VDR': .5 }                                                                        // (Until we meet again).
+  };
+  /* CARGA EN DOS TIEMPOS.
+     1) INDISPENSABLE (bloquea el anillo): paisaje, piezas del sobre, sello, la tipografía del título y la música lista para sonar (con tope).
+     2) EN SEGUNDO PLANO (cuando ya se ve la portada): la invitación de Canva (HTML + imágenes de las 2 primeras secciones + tipografías). */
+  var PESO = { portada: 70, fuentes: 12, musica: 18 };   // suman 100
+  var MIN_MS = 700, LIMITE_MS = 12000;
+  /* ===================================================================================== */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var E = CONFIG.portada, raiz = null, ajuste = null, P = window.PYD || {};
+
+  /* ---------------------------------------------------------------- progreso */
+  var T = {}; Object.keys(PESO).forEach(function (k) { T[k] = { w: PESO[k], p: 0 }; });
+  function avance(k, p) { if (T[k]) T[k].p = Math.max(T[k].p, Math.min(1, p)); }
+  function total() { var s = 0; for (var k in T) s += T[k].w * T[k].p; return s / 100; }
+
+  /* ---------------------------------------------------------------- PORTADA (Shadow DOM) */
+  var hostP = $('portada-host'), raizP = hostP.attachShadow({ mode: 'open' });
+  raizP.appendChild($('portada-plantilla').content.cloneNode(true));
+  var p$ = function (id) { return raizP.getElementById(id); };
+  var gate = p$('gate'), stage = p$('stage'), env = p$('env'), paisaje = p$('paisaje');
+  var sello = p$('sello'), selloLat = p$('sello-lat'), pista = p$('pista');
+  var pct = function (v, base) { return (v / base * 100) + '%'; };
+  Object.keys(E.tiempos).forEach(function (k) { gate.style.setProperty('--' + k, E.tiempos[k] + 's'); });
+  gate.style.setProperty('--velo', E.velo);
+  var L = Object.assign({ sello: true, sobre: false, escala: 1.1, ciclo: 1.7 }, E.latido || {});
+  gate.style.setProperty('--lat-esc', String(L.escala)); gate.style.setProperty('--lat-esc2', String(1 + (L.escala - 1) * .7)); gate.style.setProperty('--lat-ciclo', L.ciclo + 's');
+  sello.style.left = pct(E.sello.x, E.ancho); sello.style.top = pct(E.sello.y, E.alto); sello.style.width = pct(E.sello.d, E.ancho);
+  pista.style.top = pct(E.pistaY, E.alto);
+
+  /* Encuadre: el escenario conserva su proporción y nunca recorta la zona segura. El paisaje se ubica como en Canva respecto del escenario
+     y, si la pantalla es más ancha o más alta que eso, se agranda desde el centro del escenario hasta cubrirla siempre. */
+  function encuadre() {
+    var gw = gate.clientWidth, gh = gate.clientHeight; if (!gw || !gh) return;
+    var vw = Math.min(gw, E.maxAnchoPx), seg = E.zonaSegura, hSeg = seg[1] - seg[0];
+    var k = Math.min(Math.max(vw / E.ancho, gh / E.alto), gh / hSeg);
+    var w = E.ancho * k, h = E.alto * k;
+    var top = gh / 2 - (seg[0] + hSeg / 2) * k;
+    top = h >= gh ? Math.min(0, Math.max(gh - h, top)) : (gh - h) / 2;
+    var left = (gw - w) / 2;
+    stage.style.width = w + 'px'; stage.style.height = h + 'px'; stage.style.left = left + 'px'; stage.style.top = top + 'px';
+    var G = E.paisaje, x = left + G.x * k, y = top + G.y * k, pw = G.w * k, ph = G.h * k, cx = left + w / 2, cy = top + h / 2, s = 1;
+    if (x > 0) s = Math.max(s, cx / (cx - x));
+    if (x + pw < gw) s = Math.max(s, (gw - cx) / (x + pw - cx));
+    if (y > 0) s = Math.max(s, cy / (cy - y));
+    if (y + ph < gh) s = Math.max(s, (gh - cy) / (y + ph - cy));
+    s *= 1.002;                                                        // sin hilos de 1 px en los bordes
+    paisaje.style.width = pw + 'px'; paisaje.style.height = ph + 'px';
+    paisaje.style.transform = 'translate(' + (cx + (x - cx) * s) + 'px,' + (cy + (y - cy) * s) + 'px) scale(' + s + ')';
+  }
+  new ResizeObserver(encuadre).observe(gate);
+  if (window.visualViewport) visualViewport.addEventListener('resize', encuadre);
+
+  /* ---------------------------------------------------------------- portada: precarga de sus imágenes (con progreso real) */
+  var PIEZAS = ['assets/portada_fondo.jpg', 'assets/sobre_cuerpo.webp', 'assets/solapa_frente.webp', 'assets/solapa_dentro.webp', 'assets/sello.webp'];
+  var tareaPortada = (function () {
+    var n = 0;
+    return Promise.all(PIEZAS.map(function (u) {
+      return new Promise(function (res) {
+        var im = new Image(), ok = function () { avance('portada', ++n / PIEZAS.length * .95); (im.decode ? im.decode().catch(function () {}) : Promise.resolve()).then(res); };
+        im.onload = ok; im.onerror = function () { console.warn('[portada] No se pudo cargar', u); avance('portada', ++n / PIEZAS.length * .95); res(); }; im.src = u;
+      });
+    })).then(function () { avance('portada', 1); });
+  })();
+  var tareaFuentes = (function () {
+    var lista = E.fuentes || [], n = 0;
+    if (!lista.length || !document.fonts || !document.fonts.load) { avance('fuentes', 1); return Promise.resolve(); }
+    return Promise.all(lista.map(function (f) {
+      return document.fonts.load(f, 'WE´RGTINMAD!').catch(function () {}).then(function () { avance('fuentes', ++n / lista.length); });
+    }));
+  })();
+
+  /* ---------------------------------------------------------------- MÚSICA */
+  /* Solo se espera a que pueda EMPEZAR a sonar (canplay), no a que baje entera; con tope de tiempo. Si el archivo no existe, no hay control. */
+  var audio = null, musicaOk = false, quiereSonar = false;
+  var btnM = $('musica');
+  var tareaMusica = new Promise(function (res) {
+    var M = CONFIG.musica;
+    if (!M || !M.src) { avance('musica', 1); return res(); }
+    audio = new Audio(); audio.preload = 'auto'; audio.loop = true; audio.setAttribute('playsinline', '');
+    var listo = function () { musicaOk = true; avance('musica', 1); res(); };
+    var falla = function () { console.warn('[música] No se encontró', M.src, '· el control no se mostrará'); audio = null; avance('musica', 1); res(); };
+    audio.addEventListener('canplay', listo, { once: true });
+    audio.addEventListener('error', falla, { once: true });
+    setTimeout(function () { avance('musica', 1); res(); }, M.esperaMax || 2500);   // red lenta: no bloquea la portada (sigue cargando)
+    audio.src = M.src;
+    audio.load();
+  });
+  function pintarMusica() {
+    var s = !!(audio && !audio.paused);
+    btnM.classList.toggle('sonando', s);
+    btnM.setAttribute('aria-pressed', String(s));
+    btnM.setAttribute('aria-label', s ? 'Pause music' : 'Play music');
+  }
+  function sonar() {                                     // DEBE llamarse dentro del toque (iPhone / Android)
+    if (!audio) return;
+    quiereSonar = true;
+    try { audio.volume = 0; } catch (e) {}
+    var p = audio.play();
+    if (p && p.catch) p.catch(function (e) { console.warn('[música]', e && e.message); quiereSonar = false; pintarMusica(); });
+    var objetivo = CONFIG.musica.volumen == null ? 1 : CONFIG.musica.volumen, t0 = performance.now();
+    (function sube(t) {                                   // entrada suave (iOS ignora el volumen: ahí suena directo)
+      var v = Math.min(1, (t - t0) / 2200) * objetivo; try { audio.volume = v; } catch (e) {}
+      if (v < objetivo && audio && !audio.paused) requestAnimationFrame(sube);
+    })(t0);
+  }
+  if (btnM) {
+    btnM.addEventListener('click', function () {
+      if (!audio) return;
+      if (audio.paused) { quiereSonar = true; audio.play().catch(function () {}); } else { quiereSonar = false; audio.pause(); }
+    });
+  }
+  if (audio) { ['play', 'pause', 'playing'].forEach(function (ev) { audio.addEventListener(ev, pintarMusica); }); }
+  document.addEventListener('visibilitychange', function () {   // al salir de la pestaña se pausa; al volver, sigue si estaba sonando
+    if (!audio) return;
+    if (document.hidden) { if (!audio.paused) { audio.pause(); quiereSonar = true; } }
+    else if (quiereSonar && window.__invitacionVisible) audio.play().catch(function () {});
+  });
+  function mostrarControlMusica() {
+    if (!audio) return;
+    btnM.hidden = false; pintarMusica(); void btnM.offsetWidth; btnM.classList.add('ver');
+  }
+
+  /* ---------------------------------------------------------------- INVITACIÓN (Canva en Shadow DOM) */
+  function adaptarCss(css) {
+    return css
+      .replace(/:root/g, ':host')
+      .replace(/(^|[}{,;])\s*html(?=[\s,{.:\[])/g, '$1:host')
+      .replace(/(^|[}{,;])\s*body(?=[\s,{.:\[])/g, '$1.__body')
+      .replace(/\(prefers-reduced-motion:\s*reduce\)/g, '(min-width:99999px)');   // nunca "reducir movimiento": siempre animado
+  }
+  var reglasFuente = new Set(), familias = new Set();
+  function montar(cuerpo, css) {
+    raiz = $('inv').attachShadow({ mode: 'open' });
+    var st = document.createElement('style');
+    st.textContent = adaptarCss(css) +
+      '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}' +
+      CONFIG.enlaces.map(function (e) { return '\n#' + e.id + '{cursor:pointer}'; }).join('') +
+      '\n' + CSS_CONTADOR + '\n' + CSS_GIRO + '\n';
+    raiz.appendChild(st);
+    /* Imágenes: las 2 primeras secciones bajan de inmediato y con prioridad; el resto con loading="lazy" (cuando el invitado se acerca).
+       Se marca ANTES de insertarlas en el documento (después ya habrían empezado a bajar). */
+    var primeras = Array.prototype.slice.call(cuerpo.querySelectorAll('section'), 0, 2);
+    Array.prototype.forEach.call(cuerpo.querySelectorAll('img'), function (i) {
+      var arriba = primeras.some(function (sec) { return sec.contains(i); });
+      i.loading = arriba ? 'eager' : 'lazy'; i.decoding = 'async'; if (arriba) i.setAttribute('fetchpriority', 'high');
+    });
+    while (cuerpo.firstChild) raiz.appendChild(document.adoptNode(cuerpo.firstChild));
+  }
+  /* El export de Canva declara un @font-face por cada peso y estilo, casi todos apuntando al MISMO archivo: se unen en una regla con rango de pesos */
+  function unirFuentes(reglas) {
+    var grupos = {}, orden = [];
+    reglas.forEach(function (r) {
+      var fam = (/font-family:\s*([^;]+);/.exec(r) || [])[1], est = (/font-style:\s*([^;]+);/.exec(r) || [])[1] || 'normal', pes = parseInt((/font-weight:\s*(\d+)/.exec(r) || [])[1], 10);
+      var src = (/src:\s*([^;]+);/.exec(r) || [])[1];
+      if (!fam || !src || !pes) { orden.push({ crudo: r }); return; }
+      var k = fam + '|' + est + '|' + src; if (!grupos[k]) { grupos[k] = { fam: fam, est: est, src: src, pesos: [], plantilla: r }; orden.push(grupos[k]); }
+      if (grupos[k].pesos.indexOf(pes) < 0) grupos[k].pesos.push(pes);
+    });
+    var salida = [];
+    orden.forEach(function (g) {
+      if (g.crudo) { salida.push(g.crudo); return; }
+      var p = g.pesos.sort(function (a, b) { return a - b; }), i = 0;
+      while (i < p.length) {
+        var j = i; while (j + 1 < p.length && p[j + 1] === p[j] + 100) j++;
+        salida.push(g.plantilla.replace(/font-weight:\s*\d+\s*;/, 'font-weight: ' + p[i] + (j > i ? ' ' + p[j] : '') + ';'));
+        i = j + 1;
+      }
+    });
+    return salida;
+  }
+  function prepararCanva(html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
+    doc.querySelectorAll('iframe').forEach(function (f) { f.remove(); });   // el iframe de tickcounter (se reemplaza por la cuenta propia): sin pedirlo nunca
+    /* crossorigin="anonymous" de Canva obliga a una 2.ª descarga de las imágenes que también son fondo CSS: aquí no hace falta */
+    doc.querySelectorAll('img[crossorigin]').forEach(function (i) { i.removeAttribute('crossorigin'); });
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    (css.match(/@font-face\s*\{[^}]*\}/g) || []).forEach(function (r) { reglasFuente.add(r); });
+    css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+    (css + doc.body.innerHTML).replace(/font-family:\s*([A-Za-z0-9_-]+)/g, function (m, f) { familias.add(f); return m; });
+    return { css: css, cuerpo: doc.body };
+  }
+
+  /* ---------------------------------------------------------------- cuenta regresiva (código propio: sin librerías ni marcas) */
+  /* Se dibuja en el recuadro de 600 × 150 px que Canva reservó para el iframe (Canva lo escala a 251 × 63) y se ensancha hasta el recuadro
+     oliva de detrás (790 px). Números en la serif de la invitación y etiquetas en inglés, en el oliva del diseño. */
+  var CSS_CONTADOR = [
+    '.pyd-timer{position:absolute;left:-95px;top:0;width:790px;height:150px;display:flex;justify-content:center;align-items:center;',
+    ' font-family:"YAEw2GhSLyw_0",Georgia,"Times New Roman",serif;color:rgb(88,97,33);line-height:1;white-space:nowrap;pointer-events:none}',
+    '.pyd-timer .pt-in{display:flex;align-items:flex-start;transform-origin:50% 50%}',
+    '.pyd-timer .pt-g{flex:none;width:150px;text-align:center}',
+    '.pyd-timer .pt-n{display:block;font-size:76px;line-height:1;font-weight:400;font-variant-numeric:lining-nums tabular-nums;letter-spacing:.01em}',
+    '.pyd-timer .pt-l{display:block;margin-top:12px;font-size:19px;font-weight:700;letter-spacing:.2em;text-indent:.2em}',
+    '.pyd-timer .pt-c{flex:none;display:block;width:26px;font-size:54px;line-height:76px;text-align:center;opacity:.45}'
+  ].join('\n');
+  function ponerContador() {
+    var C = CONFIG.contador, host = raiz.getElementById(C.id);
+    if (!host) return console.warn('[contador] No existe', C.id);
+    var caja = host.querySelector('div[style*="600px"]') || host.firstElementChild || host;   // el recuadro de 600 × 150 px que escala Canva
+    caja.innerHTML = '';                                                                     // aquí estaba el iframe de tickcounter
+    caja.style.overflow = 'visible';
+    var destino = new Date(C.fecha).getTime(), grupos = [];
+    var t = document.createElement('div'); t.className = 'pyd-timer'; t.setAttribute('role', 'timer');
+    var dentro = document.createElement('div'); dentro.className = 'pt-in'; t.appendChild(dentro);
+    for (var i = 0; i < 4; i++) {
+      if (i) { var c = document.createElement('span'); c.className = 'pt-c'; c.setAttribute('aria-hidden', 'true'); c.textContent = ':'; dentro.appendChild(c); }
+      var g = document.createElement('div'); g.className = 'pt-g';
+      var n = document.createElement('span'); n.className = 'pt-n'; n.setAttribute('aria-hidden', 'true'); n.textContent = '00';
+      var l = document.createElement('span'); l.className = 'pt-l'; l.setAttribute('aria-hidden', 'true'); l.textContent = C.etiquetas[i];
+      g.appendChild(n); g.appendChild(l); dentro.appendChild(g); grupos.push({ n: n, v: '' });
+    }
+    caja.appendChild(t);
+    function valores() {
+      var s = Math.max(0, Math.floor((destino - Date.now()) / 1000));
+      return [Math.floor(s / 86400), Math.floor(s % 86400 / 3600), Math.floor(s % 3600 / 60), s % 60];
+    }
+    function pintar() {
+      var v = valores();
+      grupos.forEach(function (g, i) { var x = String(v[i]); if (x.length < 2) x = '0' + x; if (x !== g.v) { g.n.textContent = x; g.v = x; } });
+      t.setAttribute('aria-label', v.map(function (x, i) { return x + ' ' + C.etiquetas[i].toLowerCase(); }).join(', '));
+    }
+    function tic() { pintar(); setTimeout(tic, 1000 - (Date.now() % 1000) + 15); }
+    pintar(); setTimeout(tic, 1000 - (Date.now() % 1000) + 15);
+  }
+
+  /* ---------------------------------------------------------------- tarjetas que giran (Optional Activities y FAQs) */
+  /* OJO: el export de Canva trae  * { animation:none !important; transition:none !important }  → el giro se dibuja con JS (requestAnimationFrame).
+     · Cada tarjeta es un objeto rígido que gira sobre su eje vertical. Arrastrar el dedo a la DERECHA suma ángulo y a la IZQUIERDA lo resta, en
+       cualquier punto: la superficie sigue al dedo. Al soltar, si pasó de 90° (o fue un gesto rápido) completa el giro; si no, regresa.
+     · A los 90° (de canto) se cambia la cara: el texto nunca se ve en espejo y no depende de backface-visibility (Safari) ni de «reducir movimiento».
+     · La cara oculta se esconde con OPACIDAD además de visibility: animacion.js deja visibility:visible en letras animadas y se verían «estampadas». */
+  var CSS_GIRO = [
+    '.g-escena{pointer-events:auto !important;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:pointer}',
+    '.g-escena.arr{cursor:grabbing}',
+    '.g-escena *{pointer-events:none !important}',
+    '.g-cara{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 50%;will-change:transform}',
+    '.g-dorso{visibility:hidden;opacity:0}',
+    '.g-volver{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:center;gap:5px;font:400 8.4px/1 "YACkoGIT9qo_0",Georgia,serif;',
+    ' letter-spacing:.2em;text-transform:uppercase;color:rgb(88,97,33);opacity:.7}',
+    '.g-volver svg{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}',
+    '.g-pista{position:absolute;right:13px;bottom:11px;width:15px;height:15px;opacity:.38;color:rgb(88,97,33)}',
+    '.g-pista svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}'
+  ].join('\n');
+  var SVG_GIRO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>';
+  function caja(el) {                                   // posición y tamaño que Canva escribe en el style del elemento
+    var s = el.getAttribute('style') || '', m = /translate\(\s*([-\d.e]+)px\s*,\s*([-\d.e]+)px\s*\)/.exec(s);
+    return { x: m ? parseFloat(m[1]) : 0, y: m ? parseFloat(m[2]) : 0, w: parseFloat((/(?:^|;)\s*width:\s*([\d.]+)px/.exec(s) || [])[1]) || el.offsetWidth,
+             h: parseFloat((/(?:^|;)\s*height:\s*([\d.]+)px/.exec(s) || [])[1]) || el.offsetHeight };
+  }
+  function moverA(el, dx, dy) {                          // re-ubica un elemento de Canva dentro de su nueva cara
+    var s = el.getAttribute('style') || '', b = caja(el);
+    el.setAttribute('style', s.replace(/translate\(\s*[-\d.e]+px\s*,\s*[-\d.e]+px\s*\)/, 'translate(' + (b.x - dx) + 'px, ' + (b.y - dy) + 'px)'));
+  }
+  function armarGiro(G) {
+    var frentes = G.frente.map(function (id) { return raiz.getElementById(id); }).filter(Boolean);
+    var dorso = raiz.getElementById(G.dorso);
+    if (!frentes.length || !dorso) return console.warn('[giro] Faltan piezas de', G.id, G);
+    /* Escena = rectángulo que ocupa el frente (todas sus piezas). Se inserta donde estaba la primera pieza del frente (encima del dorso). */
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    frentes.forEach(function (f) { var b = caja(f); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+    var esc = document.createElement('div');
+    esc.id = G.id; esc.className = 'DF_utQ _0xkaeQ g-escena';
+    esc.setAttribute('role', 'button'); esc.tabIndex = 0;
+    esc.setAttribute('style', 'width: ' + (x1 - x0) + 'px; height: ' + (y1 - y0) + 'px; transform: translate(' + x0 + 'px, ' + y0 + 'px);');
+    frentes[0].parentNode.insertBefore(esc, frentes[0]);
+    var cf = document.createElement('div'), cd = document.createElement('div');
+    cf.className = 'g-cara g-frente'; cd.className = 'g-cara g-dorso'; cd.setAttribute('aria-hidden', 'true');
+    esc.appendChild(cd); esc.appendChild(cf);
+    frentes.forEach(function (f) { moverA(f, x0, y0); cf.appendChild(f); });
+    /* El dorso: mismo papel que el frente (si se indica) y su contenido centrado en la escena */
+    if (G.marco) {
+      var mf = raiz.getElementById(G.marco.frente), md = raiz.getElementById(G.marco.dorso);
+      if (mf && md) {
+        var copia = mf.cloneNode(true); copia.removeAttribute('id'); copia.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+        cd.appendChild(copia); md.style.display = 'none';
+      }
+    }
+    moverA(dorso, x0, y0); cd.appendChild(dorso);
+    if (G.volver) { var v = document.createElement('div'); v.className = 'g-volver'; v.innerHTML = SVG_GIRO + '<span></span>'; v.lastChild.textContent = CONFIG.textosGiro.volver; cd.appendChild(v); }
+    if (G.pista) [cf, cd].forEach(function (c) { var p = document.createElement('span'); p.className = 'g-pista'; p.innerHTML = SVG_GIRO; c.appendChild(p); });
+    var pregunta = (cf.textContent || '').replace(/\s+/g, ' ').trim();
+    esc.setAttribute('aria-label', pregunta + ' · ' + CONFIG.textosGiro.girar);
+    var disparos = G.disparador === 'todo' ? null : G.disparador.map(function (id) { return raiz.getElementById(id); }).filter(Boolean);
+
+    var ang = 0, atras = false, arr = null, suprimir = false, raf = 0, PERSP = 'perspective(1100px) rotateY(';
+    var norm = function (a) { return ((a % 360) + 540) % 360 - 180; };
+    function pintar(a) {
+      var n = norm(a), abs = Math.abs(n), c2 = abs > 90;
+      cf.style.opacity = c2 ? '0' : '1'; cd.style.opacity = c2 ? '1' : '0';
+      cf.style.visibility = c2 ? 'hidden' : 'visible'; cd.style.visibility = c2 ? 'visible' : 'hidden';
+      cf.style.transform = c2 || abs < .01 ? 'none' : PERSP + n + 'deg)';
+      cd.style.transform = !c2 ? 'none' : PERSP + (n - (n > 0 ? 180 : -180)) + 'deg)';
+    }
+    function fin(destino) {
+      ang = destino - 360 * Math.round(destino / 360); pintar(ang);
+      cf.setAttribute('aria-hidden', String(atras)); cd.setAttribute('aria-hidden', String(!atras));
+      esc.setAttribute('aria-pressed', String(atras));
+    }
+    function animar(destino) {
+      cancelAnimationFrame(raf);
+      var desde = ang, dur = Math.max(300, 850 * Math.abs(destino - desde) / 180), t0 = performance.now();
+      atras = Math.abs(norm(destino)) > 90;
+      (function paso(ahora) {
+        var p = Math.min(1, (ahora - t0) / dur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;   // easeInOutCubic
+        ang = desde + (destino - desde) * e; pintar(ang);
+        if (p < 1) raf = requestAnimationFrame(paso); else fin(destino);
+      })(t0);
+    }
+    function voltear(v) { v = !!v; if (v === atras && !arr) return; animar(v ? (ang > 1 ? 180 : -180) : 0); }
+    function tocoDisparo(e) {                           // ¿el toque cayó sobre el botón? (con 6 px de holgura)
+      if (!disparos) return true;
+      return disparos.some(function (d) { var r = d.getBoundingClientRect(); return e.clientX >= r.left - 6 && e.clientX <= r.right + 6 && e.clientY >= r.top - 6 && e.clientY <= r.bottom + 6; });
+    }
+    esc.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      arr = { id: e.pointerId, x: e.clientX, y: e.clientY, mov: false, w: esc.getBoundingClientRect().width || 300, base: 0, lx: e.clientX, lt: performance.now(), v: 0 };
+    });
+    esc.addEventListener('pointermove', function (e) {
+      if (!arr || e.pointerId !== arr.id) return;
+      var dx = e.clientX - arr.x, dy = e.clientY - arr.y, ahora = performance.now();
+      if (!arr.mov) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) { arr = null; return; }           // vertical: es para desplazar la página
+        arr.mov = true; esc.classList.add('arr'); cancelAnimationFrame(raf);
+        arr.x = e.clientX; arr.lx = e.clientX; arr.lt = ahora; arr.base = Math.round(ang / 180) * 180;
+        try { esc.setPointerCapture(e.pointerId); } catch (x) {}
+        return;
+      }
+      var d = Math.max(-180, Math.min(180, (e.clientX - arr.x) / arr.w * 180 * 1.15));
+      ang = arr.base + d; pintar(ang);
+      if (ahora - arr.lt > 16) { arr.v = (e.clientX - arr.lx) / (ahora - arr.lt); arr.lx = e.clientX; arr.lt = ahora; }
+    });
+    function soltar(e) {
+      if (!arr || e.pointerId !== arr.id) return;
+      var a = arr, delta = ang - a.base; arr = null;
+      esc.classList.remove('arr');
+      if (!a.mov) return;
+      suprimir = true; setTimeout(function () { suprimir = false; }, 80);
+      var rapido = Math.abs(a.v) > .5 && Math.abs(delta) > 18 && (a.v > 0) === (delta > 0);
+      animar(Math.abs(delta) > 90 || rapido ? a.base + (delta > 0 ? 180 : -180) : a.base);
+    }
+    esc.addEventListener('pointerup', soltar);
+    esc.addEventListener('pointercancel', soltar);
+    esc.addEventListener('lostpointercapture', function (e) { if (e.target === esc) soltar(e); });
+    esc.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    /* Toque: en el frente gira solo si se tocó el disparador (o toda la tarjeta en las FAQ); en el dorso, cualquier toque la regresa */
+    esc.addEventListener('click', function (e) {
+      if (suprimir) return;
+      if (atras) voltear(false); else if (tocoDisparo(e)) voltear(true);
+    });
+    esc.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); voltear(!atras); } });
+    pintar(0);
+    return { voltear: voltear };
+  }
+
+  /* ---------------------------------------------------------------- tarea principal: Canva (en segundo plano) */
+  function esperarImg(img) {
+    return new Promise(function (res) {
+      var ok = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(res); };
+      if (img.complete) ok(); else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', res, { once: true }); }
+    });
+  }
+  var abiertaInv = false, colaInv = [];
+  var puertaInv = function (fn) { abiertaInv ? fn() : colaInv.push(fn); };
+  window.addEventListener('invitacion:visible', function () { abiertaInv = true; colaInv.splice(0).forEach(function (f) { f(); }); }, { once: true });
+  var enReposo = function (fn) { return new Promise(function (res, rej) { var f = function () { try { res(fn()); } catch (e) { rej(e); } }; window.requestIdleCallback ? requestIdleCallback(f, { timeout: 900 }) : setTimeout(f, 40); }); };
+  var invListo = false, invFallo = null, tareaInv = null;
+  function iniciarInvitacion() {
+    if (tareaInv) return tareaInv;
+    tareaInv = tareaCanva().then(function () { invListo = true; }, function (e) { invFallo = e; console.error('[carga] invitación:', e); throw e; });
+    return tareaInv;
+  }
+  function tareaCanva() {
+    return fetch(CONFIG.invitacion).then(function (r) { if (!r.ok) throw new Error(CONFIG.invitacion + ' → HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      return enReposo(function () { var p = prepararCanva(html); montar(p.cuerpo, p.css); return p; });
+    }).then(function () {
+      return enReposo(function () {
+        ponerContador();
+        CONFIG.giros.forEach(armarGiro);
+        $('fuentes-canva').textContent = unirFuentes(Array.from(reglasFuente)).join('\n');
+        return new Promise(requestAnimationFrame);
+      });
+    }).then(function () {
+      /* Para mostrar la invitación solo hace falta lo que se ve primero: las 2 primeras secciones y las tipografías. El resto sigue bajando. */
+      var arriba = Array.prototype.slice.call(raiz.querySelectorAll('section'), 0, 2), imgs = [];
+      arriba.forEach(function (sec) { imgs = imgs.concat(Array.prototype.slice.call(sec.querySelectorAll('img'))); });
+      var tImgs = Promise.all(imgs.map(esperarImg));
+      var faces = Array.from(document.fonts).filter(function (f) { return f.style === 'normal' && familias.has(f.family.replace(/["']/g, '')); });
+      var tFuentes = Promise.all(faces.map(function (f) { return f.load().catch(function () {}); }));
+      return Promise.all([tImgs, tFuentes]);
+    }).then(function () {
+      ajuste = Responsive.montar(raiz, { anchoOriginal: CONFIG.anchoCanva, anchoMaximo: CONFIG.anchoMaximo, modo: 'ancho', selectorPaginaCanva: CONFIG.canva.selectorPagina });
+      Animacion.montar(raiz, Object.assign({ cuandoVisible: puertaInv, selectorTexto: CONFIG.canva.selectorTexto }, soloExistentes(CONFIG.anim)));
+      aplicarRetrasos();
+      enlazarEventos();
+      return document.fonts && document.fonts.ready;
+    }).then(function () { ajuste && ajuste.reajustar(); });
+  }
+  // Cada lista solo con los ids que existen (evita avisos falsos de animacion.js)
+  function soloExistentes(o) {
+    var r = {}, falt = [];
+    Object.keys(o).forEach(function (k) {
+      if (!Array.isArray(o[k])) { r[k] = o[k]; return; }
+      r[k] = o[k].filter(function (x) { var id = typeof x === 'string' ? x : x.id, ok = !!raiz.getElementById(id); if (!ok) falt.push(id); return ok; });
+    });
+    if (falt.length) console.warn('[animacion] ids que no existen en el diseño:', falt);
+    return r;
+  }
+  /* animacion.js no tiene retraso por elemento: se agrega aquí con animation-delay en línea (!important, gana a su clase).
+     Durante el retraso el elemento sigue invisible (animacion.js lo dejó en opacity 0). */
+  function aplicarRetrasos() {
+    Object.keys(CONFIG.retrasos || {}).forEach(function (id) {
+      var el = raiz.getElementById(id); if (el) el.style.setProperty('animation-delay', CONFIG.retrasos[id] + 's', 'important');
+    });
+  }
+  function enlazarEventos() {
+    raiz.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a'), h = a ? a.getAttribute('href') || '' : '';
+      var dest = CONFIG.enlaces.find(function (x) { return e.target.closest && e.target.closest('#' + x.id); });
+      if (dest && dest.url) { e.preventDefault(); window.open(dest.url, '_blank', 'noopener'); return; }
+      if (a && h.charAt(0) === '#') e.preventDefault();                 // anclas internas del export (#page-1…)
+    });
+  }
+
+  /* ---------------------------------------------------------------- carga: SOLO lo indispensable para mostrar la portada */
+  Promise.race([
+    Promise.all([tareaPortada, tareaFuentes, tareaMusica]),
+    new Promise(function (res) { setTimeout(res, LIMITE_MS); })
+  ]).then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); });
+
+  var circ = $('anillo-avance'), pctTxt = $('anillo-pct'), C = 2 * Math.PI * 46;
+  circ.style.strokeDasharray = C.toFixed(2); circ.style.strokeDashoffset = C.toFixed(2);
+  var t0 = Date.now(), mostrado = 0;
+  (function tick() {
+    var obj = total();
+    mostrado = Math.min(obj, mostrado + Math.max(.004, (obj - mostrado) * .08));
+    circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+    pctTxt.textContent = Math.round(mostrado * 100) + '%';
+    if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) {
+      circ.style.strokeDashoffset = '0'; pctTxt.textContent = '100%';
+      setTimeout(function () {
+        $('cargador').classList.add('fuera');
+        encuadre();
+        setTimeout(function () {
+          gate.classList.add('lista');
+          setTimeout(function () {                                          // cuando ya se ve todo, empieza a latir el sello
+            if (abierta) return;
+            if (L.sello) gate.classList.add('lat-sello');
+            if (L.sobre) env.classList.add('listo');
+          }, 1800);
+        }, 250);
+        setTimeout(iniciarInvitacion, 450);                                   // ya se ve la portada: ahora sí, la invitación en segundo plano
+        setTimeout(function () { var c = $('cargador'); c && c.parentNode && c.parentNode.removeChild(c); }, 1000);
+      }, 280);
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  /* ---------------------------------------------------------------- SECUENCIA: toque → lacre → solapa → la cámara entra → invitación */
+  var abierta = false, saliendo = false;
+  function abrirSobre() {
+    if (abierta || !gate.classList.contains('lista')) return;
+    abierta = true;
+    sonar();                                                  // dentro del toque: así el celular deja reproducir la música
+    iniciarInvitacion().catch(function () {});
+    gate.classList.add('abriendo');
+    var m = getComputedStyle(selloLat).transform;             // el latido se detiene suave, sin «salto» de escala
+    gate.classList.remove('lat-sello'); env.classList.remove('listo');
+    if (m && m !== 'none') { selloLat.style.transform = m; void selloLat.offsetWidth; selloLat.style.transition = 'transform .25s ease'; selloLat.style.transform = 'none'; }
+    gate.classList.add('abierto');                            // dispara todas las transiciones (CSS)
+    setTimeout(function () { salir(); }, E.salida * 1000);
+  }
+  sello.addEventListener('click', abrirSobre);
+  pista.addEventListener('click', abrirSobre);
+  stage.addEventListener('click', function (e) { if (!abierta && e.target.closest && e.target.closest('.cam-pos')) abrirSobre(); });
+  p$('cam').parentNode.style.cursor = 'pointer';
+
+  /* Fundido portada → invitación (fotograma a fotograma, opacidad en línea: nada la pisa) */
+  var suave = function (p) { return -(Math.cos(Math.PI * p) - 1) / 2; };
+  function animar(ms, paso, fin) {
+    var ini = performance.now(), hecho = false;
+    var terminar = function () { if (hecho) return; hecho = true; paso(1); fin && fin(); };
+    (function f(now) { if (hecho) return; var p = Math.min(1, (now - ini) / ms); paso(suave(p)); if (p < 1) requestAnimationFrame(f); else terminar(); })(ini);
+    setTimeout(terminar, ms + 1500);
+  }
+  function salir() {
+    if (saliendo) return;
+    if (invFallo) { pista.textContent = 'TAP TO RETRY'; gate.classList.add('esperando'); pista.onclick = function () { location.reload(); }; return; }
+    if (!invListo) {                                          // la invitación aún no terminó de cargar: se espera con el sobre abierto
+      pista.textContent = 'LOADING'; gate.classList.add('esperando');
+      iniciarInvitacion().then(function () { gate.classList.remove('esperando'); salir(); }, function () { salir(); });
+      return;
+    }
+    saliendo = true;
+    ajuste && ajuste.reajustar();
+    var inv = $('invitacion'); inv.classList.add('visible'); inv.removeAttribute('aria-hidden');
+    hostP.style.setProperty('pointer-events', 'none', 'important');
+    gate.classList.add('saliendo');                           // la cámara entra al sobre…
+    var revelado = false;
+    setTimeout(function () {                                  // …y a medio camino la portada se funde con la invitación
+      animar(CONFIG.fundido.ms, function (p) {
+        hostP.style.setProperty('opacity', (1 - p).toFixed(4), 'important');
+        if (!revelado && p >= CONFIG.fundido.revelarEn) { revelado = true; revelar(); }
+      }, function () {
+        if (!revelado) revelar();
+        hostP.parentNode && hostP.parentNode.removeChild(hostP);
+      });
+    }, (CONFIG.fundido.retraso || 0) * 1000);
+  }
+  function revelar() {
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, 0);
+    window.__invitacionVisible = true;
+    window.dispatchEvent(new Event('invitacion:visible'));    // arranca animacion.js
+    setTimeout(mostrarControlMusica, 900);
+    creditoAlFinal();
+    setTimeout(pistaScroll, 2400);
+  }
+  /* Gesto «desliza»: aparece una sola vez y se va en cuanto el invitado empieza a desplazarse (o a los 16 s) */
+  function pistaScroll() {
+    var el = $('pista-scroll'); if (!el || window.scrollY > 30) return;
+    el.hidden = false; void el.offsetWidth;
+    var sec = raiz && raiz.querySelector('section'), r = sec && sec.getBoundingClientRect();
+    if (r && r.bottom < window.innerHeight - 8) { el.style.bottom = 'auto'; el.style.top = Math.max(60, r.bottom - 16 - el.offsetHeight) + 'px'; }
+    el.classList.add('ver');
+    var fin = function () {
+      window.removeEventListener('scroll', alMover); window.removeEventListener('wheel', fin); window.removeEventListener('touchmove', fin); window.removeEventListener('keydown', fin);
+      clearTimeout(t); el.classList.remove('ver'); setTimeout(function () { el.hidden = true; }, 1000);
+    };
+    var alMover = function () { if (window.scrollY > 30) fin(); };
+    var t = setTimeout(fin, 16000);
+    window.addEventListener('scroll', alMover, { passive: true }); window.addEventListener('wheel', fin, { passive: true });
+    window.addEventListener('touchmove', fin, { passive: true }); window.addEventListener('keydown', fin);
+  }
+  /* Crédito «Hecho con amor» en modo DISCRETO (un corazón pequeño, a la izquierda): aparece solo al llegar al final y se va al subir */
+  function creditoAlFinal() {
+    if (!P.credito) return;
+    window.PYD_SIN_CREDITO = false;
+    P.credito({ modo: 'discreto', lang: 'en' });
+  }
+})();
+</script>
+</body>
+</html>
