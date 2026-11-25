@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bloqueado">
+<html lang="en" translate="no" class="bloqueado notranslate">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,11 +8,16 @@
 <meta property="og:description" content="June 14, 2027 · Castell d'Empordà, Girona · Spain">
 <meta property="og:image" content="https://bodas.parteydetalles.com/miliyneville/miniatura.jpg">
 <meta name="format-detection" content="telephone=no">
+<!-- Toda la invitación va en inglés: que el navegador NO ofrezca ni aplique traducción automática (Chrome traducía a medias
+     los textos agregados por código —p. ej. las etiquetas de la cuenta regresiva— y por momentos se veían en español) -->
+<meta name="google" content="notranslate">
 <meta name="theme-color" content="#2b2f15">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <!-- Antes de pyd-config.js: el crédito lo pone esta página (solo al final de la invitación) y las animaciones corren aunque el sistema pida «reducir movimiento». -->
 <script>window.PYD_SIN_CREDITO = true; window.PYD_SIEMPRE_ANIMAR = true;</script>
 <script src="../v1/assets/pyd-config.js"></script>   <!-- rutas del motor, crédito «Hecho con amor» y redirección del rol staff -->
+<script src="../v1/assets/boda-api.js"></script>     <!-- lectura del invitado (?to=CÓDIGO) para la tarjeta que sale del sobre -->
+<link rel="preconnect" href="https://oydjnnbdwtbyufsqrqyh.supabase.co">   <!-- cambia por tu Project URL -->
 <!-- Precarga de lo indispensable para mostrar la portada (empieza a bajar desde el <head>, sin esperar al script) -->
 <link rel="preload" as="image" href="assets/portada_fondo.jpg" fetchpriority="high">
 <link rel="preload" as="image" href="assets/sobre_cuerpo.webp"><link rel="preload" as="image" href="assets/solapa_frente.webp">
@@ -89,7 +94,7 @@
   .cargador-txt { color: rgba(248,244,241,.55); font: 400 11px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .3em; text-transform: uppercase; text-align: center; padding: 0 24px; }
 </style>
 </head>
-<body>
+<body translate="no">
 
 <div id="invitacion" aria-hidden="true">
   <div id="inv" class="canva-host"></div>
@@ -125,7 +130,7 @@
   .gate { position: absolute; inset: 0; overflow: hidden; background: #3a3f1f; font-synthesis: none;
           -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
           /* tiempos de la apertura (los pone CONFIG.portada.tiempos) */
-          --d-sello: 0s; --t-sello: 1s; --d-titulo: .3s; --t-titulo: .9s; --d-solapa: .35s; --t-solapa: .7s; --t-dentro: .8s; --t-camara: 1.9s; --t-entrada: 2.2s; }
+          --d-sello: 0s; --t-sello: 1s; --d-titulo: .3s; --t-titulo: .9s; --d-solapa: .35s; --t-solapa: .7s; --t-dentro: .8s; --t-camara: 1.9s; --t-entrada: 2.2s; --d-tarjeta: 1.3s; --t-tarjeta: 1.4s; }
   .gate *, .gate *::before, .gate *::after { box-sizing: border-box; }
 
   /* Paisaje (ya compuesto al 85 % sobre el papel, como en Canva) + velo oliva rgb(52,57,19) al 60 % (el «filtro» de Canva) */
@@ -149,13 +154,17 @@
          transition: opacity 1.4s ease .25s, transform var(--t-entrada) cubic-bezier(.16,1,.3,1) .25s; }
   .gate.lista .cam { opacity: 1; transform: none; }
   .gate.saliendo .cam { transform: translateY(-4%) scale(2.8); transition: transform var(--t-camara) cubic-bezier(.5,0,.2,1); }
+  /* Con la tarjeta arriba, la cámara se acerca al CENTRO DE LA TARJETA (sobre y tarjeta juntos, como un solo objeto) y la portada se funde
+     durante el acercamiento: la tarjeta sigue visible hasta el final y el sobre nunca se ve vacío. Origen y escala: CONFIG.portada.tarjeta.camara */
+  .gate.con-tarjeta.saliendo .cam { transform-origin: var(--cam-origen, 50% 14%); transform: scale(var(--cam-escala, 1.9));
+             transition: transform var(--t-camara) cubic-bezier(.45,0,.25,1); }
   .env { position: absolute; inset: 0; }
   .env.listo { animation: latido 2.5s infinite ease-in-out; }
   @keyframes latido { 0%, 30%, 60%, 100% { transform: scale(1); } 15%, 45% { transform: scale(1.015); } }
   .pieza { position: absolute; left: 0; width: 100%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
   .cuerpo { top: 0; height: 100%; background-image: url('assets/sobre_cuerpo.webp'); z-index: 1; filter: drop-shadow(0 10px 18px rgba(20, 22, 8, .35)); }
   /* Solapa exterior: bisagra en su fila 6 de 500 (1.2 %). Gira hacia el espectador hasta quedar de canto (90°) */
-  .solapa { top: 0; height: 72.464%; background-image: url('assets/solapa_frente.webp'); z-index: 4; transform-origin: 50% 1.2%;
+  .solapa { top: 0; height: 72.464%; background-image: url('assets/solapa_frente.webp'); z-index: 5; transform-origin: 50% 1.2%;
             filter: drop-shadow(0 2px 2.5px rgba(50, 42, 25, .30));
             transform: perspective(1400px) rotateX(0deg); transition: transform var(--t-solapa) cubic-bezier(.55,0,.85,.45) var(--d-solapa), opacity 0s linear calc(var(--d-solapa) + var(--t-solapa)); }
   .gate.abierto .solapa { transform: perspective(1400px) rotateX(90deg); opacity: 0; }
@@ -165,6 +174,52 @@
                    transform: perspective(1400px) rotateX(-90deg) scaleY(.9);
                    transition: transform var(--t-dentro) cubic-bezier(.15,.55,.35,1) calc(var(--d-solapa) + var(--t-solapa)), opacity 0s linear calc(var(--d-solapa) + var(--t-solapa)); }
   .gate.abierto .solapa-dentro { transform: perspective(1400px) rotateX(0deg) scaleY(.9); opacity: 1; }
+
+  /* Bolsillo (frente del sobre): la MISMA imagen del cuerpo recortada con clip-path para quedarse solo con las solapas laterales
+     y el bolsillo de abajo (sin el interior). Así la tarjeta va ENTRE el interior y el bolsillo, como dentro de un sobre real.
+     El recorte sigue la geometría de generar_portada_miliyneville.py (bordes laterales x = 6.5 + 0.087·y y curva del bolsillo). */
+  .bolsillo-sombra { position: absolute; inset: 0; z-index: 4; pointer-events: none; filter: drop-shadow(0 -1.5px 2.5px rgba(40, 35, 20, .22)); }
+  .bolsillo { position: absolute; inset: 0; background: url('assets/sobre_cuerpo.webp') 0 0 / 100% 100% no-repeat;
+              -webkit-clip-path: var(--clip-bolsillo); clip-path: var(--clip-bolsillo); }
+  .gate { --clip-bolsillo: polygon(0% 0%, .95% 0%, 6.32% 61.45%, 6.66% 61.36%, 10.27% 62.01%, 13.88% 62.64%, 17.5% 63.25%, 21.11% 63.83%, 24.72% 64.36%,
+          28.33% 64.85%, 31.94% 65.27%, 35.55% 65.63%, 39.17% 65.91%, 42.78% 66.12%, 46.39% 66.25%, 50% 66.29%, 53.61% 66.25%, 57.22% 66.12%, 60.83% 65.91%,
+          64.45% 65.63%, 68.06% 65.27%, 71.67% 64.85%, 75.28% 64.36%, 78.89% 63.83%, 82.5% 63.25%, 86.12% 62.64%, 89.73% 62.01%, 93.34% 61.36%, 93.68% 61.45%,
+          99.05% 0%, 100% 0%, 100% 100%, 0% 100%); }
+
+  /* ---------- Tarjeta de invitación: está dentro del sobre (tapada por la solapa y el bolsillo), sube al abrir y trae el nombre del invitado ----------
+     Medidas en % del marco del sobre (686 × 690): x 83…603 · y 60…620. --sube = cuánto sube (en % de su alto); al subir crece un poco (--crece). */
+  .tarjeta { position: absolute; z-index: 3; left: 12.1%; width: 75.8%; top: 8.7%; height: 81.2%; container-type: inline-size;
+             display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10% 9% 11%;
+             text-align: center; color: #2f3317; cursor: pointer; border-radius: .8cqw;
+             background: #FBF8F2 url('assets/rsvp_fondo_tarjeta.jpg') center / cover no-repeat;
+             box-shadow: 0 .5cqw 1.4cqw rgba(30, 32, 12, .22), 0 0 0 .25px rgba(88, 97, 33, .25);
+             transform-origin: 50% 100%; transform: none; --sube: -38%; --crece: 1.14;
+             transition: transform var(--t-tarjeta) cubic-bezier(.25,1,.5,1) var(--d-tarjeta); }
+  .tarjeta::before, .tarjeta::after { content: ""; position: absolute; pointer-events: none; border: 1px solid rgba(88, 97, 33, .55); border-radius: .4cqw; }
+  .tarjeta::before { inset: 4.2cqw; }
+  .tarjeta::after { inset: 5.6cqw; border-width: .5px; border-color: rgba(88, 97, 33, .38); }
+  .gate.abierto .tarjeta { transform: translateY(var(--sube)) scale(var(--crece)); }
+  .tarjeta > * { position: relative; opacity: 0; transform: translateY(1.6cqw); transition: opacity 1s ease, transform 1.1s cubic-bezier(.16,1,.3,1); }
+  .gate.abierto .tarjeta > * { opacity: 1; transform: none; }
+  .gate.abierto .tarjeta > :nth-child(1) { transition-delay: calc(var(--d-tarjeta) + .25s); } .gate.abierto .tarjeta > :nth-child(2) { transition-delay: calc(var(--d-tarjeta) + .45s); }
+  .gate.abierto .tarjeta > :nth-child(3) { transition-delay: calc(var(--d-tarjeta) + .6s); }  .gate.abierto .tarjeta > :nth-child(4) { transition-delay: calc(var(--d-tarjeta) + .7s); }
+  .gate.abierto .tarjeta > :nth-child(5) { transition-delay: calc(var(--d-tarjeta) + .9s); }  .gate.abierto .tarjeta > :nth-child(6) { transition-delay: calc(var(--d-tarjeta) + 1.05s); }
+  .gate.abierto .tarjeta > :nth-child(7) { transition-delay: calc(var(--d-tarjeta) + 1.2s); }
+  .t-rama { display: block; width: 34%; height: auto; margin-bottom: 4.6cqw; opacity: .9; -webkit-user-drag: none; }
+  .t-etiqueta { font: 400 4.3cqw/1.2 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; color: rgb(88, 97, 33); }
+  .t-trat { margin-top: 4cqw; font: 400 4.8cqw/1.2 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .18em; text-indent: .18em; text-transform: uppercase; color: #5b5f3e; }
+  .t-trat:empty { display: none; }
+  .t-nombre { display: block; max-width: 100%; margin: 3.2cqw 0 4.4cqw; white-space: nowrap; font: 400 10.4cqw/1.12 'YAEw2GhSLyw_0', Georgia, serif;
+              text-transform: uppercase; letter-spacing: .03em; color: #23260f; }
+  .t-trat:empty + .t-nombre { margin-top: 5cqw; }
+  .t-nombre.multilinea { white-space: normal; }
+  .t-linea { display: block; width: 24%; height: 1px; background: rgba(88, 97, 33, .5); }
+  .t-pases { margin-top: 4cqw; font: 400 4.3cqw/1.2 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .22em; text-indent: .22em; text-transform: uppercase; color: #4a4e2c; }
+  .t-pases:empty { display: none; }
+  /* Pie (fecha · lugar): en dos líneas, más grande y más oscuro para que se lea en el celular */
+  .t-pie { margin-top: 5.6cqw; font: 400 4.6cqw/1.5 'YAEw2GhSLyw_0', Georgia, serif; letter-spacing: .16em; text-indent: .16em; text-transform: uppercase; color: #3f4324; }
+  .t-pie span { display: block; }
+  .t-pie span + span { margin-top: .6cqw; font-size: .86em; letter-spacing: .2em; color: #5b5f3e; }
 
   /* Sello: se despega, se levanta un poco y se desplaza a la esquina inferior derecha del sobre */
   .sello-caja { position: absolute; left: 39.28%; top: 61.67%; width: 20.57%; z-index: 6; pointer-events: none; }
@@ -197,17 +252,27 @@
   .gate.esperando .pista { opacity: 1; transition: opacity .6s; animation: reluce 2.6s linear infinite, espera 1.4s ease-in-out infinite; }
   @keyframes espera { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 </style>
-<div class="gate" id="gate">
+<div class="gate" id="gate" lang="en" translate="no">
   <div class="paisaje" id="paisaje"></div>
   <div class="velo"></div>
   <div id="stage">
     <h1 class="titulo" id="titulo">We´re Getting<br>Married!</h1>
     <div class="cam-pos"><div class="cam" id="cam">
-      <div class="env" id="env" aria-hidden="true">
+      <div class="env" id="env">
         <div class="pieza cuerpo"></div>
         <div class="pieza solapa-dentro"></div>
+        <div class="tarjeta" id="tarjeta" role="group" aria-label="Your invitation" translate="no">
+          <img class="t-rama" src="assets/file_718834506.svg" alt="" draggable="false">
+          <span class="t-etiqueta" id="t-etiqueta">Mili &amp; Neville</span>
+          <span class="t-trat" id="t-trat"></span>
+          <span class="t-nombre" id="t-nombre">You´re Invited</span>
+          <span class="t-linea"></span>
+          <span class="t-pases" id="t-pases"></span>
+          <span class="t-pie" id="t-pie"><span>June 14, 2027</span><span>Castell d´Empordà</span></span>
+        </div>
+        <div class="bolsillo-sombra"><div class="bolsillo"></div></div>
         <div class="pieza solapa"></div>
-        <div class="sello-caja"><div class="sello-lat" id="sello-lat"><img class="sello-img" src="assets/sello.webp" alt="" draggable="false"></div></div>
+        <div class="sello-caja" aria-hidden="true"><div class="sello-lat" id="sello-lat"><img class="sello-img" src="assets/sello.webp" alt="" draggable="false"></div></div>
       </div>
     </div></div>
     <button id="sello" type="button" aria-label="Open the invitation"></button>
@@ -243,7 +308,7 @@
     giros: [
       { id: 'giro-actividades', frente: ['LBlhL43PmZMH2yDb', 'LBfh4wccvvMqrf1b', 'LBytGdyZtfrjVYQ9', 'LBMlrNbJTsqFH7xL', 'LBhG5vTPT0pV4NWN'],
         dorso: 'LBjk3Vp3xTcDTFzx', marco: { frente: 'LBlhL43PmZMH2yDb', dorso: 'LBZTLbTHzmvy8xdS' },
-        disparador: ['LBfh4wccvvMqrf1b', 'LBhG5vTPT0pV4NWN'], volver: true },                          // Optional Activities · «view options»
+        disparador: ['LBfh4wccvvMqrf1b', 'LBhG5vTPT0pV4NWN'], volver: false },                         // Optional Activities · «view options» · sin «Back» (se regresa tocando el dorso)
       { id: 'giro-faq-1', frente: ['LBwLHh5mntqH6smT'], dorso: 'LBkHhftYXVtsPlLg', disparador: 'todo', pista: true },   // check in antes de las 3
       { id: 'giro-faq-2', frente: ['LBLwjMZ3BkqkmkGG'], dorso: 'LBgC1FwxzBz5PHjM', disparador: 'todo', pista: true },   // restaurante
       { id: 'giro-faq-3', frente: ['LBCzYyxfWxq3YpJg'], dorso: 'LBmgdVbQ2b5LDWKj', disparador: 'todo', pista: true },   // piscinas
@@ -269,9 +334,22 @@
       sello: { x: 241.7, y: 704.8, d: 112 }, // área táctil sobre el sello: centro y diámetro
       pistaY: 862,                           // «TAP TO OPEN» (debajo del sobre)
       /* Tiempos (s) desde el toque: el sello se desplaza · el título se va · la solapa gira a 90° y luego se abre del todo ·
-         'salida' = cuándo entra la cámara al sobre y empieza el fundido hacia la invitación */
-      tiempos: { 'd-sello': 0, 't-sello': 1.0, 'd-titulo': .3, 't-titulo': .9, 'd-solapa': .4, 't-solapa': .65, 't-dentro': .8, 't-camara': 2.0, 't-entrada': 2.2 },
-      salida: 1.95,
+         d-tarjeta / t-tarjeta = cuándo empieza a subir la tarjeta y cuánto tarda · t-camara = duración del acercamiento final */
+      tiempos: { 'd-sello': 0, 't-sello': 1.0, 'd-titulo': .3, 't-titulo': .9, 'd-solapa': .4, 't-solapa': .65, 't-dentro': .8, 't-camara': 2.2, 't-entrada': 2.2,
+                 'd-tarjeta': 1.3, 't-tarjeta': 1.4 },
+      /* Tarjeta que sale del sobre. Con ?to=CÓDIGO válido: «Reserved for» + nombre + pases; sin código (o si no se encuentra): tarjeta genérica.
+         lectura = segundos que se queda arriba antes del acercamiento (tocarla lo adelanta). sube / crece = posición final de la tarjeta.
+         camara = acercamiento final: sobre y tarjeta se acercan JUNTOS hacia el centro de la tarjeta (origen, en % del sobre) hasta «escala»;
+                  la portada empieza a fundirse «fundidoRetraso» s después y tarda «fundidoMs» ms: la tarjeta se ve hasta el final. */
+      tarjeta: {
+        lectura: { invitado: 3.4, generica: 2.8 }, sube: -38, crece: 1.14,
+        camara: { origen: '50% 13%', escala: 1.85, fundidoRetraso: .75, fundidoMs: 1500 },
+        textos: {
+          reservado: 'Reserved for', generica: 'You´re Invited', pareja: 'Mili & Neville',
+          fecha: 'June 14, 2027', lugar: 'Castell d´Empordà',
+          pases: function (n, confirmados) { return n + (n === 1 ? ' seat ' : ' seats ') + (confirmados ? 'confirmed' : 'reserved'); }
+        }
+      },
       latido: { sello: true, escala: 1.1, ciclo: 1.7, sobre: false },
       fuentes: ['400 16px "YAEw2GhSLyw_0"']
     },
@@ -341,8 +419,8 @@
   /* CARGA EN DOS TIEMPOS.
      1) INDISPENSABLE (bloquea el anillo): paisaje, piezas del sobre, sello, la tipografía del título y la música lista para sonar (con tope).
      2) EN SEGUNDO PLANO (cuando ya se ve la portada): la invitación de Canva (HTML + imágenes de las 2 primeras secciones + tipografías). */
-  var PESO = { portada: 70, fuentes: 12, musica: 18 };   // suman 100
-  var MIN_MS = 700, LIMITE_MS = 12000;
+  var PESO = { portada: 62, fuentes: 10, musica: 16, datos: 12 };   // suman 100
+  var MIN_MS = 700, LIMITE_MS = 12000, DATOS_MAX_MS = 2500;
   /* ===================================================================================== */
 
   var $ = function (id) { return document.getElementById(id); };
@@ -358,12 +436,15 @@
   raizP.appendChild($('portada-plantilla').content.cloneNode(true));
   var p$ = function (id) { return raizP.getElementById(id); };
   var gate = p$('gate'), stage = p$('stage'), env = p$('env'), paisaje = p$('paisaje');
-  var sello = p$('sello'), selloLat = p$('sello-lat'), pista = p$('pista');
+  var sello = p$('sello'), selloLat = p$('sello-lat'), pista = p$('pista'), tarjeta = p$('tarjeta');
   var pct = function (v, base) { return (v / base * 100) + '%'; };
   Object.keys(E.tiempos).forEach(function (k) { gate.style.setProperty('--' + k, E.tiempos[k] + 's'); });
   gate.style.setProperty('--velo', E.velo);
   var L = Object.assign({ sello: true, sobre: false, escala: 1.1, ciclo: 1.7 }, E.latido || {});
   gate.style.setProperty('--lat-esc', String(L.escala)); gate.style.setProperty('--lat-esc2', String(1 + (L.escala - 1) * .7)); gate.style.setProperty('--lat-ciclo', L.ciclo + 's');
+  tarjeta.style.setProperty('--sube', E.tarjeta.sube + '%'); tarjeta.style.setProperty('--crece', String(E.tarjeta.crece));
+  gate.style.setProperty('--cam-origen', E.tarjeta.camara.origen); gate.style.setProperty('--cam-escala', String(E.tarjeta.camara.escala));
+  gate.classList.add('con-tarjeta');
   sello.style.left = pct(E.sello.x, E.ancho); sello.style.top = pct(E.sello.y, E.alto); sello.style.width = pct(E.sello.d, E.ancho);
   pista.style.top = pct(E.pistaY, E.alto);
 
@@ -389,6 +470,44 @@
   }
   new ResizeObserver(encuadre).observe(gate);
   if (window.visualViewport) visualViewport.addEventListener('resize', encuadre);
+
+  /* ---------------------------------------------------------------- datos del invitado (tarjeta del sobre) */
+  /* Misma lectura que ignacioysuly: BODA.invitado(CÓDIGO) (cuenta la vista en el panel). Si no hay código, no existe o la red falla → tarjeta genérica. */
+  var q0 = new URLSearchParams(location.search);
+  var CODIGO = (q0.get('to') || q0.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  var datos = { encontrado: false, nombre: '', tratamiento: '', pases: 1, asistencia: '', pasesConfirmados: null };
+  function cargarDatos() {
+    if (!CODIGO || !window.BODA) return Promise.resolve();
+    return window.BODA.invitado(CODIGO).then(function (j) {
+      if (j && j.ok && j.encontrado && j.invitado) {
+        var g = j.invitado;
+        datos = { encontrado: true, nombre: g.nombre || '', tratamiento: g.tratamiento || '', pases: g.pases || 1,
+                  asistencia: g.asistenciaCodigo || '', pasesConfirmados: g.pasesConfirmados };
+      }
+    }).catch(function (e) { console.warn('[tarjeta] No se pudo leer el invitado:', e && e.message); });
+  }
+  function pintarTarjeta() {
+    var X = E.tarjeta.textos, inv = datos.encontrado && !!datos.nombre;
+    var trat = inv ? datos.tratamiento : '';
+    if (trat && datos.nombre.toLowerCase().indexOf(trat.toLowerCase()) === 0) trat = '';
+    var conf = datos.asistencia === 'si', n = parseInt(conf ? (datos.pasesConfirmados || datos.pases) : datos.pases, 10) || 1;
+    p$('t-etiqueta').textContent = inv ? X.reservado : X.pareja;
+    p$('t-trat').textContent = trat;
+    p$('t-nombre').textContent = inv ? datos.nombre : X.generica;
+    p$('t-pases').textContent = inv && datos.asistencia !== 'no' ? X.pases(n, conf) : '';
+    var pie = p$('t-pie'); pie.firstChild.textContent = X.fecha; pie.lastChild.textContent = X.lugar;
+    tarjeta.setAttribute('aria-label', (inv ? X.reservado + ' ' + (trat ? trat + ' ' : '') + datos.nombre : X.generica) + ' · ' + X.fecha + ' · ' + X.lugar);
+    ajustarNombre();
+  }
+  // El nombre baja de tamaño hasta caber en una línea; si aún no cabe, pasa a dos líneas
+  function ajustarNombre() {
+    var el = p$('t-nombre'); if (!el.clientWidth) return;
+    el.classList.remove('multilinea'); el.style.fontSize = '';
+    var fs = parseFloat(getComputedStyle(el).fontSize), min = fs * 0.6;
+    while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= .5; el.style.fontSize = fs + 'px'; }
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('multilinea');
+  }
+  new ResizeObserver(function () { ajustarNombre(); }).observe(tarjeta);
 
   /* ---------------------------------------------------------------- portada: precarga de sus imágenes (con progreso real) */
   var PIEZAS = ['assets/portada_fondo.jpg', 'assets/sobre_cuerpo.webp', 'assets/solapa_frente.webp', 'assets/solapa_dentro.webp', 'assets/sello.webp'];
@@ -485,6 +604,8 @@
       i.loading = arriba ? 'eager' : 'lazy'; i.decoding = 'async'; if (arriba) i.setAttribute('fetchpriority', 'high');
     });
     while (cuerpo.firstChild) raiz.appendChild(document.adoptNode(cuerpo.firstChild));
+    /* Dentro de un Shadow DOM no se heredan lang/translate del <html>: se marcan aquí para que ningún traductor toque la invitación */
+    Array.prototype.forEach.call(raiz.children, function (el) { if (el.tagName !== 'STYLE') { el.setAttribute('lang', 'en'); el.setAttribute('translate', 'no'); el.classList.add('notranslate'); } });
   }
   /* El export de Canva declara un @font-face por cada peso y estilo, casi todos apuntando al MISMO archivo: se unen en una regla con rango de pesos */
   function unirFuentes(reglas) {
@@ -540,7 +661,8 @@
     caja.innerHTML = '';                                                                     // aquí estaba el iframe de tickcounter
     caja.style.overflow = 'visible';
     var destino = new Date(C.fecha).getTime(), grupos = [];
-    var t = document.createElement('div'); t.className = 'pyd-timer'; t.setAttribute('role', 'timer');
+    var t = document.createElement('div'); t.className = 'pyd-timer notranslate'; t.setAttribute('role', 'timer');
+    t.setAttribute('lang', 'en'); t.setAttribute('translate', 'no');                        // etiquetas fijas en inglés: sin traducción automática
     var dentro = document.createElement('div'); dentro.className = 'pt-in'; t.appendChild(dentro);
     for (var i = 0; i < 4; i++) {
       if (i) { var c = document.createElement('span'); c.className = 'pt-c'; c.setAttribute('aria-hidden', 'true'); c.textContent = ':'; dentro.appendChild(c); }
@@ -568,9 +690,12 @@
      · Cada tarjeta es un objeto rígido que gira sobre su eje vertical. Arrastrar el dedo a la DERECHA suma ángulo y a la IZQUIERDA lo resta, en
        cualquier punto: la superficie sigue al dedo. Al soltar, si pasó de 90° (o fue un gesto rápido) completa el giro; si no, regresa.
      · A los 90° (de canto) se cambia la cara: el texto nunca se ve en espejo y no depende de backface-visibility (Safari) ni de «reducir movimiento».
-     · La cara oculta se esconde con OPACIDAD además de visibility: animacion.js deja visibility:visible en letras animadas y se verían «estampadas». */
+     · La cara oculta se esconde con OPACIDAD además de visibility: animacion.js deja visibility:visible en letras animadas y se verían «estampadas».
+     · ZOOM CON DOS DEDOS: touch-action «pan-y pinch-zoom» (antes solo «pan-y», que bloqueaba el pellizco en iPhone y Android). Si se apoya un
+       segundo dedo, el arrastre se cancela y la tarjeta vuelve a su cara. Con la página ampliada, arrastrar mueve la vista (no gira) y un toque sigue girando. */
   var CSS_GIRO = [
-    '.g-escena{pointer-events:auto !important;touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:pointer}',
+    '.g-escena{pointer-events:auto !important;touch-action:pan-y;touch-action:pan-y pinch-zoom;-webkit-user-select:none;user-select:none;cursor:pointer}',
+    '.g-escena.ampliada{touch-action:manipulation}',
     '.g-escena.arr{cursor:grabbing}',
     '.g-escena *{pointer-events:none !important}',
     '.g-cara{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 50%;will-change:transform}',
@@ -591,6 +716,10 @@
     var s = el.getAttribute('style') || '', b = caja(el);
     el.setAttribute('style', s.replace(/translate\(\s*[-\d.e]+px\s*,\s*[-\d.e]+px\s*\)/, 'translate(' + (b.x - dx) + 'px, ' + (b.y - dy) + 'px)'));
   }
+  var escenas = [];
+  function ampliada() { return !!(window.visualViewport && visualViewport.scale > 1.02); }
+  function revisarZoom() { var z = ampliada(); escenas.forEach(function (e) { e.classList.toggle('ampliada', z); }); }
+  if (window.visualViewport) visualViewport.addEventListener('resize', revisarZoom);
   function armarGiro(G) {
     var frentes = G.frente.map(function (id) { return raiz.getElementById(id); }).filter(Boolean);
     var dorso = raiz.getElementById(G.dorso);
@@ -600,7 +729,7 @@
     frentes.forEach(function (f) { var b = caja(f); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
     var esc = document.createElement('div');
     esc.id = G.id; esc.className = 'DF_utQ _0xkaeQ g-escena';
-    esc.setAttribute('role', 'button'); esc.tabIndex = 0;
+    esc.setAttribute('role', 'button'); esc.tabIndex = 0; escenas.push(esc);
     esc.setAttribute('style', 'width: ' + (x1 - x0) + 'px; height: ' + (y1 - y0) + 'px; transform: translate(' + x0 + 'px, ' + y0 + 'px);');
     frentes[0].parentNode.insertBefore(esc, frentes[0]);
     var cf = document.createElement('div'), cd = document.createElement('div');
@@ -623,6 +752,7 @@
     var disparos = G.disparador === 'todo' ? null : G.disparador.map(function (id) { return raiz.getElementById(id); }).filter(Boolean);
 
     var ang = 0, atras = false, arr = null, suprimir = false, raf = 0, PERSP = 'perspective(1100px) rotateY(';
+    var dedos = new Set(), multi = false;                // dedos apoyados en la tarjeta · ¿hubo dos a la vez? (pellizco)
     var norm = function (a) { return ((a % 360) + 540) % 360 - 180; };
     function pintar(a) {
       var n = norm(a), abs = Math.abs(n), c2 = abs > 90;
@@ -651,12 +781,20 @@
       if (!disparos) return true;
       return disparos.some(function (d) { var r = d.getBoundingClientRect(); return e.clientX >= r.left - 6 && e.clientX <= r.right + 6 && e.clientY >= r.top - 6 && e.clientY <= r.bottom + 6; });
     }
+    function cancelar() {                                // segundo dedo o el navegador tomó el gesto (zoom/desplazamiento): sin giro
+      if (!arr) return;
+      var a = arr; arr = null; esc.classList.remove('arr');
+      if (a.mov) animar(a.base);
+    }
     esc.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'touch') { dedos.add(e.pointerId); if (dedos.size > 1) { multi = true; cancelar(); return; } }
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.pointerType === 'touch' && ampliada()) { revisarZoom(); return; }   // página ampliada: el arrastre es para mover la vista
       arr = { id: e.pointerId, x: e.clientX, y: e.clientY, mov: false, w: esc.getBoundingClientRect().width || 300, base: 0, lx: e.clientX, lt: performance.now(), v: 0 };
     });
     esc.addEventListener('pointermove', function (e) {
       if (!arr || e.pointerId !== arr.id) return;
+      if (dedos.size > 1) { cancelar(); return; }
       var dx = e.clientX - arr.x, dy = e.clientY - arr.y, ahora = performance.now();
       if (!arr.mov) {
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
@@ -679,9 +817,13 @@
       var rapido = Math.abs(a.v) > .5 && Math.abs(delta) > 18 && (a.v > 0) === (delta > 0);
       animar(Math.abs(delta) > 90 || rapido ? a.base + (delta > 0 ? 180 : -180) : a.base);
     }
-    esc.addEventListener('pointerup', soltar);
-    esc.addEventListener('pointercancel', soltar);
-    esc.addEventListener('lostpointercapture', function (e) { if (e.target === esc) soltar(e); });
+    function quitarDedo(e) {
+      dedos.delete(e.pointerId);
+      if (!dedos.size && multi) { suprimir = true; setTimeout(function () { suprimir = false; multi = false; }, 350); }   // al soltar un pellizco no se gira
+    }
+    esc.addEventListener('pointerup', function (e) { if (!multi) soltar(e); quitarDedo(e); });
+    esc.addEventListener('pointercancel', function (e) { if (arr && e.pointerId === arr.id) cancelar(); quitarDedo(e); });
+    esc.addEventListener('lostpointercapture', function (e) { if (e.target === esc && arr && e.pointerId === arr.id) soltar(e); });
     esc.addEventListener('dragstart', function (e) { e.preventDefault(); });
     /* Toque: en el frente gira solo si se tocó el disparador (o toda la tarjeta en las FAQ); en el dorso, cualquier toque la regresa */
     esc.addEventListener('click', function (e) {
@@ -764,8 +906,10 @@
   }
 
   /* ---------------------------------------------------------------- carga: SOLO lo indispensable para mostrar la portada */
+  var pDatos = cargarDatos().then(function () { pintarTarjeta(); });            // si llegan tarde, la tarjeta se actualiza sola
+  var tareaDatos = Promise.race([pDatos, new Promise(function (r) { setTimeout(r, DATOS_MAX_MS); })]).then(function () { avance('datos', 1); });
   Promise.race([
-    Promise.all([tareaPortada, tareaFuentes, tareaMusica]),
+    Promise.all([tareaPortada, tareaFuentes, tareaMusica, tareaDatos]),
     new Promise(function (res) { setTimeout(res, LIMITE_MS); })
   ]).then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); });
 
@@ -781,7 +925,7 @@
       circ.style.strokeDashoffset = '0'; pctTxt.textContent = '100%';
       setTimeout(function () {
         $('cargador').classList.add('fuera');
-        encuadre();
+        encuadre(); pintarTarjeta();
         setTimeout(function () {
           gate.classList.add('lista');
           setTimeout(function () {                                          // cuando ya se ve todo, empieza a latir el sello
@@ -798,8 +942,8 @@
     requestAnimationFrame(tick);
   })();
 
-  /* ---------------------------------------------------------------- SECUENCIA: toque → lacre → solapa → la cámara entra → invitación */
-  var abierta = false, saliendo = false;
+  /* ---------------------------------------------------------------- SECUENCIA: toque → lacre → solapa → tarjeta sube → acercamiento (sobre + tarjeta) → invitación */
+  var abierta = false, saliendo = false, tarjetaVista = false, tLectura = 0;
   function abrirSobre() {
     if (abierta || !gate.classList.contains('lista')) return;
     abierta = true;
@@ -809,9 +953,14 @@
     var m = getComputedStyle(selloLat).transform;             // el latido se detiene suave, sin «salto» de escala
     gate.classList.remove('lat-sello'); env.classList.remove('listo');
     if (m && m !== 'none') { selloLat.style.transform = m; void selloLat.offsetWidth; selloLat.style.transition = 'transform .25s ease'; selloLat.style.transform = 'none'; }
-    gate.classList.add('abierto');                            // dispara todas las transiciones (CSS)
-    setTimeout(function () { salir(); }, E.salida * 1000);
+    gate.classList.add('abierto');                            // dispara todas las transiciones (CSS): el lacre, la solapa y la tarjeta que sube
+    setTimeout(ajustarNombre, 60);
+    var arriba = (E.tiempos['d-tarjeta'] + E.tiempos['t-tarjeta']) * 1000;
+    var lectura = (datos.encontrado ? E.tarjeta.lectura.invitado : E.tarjeta.lectura.generica) * 1000;
+    setTimeout(function () { tarjetaVista = true; }, arriba * .7);
+    tLectura = setTimeout(salir, arriba + lectura);            // la tarjeta NO se desvanece sola: se va con el sobre en el fundido final
   }
+  tarjeta.addEventListener('click', function (e) { if (!abierta) return; e.stopPropagation(); if (tarjetaVista) { clearTimeout(tLectura); salir(); } });
   sello.addEventListener('click', abrirSobre);
   pista.addEventListener('click', abrirSobre);
   stage.addEventListener('click', function (e) { if (!abierta && e.target.closest && e.target.closest('.cam-pos')) abrirSobre(); });
@@ -837,17 +986,17 @@
     ajuste && ajuste.reajustar();
     var inv = $('invitacion'); inv.classList.add('visible'); inv.removeAttribute('aria-hidden');
     hostP.style.setProperty('pointer-events', 'none', 'important');
-    gate.classList.add('saliendo');                           // la cámara entra al sobre…
-    var revelado = false;
-    setTimeout(function () {                                  // …y a medio camino la portada se funde con la invitación
-      animar(CONFIG.fundido.ms, function (p) {
+    gate.classList.add('saliendo');                           // la cámara se acerca a la tarjeta (sobre y tarjeta juntos)…
+    var revelado = false, CT = E.tarjeta.camara;
+    setTimeout(function () {                                  // …y a medio camino la portada (con la tarjeta) se funde con la invitación
+      animar(CT.fundidoMs || CONFIG.fundido.ms, function (p) {
         hostP.style.setProperty('opacity', (1 - p).toFixed(4), 'important');
         if (!revelado && p >= CONFIG.fundido.revelarEn) { revelado = true; revelar(); }
       }, function () {
         if (!revelado) revelar();
         hostP.parentNode && hostP.parentNode.removeChild(hostP);
       });
-    }, (CONFIG.fundido.retraso || 0) * 1000);
+    }, (CT.fundidoRetraso != null ? CT.fundidoRetraso : CONFIG.fundido.retraso || 0) * 1000);
   }
   function revelar() {
     document.documentElement.classList.remove('bloqueado');
