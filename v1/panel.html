@@ -78,8 +78,38 @@ const norm = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '
 const slugify = t => norm(t).replace(/&/g, 'y').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 const estadoDe = i => i.asistencia === 'si' ? 'si' : i.asistencia === 'no' ? 'no' : 'pendiente';
 const conTo = (base, cod) => { if (!base) return ''; try { const u = new URL(base); u.searchParams.set('to', cod); return u.toString(); } catch { return base + (base.includes('?') ? '&' : '?') + 'to=' + cod; } };
-const link = i => conTo(S.p?.url_invitacion, i.codigo);
-const linkRsvp = i => conTo(S.p?.url_rsvp, i.codigo);
+/* IDIOMA DE CADA INVITADO (solo eventos bilingües, idioma «es,en»): se lee de su Categoría. La etiqueta «Inglés» / «English» / «EN»
+   (o «Español» / «Spanish» / «ES») decide el idioma de su enlace, de su RSVP, de sus pases y de la fecha del mensaje de WhatsApp.
+   Sin etiqueta → el idioma principal del evento (el primero: «es,en» → es). En eventos de un solo idioma no cambia nada. */
+/* REGISTRO DE IDIOMAS DEL PANEL: lo único que el panel necesita saber de cada idioma. Agregar uno (p. ej. alemán) = agregar una entrada:
+     de: { nombre: 'Deutsch', etiquetas: ['de', 'aleman', 'deutsch', 'german'], loc: 'de-DE', pase: ['Platz', 'Plätze'], enlaceEtq: 'en alemán' },
+   (etiquetas = cómo puede escribirse en la Categoría, sin tildes y en minúsculas). Para que un evento lo use falta además: permitirlo en la
+   columna proyectos.idioma (SQL), sus textos en rsvp.js (TXT.de) y su exportación de Canva en el evento. Ver FUNCIONES.md § 6. */
+const IDIOMAS = {
+  es: { nombre: 'Español', etiquetas: ['es', 'esp', 'espanol', 'spanish', 'castellano', 'idioma espanol'], loc: 'es-PE', pase: ['pase', 'pases'], enlaceEtq: 'en español' },
+  en: { nombre: 'English', etiquetas: ['en', 'eng', 'ingles', 'english', 'idioma ingles'], loc: 'en-US', pase: ['seat', 'seats'], enlaceEtq: 'en inglés' }
+};
+const ETQ_IDIOMA = Object.fromEntries(Object.entries(IDIOMAS).map(([k, x]) => [k, x.etiquetas]));
+const NOMBRE_IDIOMA = Object.fromEntries(Object.entries(IDIOMAS).map(([k, x]) => [k, x.nombre]));
+const idiomasEvento = () => String(S.p?.idioma || 'es').split(',').map(x => x.trim()).filter(Boolean);
+const idiomaDe = i => {
+  const d = idiomasEvento(); if (d.length < 2) return d[0] || 'es';
+  const e = etiquetasDe(i).map(norm), l = d.find(x => e.some(y => (ETQ_IDIOMA[x] || []).includes(y)));
+  return l || d[0];
+};
+const esOtroIdioma = i => idiomasEvento().length > 1 && idiomaDe(i) !== idiomasEvento()[0];
+/* Enlaces propios de un idioma (Configuración › General, eventos bilingües): tarjeta.enlaces = { en: { invitacion, rsvp } }.
+   Sirven para que la vista previa al compartir (WhatsApp) salga en ese idioma, p. ej. https://…/evento/en/. Si están vacíos se usa el
+   enlace principal con ?lang=en (la página se ve en inglés, pero la vista previa al compartir es la del enlace principal). */
+const enlacesDe = l => ((S.p?.tarjeta || {}).enlaces || {})[l] || {};
+const conLang = (u, l) => { if (!u) return ''; try { const x = new URL(u); x.searchParams.set('lang', l); return x.toString(); } catch { return u + (u.includes('?') ? '&' : '?') + 'lang=' + l; } };
+const enlaceIdioma = (i, k, base) => {
+  if (!esOtroIdioma(i)) return conTo(base, i.codigo);
+  const l = idiomaDe(i), propio = (enlacesDe(l)[k] || '').trim();
+  return propio ? conTo(propio, i.codigo) : conLang(conTo(base, i.codigo), l);
+};
+const link = i => enlaceIdioma(i, 'invitacion', S.p?.url_invitacion);
+const linkRsvp = i => enlaceIdioma(i, 'rsvp', S.p?.url_rsvp);
 const conTrato = i => i.tratamiento && !norm(i.nombre).startsWith(norm(i.tratamiento)) ? `<span class="font-normal text-stone-500">${esc(i.tratamiento)} </span>` : '';
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const fmt = iso => iso ? new Date(iso).toLocaleString(LOC, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -130,10 +160,13 @@ const PRESETS_PREG = [
   { etiqueta: '¿Asistirás a…?', tipo: 'multiple', opciones: ['Ceremonia religiosa', 'Ceremonia civil', 'Recepción'], obligatoria: false, solo_si_asiste: true }
 ];
 const TIPOS = [['texto', 'Texto corto'], ['parrafo', 'Texto largo'], ['opcion', 'Una opción'], ['multiple', 'Varias opciones'], ['sino', 'Sí / No']];
+/* Plantillas sugeridas. «idioma» (opcional, por defecto 'es'): se muestra en la lista y, para un invitado de ese idioma,
+   se propone sola la primera vez (después el panel recuerda la última elegida para cada idioma). */
 const PLANTILLAS_WA = [
   { id: 'simple', nombre: 'Simple y directo', texto: 'Hola {tratamiento} {nombre} 💛\n\nCon mucha alegría te compartimos nuestra invitación. Tienes {pases} reservado(s) para ti.\n\nConfirma tu asistencia aquí antes del {fecha_limite}:\n{link}\n\nCon cariño,\n{novios}' },
   { id: 'nos_casamos', nombre: '¡Nos casamos!', texto: '¡Hola, {nombre}! ✨\n\nQueremos compartir contigo una de las noticias más felices e importantes de nuestras vidas: *¡Nos casamos!* 💍💒\n\nNos encantaría contar con tu presencia para celebrar nuestro amor y este nuevo comienzo. Preparamos una invitación digital con todos los detalles del evento.\n\n📲 Ver invitación: {link}\n\nPor favor, no olvides confirmar tu asistencia desde el enlace antes del {fecha_limite}. ¡Nos hará muy felices verte ahí! ❤️\n\n{novios}' },
-  { id: 'nuevo_capitulo', nombre: 'Un nuevo capítulo', texto: 'Un nuevo capítulo comienza… 🤍✨\n\nQuerido(a) {nombre}:\n\nDespués de tantos momentos compartidos, risas, sueños y aventuras, llegó el momento de dar un paso muy especial en nuestras vidas. Nos hace mucha ilusión compartir contigo este día tan importante: *nuestro matrimonio*. 💍🥂\n\nQueremos celebrar el amor, la familia, la amistad y a todas esas personas que han sido parte de nuestra historia.\n\nTe invitamos a *confirmar tu asistencia* desde tu invitación hasta el {fecha_limite}, indicando el nombre completo de cada asistente:\n{link}\n\nCon mucho amor, esperamos contar contigo para celebrar este día tan especial. 🤍\n\n{novios}' }
+  { id: 'nuevo_capitulo', nombre: 'Un nuevo capítulo', texto: 'Un nuevo capítulo comienza… 🤍✨\n\nQuerido(a) {nombre}:\n\nDespués de tantos momentos compartidos, risas, sueños y aventuras, llegó el momento de dar un paso muy especial en nuestras vidas. Nos hace mucha ilusión compartir contigo este día tan importante: *nuestro matrimonio*. 💍🥂\n\nQueremos celebrar el amor, la familia, la amistad y a todas esas personas que han sido parte de nuestra historia.\n\nTe invitamos a *confirmar tu asistencia* desde tu invitación hasta el {fecha_limite}, indicando el nombre completo de cada asistente:\n{link}\n\nCon mucho amor, esperamos contar contigo para celebrar este día tan especial. 🤍\n\n{novios}' },
+  { id: 'getting_married_en', nombre: "We're getting married!", idioma: 'en', texto: "Hello, {tratamiento} {nombre}!\n\nWe have some very special news we'd love to share with you: *We're getting married!* \uD83D\uDC8D\n\nIt would mean so much to us to have you there on this very special day, celebrating our love and the beginning of this new chapter in our lives together.\n\nYou can find all the details of our wedding at the following link:\n\n\uD83D\uDC8C View invitation: {link}\n\nWe would really appreciate it if you could confirm your attendance through the invitation. We truly hope to share this special day with you!\n\nWith love,\n{novios}" }
 ];
 const TONOS = ['Romántico', 'Divertido', 'Elegante', 'Breve', 'Familiar', 'Emotivo'];
 
@@ -777,6 +810,7 @@ function editar(i) {
           <dt class="text-stone-400">N.º de ediciones</dt><dd>${i.ediciones}</dd>
           <dt class="text-stone-400">WhatsApp enviado</dt><dd>${fmt(i.whatsapp_enviado) || '—'}</dd>
           <dt class="text-stone-400">Ingreso</dt><dd>${i.ingreso_pases ? `${i.ingreso_pases} · ${fmt(i.ingreso_fecha)}` : '—'}</dd>
+          ${idiomasEvento().length > 1 ? `<dt class="text-stone-400">${t('Idioma')}</dt><dd>${NOMBRE_IDIOMA[idiomaDe(i)] || idiomaDe(i)}</dd>` : ''}
           <dt class="text-stone-400">Invitación</dt><dd class="truncate"><a class="text-oro-700 underline" href="${esc(link(i))}" target="_blank" rel="noopener">${esc(link(i))}</a></dd>
           <dt class="text-stone-400">RSVP directo</dt><dd class="truncate"><a class="text-oro-700 underline" href="${esc(linkRsvp(i))}" target="_blank" rel="noopener">${esc(linkRsvp(i))}</a></dd>
         </dl>
@@ -856,13 +890,13 @@ dlg.addEventListener('click', e => { if (e.target.id === 'cf-exp') exportar(S.li
    WHATSAPP
    ===================================================================================== */
 function mensajeWa(i, plantilla) {
-  const p = S.p, fl = p.fecha_limite ? new Date(p.fecha_limite).toLocaleDateString(p.idioma === 'en' ? 'en-US' : 'es-PE', { day: 'numeric', month: 'long' }) : '';
+  const p = S.p, li = idiomaDe(i), I = IDIOMAS[li] || IDIOMAS.es, fl = p.fecha_limite ? new Date(p.fecha_limite).toLocaleDateString(I.loc, { day: 'numeric', month: 'long' }) : '';
   let tx = plantilla ?? p.mensaje_whatsapp ?? '';
   if (!fl) tx = tx.replace(/[ \t]*(antes del|hasta el|by|before)[ \t]*\{fecha_limite\}/gi, '').replace(/\{fecha_limite\}/g, '');
   const novios = fusionar(DEF_TARJETA, p.tarjeta).titulo || p.nombre;
   return tx.replace(/\{(\w+)\}/g, (m, k) => ({
     tratamiento: i.tratamiento && !norm(i.nombre).startsWith(norm(i.tratamiento)) ? i.tratamiento : '', nombre: i.nombre, link: link(i), link_rsvp: linkRsvp(i),
-    pases: p.idioma === 'en' ? plural(i.pases_asignados, 'seat', 'seats') : plural(i.pases_asignados, 'pase', 'pases'), codigo: i.codigo, mesa: i.mesa, fecha_limite: fl, novios }[k] ?? m))
+    pases: plural(i.pases_asignados, I.pase[0], I.pase[1]), codigo: i.codigo, mesa: i.mesa, fecha_limite: fl, novios }[k] ?? m))
     .replace(/[ \t]{2,}/g, ' ').replace(/^ /gm, '').replace(/ ([,.:;!?])/g, '$1');
 }
 /* Número para WhatsApp: si no trae código de país se usa el del evento (Configuración › General) */
@@ -874,27 +908,30 @@ function urlWhatsapp(numero, texto) {
   return (esMovil() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + q;
 }
 /* Mensajes que se pueden enviar: el predeterminado (el guardado en Configuración › WhatsApp), las plantillas sugeridas y "Mis plantillas" */
+const nombrePlantilla = x => (x.idioma && x.idioma !== 'es' ? x.nombre : t(x.nombre)) + (x.idioma && x.idioma !== 'es' ? ' · ' + (NOMBRE_IDIOMA[x.idioma] || x.idioma.toUpperCase()) : '');
 function opcionesWa() {
   const mias = (S.p.plantillas_wa || []).map((x, k) => x && x.texto ? { k: 'm' + k, g: 'mias', nombre: x.nombre || `${t('Mensaje')} ${k + 1}`, texto: x.texto } : null).filter(Boolean);
   return [{ k: 'def', g: 'def', nombre: t('Predeterminado (guardado en Configuración)'), texto: S.p.mensaje_whatsapp || '' },
-    ...PLANTILLAS_WA.map(x => ({ k: 's:' + x.id, g: 'sug', nombre: t(x.nombre), texto: x.texto })), ...mias];
+    ...PLANTILLAS_WA.map(x => ({ k: 's:' + x.id, g: 'sug', nombre: nombrePlantilla(x), texto: x.texto, idioma: x.idioma || 'es' })), ...mias];
 }
-const claveWa = () => 'panel.wa.' + (S.p?.id ?? '');
+const claveWa = i => 'panel.wa.' + (S.p?.id ?? '') + (i && esOtroIdioma(i) ? '.' + idiomaDe(i) : '');   // una memoria por idioma
 function whatsapp(i) {
   const ops = opcionesWa(), n = numeroWa(i.telefono), est = telInfo(i.telefono).estado;
-  let sel = localStorage.getItem(claveWa()); if (!ops.some(o => o.k === sel)) sel = 'def';   // recuerda la última elegida
+  let sel = localStorage.getItem(claveWa(i));                                               // recuerda la última elegida (para este idioma)
+  if (!ops.some(o => o.k === sel)) sel = (esOtroIdioma(i) && ops.find(o => o.g === 'sug' && o.idioma === idiomaDe(i)) || {}).k || 'def';   // 1.ª vez: la sugerida de su idioma
   const grupo = (g, titulo) => { const l = ops.filter(o => o.g === g); return l.length ? `<optgroup label="${esc(t(titulo))}">${l.map(o => `<option value="${esc(o.k)}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; };
   const aviso = !n ? t('Sin número: elige el contacto en WhatsApp') : est === 'dudoso' ? `${t('Revisa el número: no parece un celular válido.')} ${esc(i.telefono)}` : `${t('Se enviará a')} +${n}`;
   modal(`${cabecera(t('Enviar por WhatsApp'), `<span data-notr>${esc(i.nombre)}</span>${i.whatsapp_enviado ? ` · <span class="text-emerald-700">${t('Ya enviado · enviar de nuevo')}</span>` : ''}`)}${cuerpo(`<div class="grid gap-3">
       <div><label class="${lbl}" for="wa-sel">${t('Mensaje a enviar')}</label>
         <select id="wa-sel" class="${campo}">${ops.filter(o => o.g === 'def').map(o => `<option value="${o.k}" ${o.k === sel ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}${grupo('sug', 'Plantillas sugeridas')}${grupo('mias', 'Mis plantillas')}</select></div>
       <p id="wa-prev" data-notr class="max-h-72 overflow-y-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-[#e7ffdb] p-3 text-sm text-stone-800"></p>
+      ${idiomasEvento().length > 1 ? `<p class="text-xs text-stone-600">${t('Idioma del invitado')}: <b>${NOMBRE_IDIOMA[idiomaDe(i)] || idiomaDe(i)}</b> · ${t('el link y los pases van en ese idioma (se decide con la Categoría).')}</p>` : ''}
       <p id="wa-aviso" class="min-h-4 text-xs text-amber-700"></p>
       <p class="text-xs ${!n || est === 'dudoso' ? 'text-amber-700' : 'text-stone-500'}" data-notr>${aviso}</p></div>`)}
     ${pie(`<button type="button" class="${btnS}" data-cerrar>${t('Cancelar')}</button><button type="button" id="wa-ir" class="${btnP}">${ico('wa')} <span>${t('Enviar por WhatsApp')}</span></button>`)}`, d => {
     const elegido = () => ops.find(o => o.k === d.querySelector('#wa-sel').value) || ops[0];
     const pintar = () => {
-      const o = elegido(); localStorage.setItem(claveWa(), o.k);
+      const o = elegido(); localStorage.setItem(claveWa(i), o.k);
       d.querySelector('#wa-prev').textContent = mensajeWa(i, o.texto);
       d.querySelector('#wa-aviso').textContent = /\{link\}|\{link_rsvp\}/.test(o.texto) ? '' : t('Este mensaje no incluye {link}: el invitado no recibirá su invitación.');
     };
@@ -961,7 +998,7 @@ const correosValidos = tx => [...new Set(String(tx || '').split(/[,;\s]+/).map(x
 const ERRORES_REPORTE = { sin_destinatarios: 'Agrega al menos un correo destinatario válido.', sin_api_key: 'El servicio de correo aún no está configurado.' };
 const localDT = iso => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const deLocal = v => v ? new Date(v).toISOString() : '';
-const CREDITOS = [['flotante', 'Flotante abajo · aparece solo al llegar al final de la página (recomendado)'], ['discreto', 'Discreto · un corazón pequeño en la esquina, solo al llegar al final'], ['final', 'Al final de la página · fijo, sin animación de entrada'], ['oculto', 'No mostrar']];
+const CREDITOS = [['discreto', 'Discreto · un corazón pequeño en la esquina, solo al llegar al final (recomendado)'], ['flotante', 'Flotante abajo · aparece solo al llegar al final de la página'], ['final', 'Al final de la página · fijo, sin animación de entrada'], ['oculto', 'No mostrar']];
 const PESTANAS = [['general', 'General'], ['formulario', 'Formulario RSVP'], ['tarjeta', 'Tarjeta'], ['whatsapp', 'WhatsApp'], ['reporte', 'Reporte diario'], ['accesos', 'Accesos']];
 /* ---- Fondos del RSVP: color o imagen, con opacidad, zoom (≥ 100 % sobre «cover») y posición; imagen propia del evento o de la biblioteca (fondos/) ---- */
 const FONDOS = [['pagina', 'Fondo de la página (rsvp.html)', 'rsvp_fondo_background', '9 / 16'], ['formulario', 'Fondo del formulario', 'rsvp_fondo_formulario', '5 / 7'], ['tarjeta', 'Fondo de la tarjeta', 'rsvp_fondo_tarjeta', '5 / 7']];
@@ -1008,6 +1045,16 @@ function configurar(pestana = 'general') {
     <div><label class="${lbl}">Identificador</label><p class="rounded-xl bg-stone-100 px-3 py-2 font-mono text-sm text-stone-600">${esc(c.slug)}</p></div>
     <div class="sm:col-span-2">${inp('c-uinv', 'Link de la invitación', c.url_invitacion, 'inputmode="url" ' + bloq)}<p class="mt-1 text-xs text-stone-500">Se le agrega ?to=CÓDIGO. Va en el mensaje de WhatsApp.</p></div>
     <div class="sm:col-span-2">${inp('c-ursvp', 'Link del RSVP directo (destino del QR)', c.url_rsvp, 'inputmode="url" ' + bloq)}</div>
+    ${Object.keys(IDIOMAS).filter(l => l !== 'es').map(l => { const E = ((c.tarjeta || {}).enlaces || {})[l] || {}, X = IDIOMAS[l], en = l === 'en';
+      /* inglés: textos traducidos del panel · otros idiomas (cuando se agreguen al registro): mismos textos armados con su nombre */
+      const nota = en ? t('Evento bilingüe: los invitados con la categoría «Inglés» (o «English», «EN») reciben su link, su RSVP y sus pases en inglés. Sin estos links, se usa el principal con ?lang=en.')
+        : `Evento multilingüe: los invitados con la categoría «${X.nombre}» (o «${l.toUpperCase()}») reciben su link, su RSVP y sus pases ${X.enlaceEtq}. Sin estos links, se usa el principal con ?lang=${l}.`;
+      return `<div data-enlaces-idioma="${l}" class="grid gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2" ${String(c.idioma || 'es').split(',').slice(1).includes(l) ? '' : 'hidden'}>
+      <p class="text-xs text-stone-600">${nota}</p>
+      ${inp('c-uinv-' + l, en ? 'Link de la invitación en inglés (opcional)' : `Link de la invitación ${X.enlaceEtq} (opcional)`, E.invitacion || '', 'inputmode="url" placeholder="https://…/evento/' + l + '/" ' + bloq)}
+      ${inp('c-ursvp-' + l, en ? 'Link del RSVP directo en inglés (opcional)' : `Link del RSVP directo ${X.enlaceEtq} (opcional)`, E.rsvp || '', 'inputmode="url" ' + bloq)}
+      <p class="text-xs text-stone-500">${en ? t('Úsalos si el evento tiene una página propia en inglés para que la vista previa al compartir (WhatsApp) salga en inglés.') : `Úsalos si el evento tiene una página propia ${X.enlaceEtq} para que la vista previa al compartir (WhatsApp) salga ${X.enlaceEtq}.`}</p>
+    </div>`; }).join('')}
     ${admin ? '' : `<p class="flex items-center gap-1.5 text-xs text-stone-500 sm:col-span-2">${ico('lock', 'size-3.5')} <span>Solo el administrador puede cambiar el nombre del evento, sus links y el crédito.</span></p>`}
     <div><label class="${lbl}" for="c-lim">Fecha límite del RSVP</label><input id="c-lim" type="datetime-local" class="${campo}" value="${localDT(c.fecha_limite)}">
       <p class="mt-1 text-xs text-stone-500">Vacío = sin cierre. Después, el formulario queda solo de lectura.</p></div>
@@ -1120,7 +1167,7 @@ function configurar(pestana = 'general') {
 
   const idiomaIA = (c.idioma || 'es').startsWith('en') ? 'en' : 'es';
   const panelWhatsapp = `<div class="grid gap-4">
-    <div><p class="${lbl}">Plantillas sugeridas</p><div class="flex flex-wrap gap-2">${PLANTILLAS_WA.map(p => `<button type="button" data-plantilla="${p.id}" class="${btnS}">${esc(p.nombre)}</button>`).join('')}</div></div>
+    <div><p class="${lbl}">Plantillas sugeridas</p><div class="flex flex-wrap gap-2">${PLANTILLAS_WA.map(p => `<button type="button" data-plantilla="${p.id}" class="${btnS}" ${p.idioma && p.idioma !== 'es' ? 'data-notr' : ''}>${esc(nombrePlantilla(p))}</button>`).join('')}</div></div>
     <div class="rounded-xl bg-stone-50 p-3">
       <p class="font-medium"><span>Mis plantillas</span> <span id="mp-n" class="text-sm font-normal text-stone-500"></span></p>
       <p class="mt-0.5 text-xs text-stone-500">Guarda hasta 5 versiones del mensaje (formal, familiar, recordatorio, inglés…). Se guardan al instante.</p>
@@ -1401,7 +1448,8 @@ function configurar(pestana = 'general') {
           fondos: { pagina: fondo('pagina'), formulario: fondo('formulario'), tarjeta: fondo('tarjeta') },
           textos: { etiqueta_pendiente: texto('#t-e-pend', 'etiqueta_pendiente'), etiqueta_si: texto('#t-e-si', 'etiqueta_si'), etiqueta_no: texto('#t-e-no', 'etiqueta_no'),
                     mensaje_pendiente: texto('#t-m-pend', 'mensaje_pendiente'), mensaje_si: texto('#t-m-si', 'mensaje_si'), mensaje_no: texto('#t-m-no', 'mensaje_no') },
-          evento: { titulo: v('#t-ev-tit'), inicio: deLocal(q('#t-ini').value), fin: deLocal(q('#t-fin').value), lugar: v('#t-ev-lug'), detalle: v('#t-ev-det') } },
+          evento: { titulo: v('#t-ev-tit'), inicio: deLocal(q('#t-ini').value), fin: deLocal(q('#t-fin').value), lugar: v('#t-ev-lug'), detalle: v('#t-ev-det') },
+          enlaces: admin ? Object.keys(IDIOMAS).filter(l => l !== 'es').reduce((o, l) => ({ ...o, [l]: { invitacion: v('#c-uinv-' + l), rsvp: v('#c-ursvp-' + l) } }), { ...((c.tarjeta || {}).enlaces || {}) }) : ((c.tarjeta || {}).enlaces || {}) },
         mensaje_whatsapp: ta.value,
         reporte_activo: q('#c-rep').checked, reporte_destinatarios: correosValidos(dest.value).join(', '), reporte_hora: parseInt(q('#c-hora').value, 10)
       };
@@ -1426,6 +1474,8 @@ function configurar(pestana = 'general') {
       return true;
     };
     q('#f-cfg').addEventListener('submit', async e => { e.preventDefault(); if (await guardar()) toast(t('Configuración guardada')); });
+    q('#c-idioma').addEventListener('change', e => { const sec = e.target.value.split(',').slice(1);                 // links por idioma: solo los idiomas secundarios del evento
+      d.querySelectorAll('[data-enlaces-idioma]').forEach(b => { b.hidden = !sec.includes(b.dataset.enlacesIdioma); }); });
     q('#c-probar').onclick = async ev => {
       const b = ev.currentTarget, err = q('#c-err');
       if (!correosValidos(dest.value).length) { err.textContent = t(ERRORES_REPORTE.sin_destinatarios); return; }
@@ -1550,7 +1600,8 @@ function nuevoProyecto() {
       if (n.value.trim().length < 2) { err.textContent = t('Escribe el nombre del evento.'); return; }
       if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(s.value)) { err.textContent = t('Identificador inválido: usa minúsculas, números y guiones (3 a 40 caracteres).'); return; }
       d.querySelector('#np-ok').disabled = true;
-      const { data, error } = await sb.from('proyectos').insert({ nombre: n.value.trim(), slug: s.value }).select('id, slug, nombre, activo').single();
+      /* Crédito «Hecho con amor» discreto por defecto en los eventos nuevos (v1.1). Los existentes conservan el suyo; se cambia en Configuración › General. */
+      const { data, error } = await sb.from('proyectos').insert({ nombre: n.value.trim(), slug: s.value, credito: 'discreto' }).select('id, slug, nombre, activo').single();
       if (error) { d.querySelector('#np-ok').disabled = false; err.textContent = t(errorAmigable(error)); return; }
       const correos = correosValidos(d.querySelector('#np-novios').value);
       if (correos.length) { const r = await sb.from('miembros').insert(correos.map(email => ({ email, rol: 'novios', proyecto_id: data.id }))); if (r.error) toast(t(errorAmigable(r.error)), 'error'); }
@@ -1678,7 +1729,7 @@ const COLUMNAS = [
   ['pases_asignados', 'Pases asignados', false, 'Número entero (1 si se deja vacío en registros nuevos).', ['pases asignados', 'pases', 'cupos', 'pases reservados', 'seats']],
   ['mesa', 'Número de mesa', false, 'Texto o número. Se muestra en la invitación.', ['numero de mesa', 'n de mesa', 'no de mesa', 'nro de mesa', 'mesa', 'table']],
   ['telefono', 'WhatsApp', false, 'Con o sin código de país: sin código se usa el país elegido al importar (945 709 988 → +51 945 709 988).', ['whatsapp', 'telefono', 'celular', 'movil', 'numero de whatsapp', 'numero de celular', 'phone']],
-  ['categoria', 'Categoría', false, 'Etiquetas internas para filtrar y sumar (Familia novia, Amigos novio…). Varias separadas por comas. El invitado no la ve.', ['categoria', 'categorias', 'etiqueta', 'etiquetas', 'grupo', 'relacion', 'lado', 'category', 'group', 'tag', 'tags']],
+  ['categoria', 'Categoría', false, 'Etiquetas internas para filtrar y sumar (Familia novia, Amigos novio…). Varias separadas por comas. El invitado no la ve. En eventos bilingües, la etiqueta «Inglés» (o «English», «EN») define el idioma del invitado.', ['categoria', 'categorias', 'etiqueta', 'etiquetas', 'grupo', 'relacion', 'lado', 'category', 'group', 'tag', 'tags']],
   ['respuesta_novios', 'Respuesta de los novios', false, 'Se muestra al invitado en la invitación.', ['respuesta de los novios', 'respuesta novios']],
   ['codigo', 'Código', false, 'Clave para actualizar un invitado existente (aunque cambies su nombre). En nuevos: déjalo vacío y se genera.', ['codigo', 'cod', 'code']],
   ['asistencia', 'Asistencia a la boda', false, '“Sí” / “No” / vacío. Útil si alguien confirmó por teléfono.', ['asistencia a la boda', 'asistencia', 'asiste', 'rsvp']],
@@ -1689,16 +1740,35 @@ const normCab = tx => norm(tx).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').
 function plantilla() {
   if (!window.XLSX) return toast(t('La librería de Excel aún está cargando, intenta en un segundo'), 'info');
   const cab = ['Nombre del invitado', 'Tratamiento', 'Pases asignados', 'Número de mesa', 'WhatsApp', 'Categoría', 'Respuesta de los novios', 'Código'];
-  const ws = XLSX.utils.aoa_to_sheet([cab, ['Juan Pérez (Padre)', 'Señor', 2, '5', '987 654 321', 'Familia novio', '', ''], ['Familia Rojas', 'Familia', 4, '', '+1 305 310 1725', 'Amigos novia, Extranjero', '', '']]);
+  const ws = XLSX.utils.aoa_to_sheet([cab, ['Juan Pérez (Padre)', 'Señor', 2, '5', '987 654 321', 'Familia novio', '', ''], ['Familia Rojas', 'Familia', 4, '', '+1 305 310 1725', 'Amigos novia, Extranjero', '', ''], ['John Smith', 'Mr.', 2, '', '+44 7700 900123', 'Amigos novio, Inglés', '', '']]);
   ws['!cols'] = [30, 14, 15, 15, 18, 24, 36, 10].map(w => ({ wch: w }));
   const inst = XLSX.utils.aoa_to_sheet([['Columna', 'Obligatoria', 'Descripción'], ...COLUMNAS.map(c => [c[1], c[2] ? 'Sí' : 'No', c[3]]), [],
     ['Reglas'], ['• Un invitado por fila. Se reconoce por Código (si lo pones) o por Nombre.'], ['• Invitado existente: se reemplazan solo las columnas que incluyas. Nuevo: se agrega.'],
     ['• Puedes subir solo Nombre + Número de mesa (o + WhatsApp, o + Categoría) para actualizar esos datos.'], ['• WhatsApp: con código de país (+1 305…) o sin él; sin código se usa el país elegido al importar.'],
+    ['• Idioma (eventos bilingües): agrega «Inglés» (o «English», «EN») en Categoría. Ese invitado recibe su link, su RSVP, sus pases y la fecha del mensaje en inglés. Sin etiqueta, va en el idioma principal del evento.'],
     ['• Columnas como Link, fechas o Mensaje a los novios se ignoran (el sistema las administra).'], ['• Sirve también para re-importar un Excel exportado desde este panel.'],
     ['• Un Excel exportado desde este panel es un respaldo: al importarlo puedes restaurar a cada invitado tal como estaba (incluye respuestas del formulario, mensajes, WhatsApp enviado, ingresos y fechas).']]);
   inst['!cols'] = [{ wch: 26 }, { wch: 12 }, { wch: 90 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Invitados'); XLSX.utils.book_append_sheet(wb, inst, 'Instrucciones');
   XLSX.writeFile(wb, 'plantilla_invitados.xlsx');
+}
+/* Bloque informativo del modal de importación: cómo se marca el idioma de cada invitado (v1.1). Se adapta al idioma del evento. */
+function avisoIdiomasImportar() {
+  /* Plegado por defecto (como «Columnas reconocidas»): solo se ve el título y los idiomas del evento; el detalle aparece al abrirlo. */
+  const d = idiomasEvento(), bil = d.length > 1, sec = d.slice(1).map(l => NOMBRE_IDIOMA[l] || l), nombres = d.map(l => NOMBRE_IDIOMA[l] || l).join(' · ');
+  const estado = bil
+    ? `<p><b>${t('Este evento es bilingüe')}</b> (${nombres}). ${t('Idioma principal')}: ${NOMBRE_IDIOMA[d[0]] || d[0]}.</p>`
+    : `<p><b>${t('Este evento está en un solo idioma')}</b> (${nombres}): ${t('las etiquetas de idioma se guardan como categorías, pero no cambian los links. Para usarlas, cambia el idioma a Bilingüe en Configuración › General.')}</p>`;
+  return `<details class="rounded-xl ring-1 ring-stone-200"><summary class="cursor-pointer px-3 py-2 text-sm font-medium">${t('Idioma de cada invitado')} <span class="font-normal text-stone-500" data-notr>· ${esc(nombres)}</span></summary>
+    <div class="grid gap-1 px-3 pb-3 text-sm text-stone-700">${estado}
+    <ul class="list-disc space-y-0.5 pl-5">
+      <li>${t('El idioma se indica en la columna Categoría, junto a las demás etiquetas, separado por comas: «Amigos novia, Inglés».')}</li>
+      <li>${t('Se reconocen «Inglés», «English» o «EN» (y «Español», «Spanish» o «ES»), con o sin tildes y mayúsculas. Sin etiqueta, el invitado queda en el idioma principal.')}</li>
+      <li>${t('Según su idioma, el panel arma su link de la invitación y del RSVP, su QR, los pases («2 seats») y la fecha límite del mensaje de WhatsApp, y propone la plantilla en su idioma.')}</li>
+      <li>${t('Para que la vista previa al compartir (WhatsApp) salga en inglés, registra el link de la página en inglés en Configuración › General.')}</li>
+      <li>${t('Usa la misma palabra en toda la lista: el filtro por categoría «Inglés» te mostrará a todos los invitados en inglés.')}</li>
+    </ul>${bil && sec.length ? `<p class="text-xs text-stone-500">${t('Ejemplo de fila')}: <span data-notr>John Smith · Mr. · 2 · Amigos novio, ${esc(sec[0] === 'English' ? 'Inglés' : sec[0])}</span></p>` : ''}
+    </div></details>`;
 }
 function importar() {
   modal(`${cabecera('Importar invitados desde Excel', 'Agrega nuevos y actualiza existentes sin duplicar')}${cuerpo(`
@@ -1712,6 +1782,7 @@ function importar() {
           <li>Los WhatsApp sin código de país reciben el del país elegido abajo. Los dudosos se marcan en la vista previa.</li>
           <li>Si el archivo es un respaldo exportado desde este panel, podrás restaurarlo completo: cada invitado vuelve a como estaba, con sus respuestas, mensajes, WhatsApp enviado e ingresos.</li>
           <li>Verás una vista previa antes de guardar nada.</li></ul></div>
+      ${avisoIdiomasImportar()}
       <details class="rounded-xl ring-1 ring-stone-200"><summary class="cursor-pointer px-3 py-2 text-sm font-medium">Columnas reconocidas</summary>
         <div class="overflow-x-auto px-3 pb-3"><table class="w-full text-left text-xs"><thead class="text-stone-500"><tr><th class="py-1 pr-3">Columna</th><th class="py-1 pr-3">Oblig.</th><th class="py-1">Detalle</th></tr></thead>
         <tbody>${COLUMNAS.map(c => `<tr class="border-t border-stone-100 align-top"><td class="py-1.5 pr-3 font-medium">${c[1]}</td><td class="py-1.5 pr-3">${c[2] ? '<b class="text-rose-600">Sí</b>' : 'No'}</td><td class="py-1.5 text-stone-600">${c[3]}</td></tr>`).join('')}</tbody></table></div></details>

@@ -15,7 +15,7 @@ window.PYD = Object.assign({
   INSTAGRAM: 'https://www.instagram.com/parteydetalles/',
   TIKTOK: 'https://www.tiktok.com/@parteydetalles',
   WHATSAPP: '51907954996',                            // sin "+" ni espacios
-  VERSION: 'v1.0.0'                                   // se muestra en el pie del panel y en los respaldos de Excel
+  VERSION: 'v1.1.0'                                   // se muestra en el pie del panel y en los respaldos de Excel
 }, window.PYD || {});
 
 (function () {
