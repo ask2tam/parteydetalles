@@ -6,6 +6,15 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f5f5f4">
 <title>Panel de invitados · Parte y Detalles</title>
+<!-- Icono y vista previa propios del PANEL (distintos del logo de la marca: lista de invitados con check y corazón). -->
+<link rel="icon" href="assets/panel_favicon.ico" sizes="any">
+<link rel="icon" href="assets/panel_icono.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/panel_icono_180.png">
+<!-- Vista previa al compartir el enlace del panel: og:image debe ser una dirección ABSOLUTA (cámbiala si tu dominio es otro). -->
+<meta property="og:title" content="Panel de invitados · Parte y Detalles">
+<meta property="og:description" content="Lista de invitados, confirmaciones, WhatsApp, recepción y reportes de tu boda.">
+<meta property="og:image" content="https://bodas.parteydetalles.com/v1/assets/panel_miniatura.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <script src="assets/pyd-config.js"></script>   <!-- llaves de Supabase y rutas del motor (BASE / SITIO / RUTAS) -->
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <style type="text/tailwindcss">
@@ -1003,27 +1012,12 @@ const PESTANAS = [['general', 'General'], ['formulario', 'Formulario RSVP'], ['t
 /* ---- Fondos del RSVP: color o imagen, con opacidad, zoom (≥ 100 % sobre «cover») y posición; imagen propia del evento o de la biblioteca (fondos/) ---- */
 const FONDOS = [['pagina', 'Fondo de la página (rsvp.html)', 'rsvp_fondo_background', '9 / 16'], ['formulario', 'Fondo del formulario', 'rsvp_fondo_formulario', '5 / 7'], ['tarjeta', 'Fondo de la tarjeta', 'rsvp_fondo_tarjeta', '5 / 7']];
 const numF = (v, d, mn, mx) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.max(mn, Math.min(mx, n)) : d; };
-const fondoCero = { tipo: 'color', color: '', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50 };
+const fondoCero = { tipo: 'color', color: '', opacidad: 100, origen: 'evento', preset: '', zoom: 100, pos_x: 50, pos_y: 50, filtro: '', filtro_fuerza: 0 };
+/* Biblioteca de texturas en blanco neutro + FILTRO DE COLOR (se multiplica sobre la imagen) */
+const FILTRO_DEF = '#E8D5CF';                                   // color propuesto la primera vez que se activa el filtro
 let CATALOGO_FONDOS = null;                                     // [{ id, nombre, grupo }] de <fondos>/catalogo.json
 const cargarCatalogo = () => CATALOGO_FONDOS ? Promise.resolve(CATALOGO_FONDOS)
   : fetch(P.ruta('fondos') + 'catalogo.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject()).then(j => (CATALOGO_FONDOS = (j.imagenes || []).filter(x => /^[a-z0-9-]{1,40}$/.test(x.id)))).catch(() => (CATALOGO_FONDOS = []));
-/* ¿Qué motor carga el RSVP del evento? Se lee su rsvp.html y se compara el <script> del motor con el de ESTE panel:
-     'propio'      = carga el mismo rsvp.js que este panel → todas las opciones de fondo aplican
-     'otro'        = carga un rsvp.js de otra carpeta/versión → las opciones avanzadas no tendrían efecto (se ocultan y se guarda sin tocarlas)
-     'desconocido' = no se pudo leer (otro dominio, sin red o sin <script> reconocible)
-   No depende de nombres de carpeta: si renombras la carpeta del motor, la comparación sigue siendo válida. */
-async function detectarMotor(urlRsvp) {
-  if (!urlRsvp) return { estado: 'desconocido' };
-  try {
-    const r = await fetch(urlRsvp, { cache: 'no-store' }); if (!r.ok) return { estado: 'desconocido' };
-    const h = await r.text(), limpia = u => new URL(u, urlRsvp).href.split(/[?#]/)[0];
-    const propio = limpia(P.ruta('rsvp')), nombre = propio.split('/').pop();
-    const motores = [...h.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map(m => limpia(m[1])).filter(u => u.split('/').pop() === nombre);
-    if (motores.includes(propio)) return { estado: 'propio' };
-    if (motores.length) return { estado: 'otro', url: motores[0] };
-  } catch { /* otro dominio o sin red */ }
-  return { estado: 'desconocido' };
-}
 const TABLERO = 'background-image:conic-gradient(#e7e5e4 25%,#fff 0 50%,#e7e5e4 0 75%,#fff 0);background-size:12px 12px';
 
 function configurar(pestana = 'general') {
@@ -1099,6 +1093,7 @@ function configurar(pestana = 'general') {
   const filaFondo = ([k, n, archivo, aspecto]) => {
     const f = FO[k] || {}, colorV = k === 'tarjeta' ? C.papel : (f.color || (k === 'pagina' ? '#F1ECE4' : '#FFFFFF'));
     const op = numF(f.opacidad, 100, 0, 100), z = numF(f.zoom, 100, 100, 300), px = numF(f.pos_x, 50, 0, 100), py = numF(f.pos_y, 50, 0, 100);
+    const fc = /^#[0-9a-f]{6}$/i.test(f.filtro || '') ? f.filtro : FILTRO_DEF, ff = numF(f.filtro_fuerza, /^#[0-9a-f]{6}$/i.test(f.filtro || '') ? 100 : 0, 0, 100), pr = f.preset || '';
     const sl = (attr, mn, mx, st, val, etq) => `<label class="flex items-center gap-2 text-sm"><span class="w-24 flex-none text-stone-600">${etq}</span><input type="range" ${attr} min="${mn}" max="${mx}" step="${st}" value="${val}" class="min-w-0 flex-1 accent-oro-600" aria-label="${esc(t(etq))}"><output class="w-12 text-right tabular-nums" data-out>${val}%</output></label>`;
     return `<div class="rounded-xl bg-stone-50 p-3" data-fondo="${k}" data-archivo="${archivo}" data-aspecto="${aspecto}">
       <div class="grid items-center gap-2 sm:grid-cols-[1fr_10rem_auto]">
@@ -1111,14 +1106,20 @@ function configurar(pestana = 'general') {
           ${sl('data-fondo-op', 0, 100, 5, op, 'Opacidad')}
           <div class="grid gap-2.5" data-fondo-img>
             <div><p class="mb-1 text-sm text-stone-600">Imagen</p><div class="flex flex-wrap gap-1.5" data-picker><span class="text-xs text-stone-400">…</span></div></div>
+            <div class="grid gap-1.5 rounded-lg bg-white/70 p-2 ring-1 ring-stone-200">
+              <div class="flex items-center gap-2 text-sm"><span class="w-24 flex-none text-stone-600">Filtro de color</span>
+                <input type="color" value="${esc(fc)}" data-fondo-filtro class="size-8 cursor-pointer rounded-md border-0 bg-transparent p-0" aria-label="${esc(t('Color del filtro'))}">
+                <span class="text-xs text-stone-500">Tiñe la imagen con este color (las texturas de la biblioteca son blancas).</span></div>
+              ${sl('data-fondo-ff', 0, 100, 5, ff, 'Intensidad')}
+            </div>
             ${sl('data-fondo-zoom', 100, 300, 5, z, 'Zoom')}${sl('data-fondo-px', 0, 100, 5, px, 'Horizontal')}${sl('data-fondo-py', 0, 100, 5, py, 'Vertical')}
-            <p class="text-xs text-stone-500">100 % = la imagen cubre todo el recuadro. Más zoom la acerca; Horizontal / Vertical eligen qué parte se ve (50 = centrado).</p>
+            <p class="text-xs text-stone-500">Intensidad 0 % = sin filtro (la imagen tal cual). 100 % = la textura toma el color elegido. 100 % de zoom = la imagen cubre todo el recuadro. Más zoom la acerca; Horizontal / Vertical eligen qué parte se ve (50 = centrado).</p>
             <button type="button" data-fondo-centrar class="${enlace} justify-self-start text-xs">Centrar y zoom 100 %</button>
-            <input type="hidden" data-fondo-origen value="${esc(f.origen === 'preset' ? 'preset' : 'evento')}"><input type="hidden" data-fondo-preset value="${esc(f.preset || '')}">
+            <input type="hidden" data-fondo-origen value="${esc(f.origen === 'preset' ? 'preset' : 'evento')}"><input type="hidden" data-fondo-preset value="${esc(pr)}">
           </div>
         </div>
         <div class="justify-self-center"><div class="relative overflow-hidden rounded-lg ring-1 ring-stone-300" style="width:${k === 'pagina' ? '5.5rem' : '6.5rem'};aspect-ratio:${aspecto};${TABLERO}" data-prev aria-label="${esc(t('Vista previa'))}">
-          <div class="absolute inset-0" data-prev-capa><i class="absolute inset-0" data-prev-c></i><img alt="" hidden class="absolute inset-0 h-full w-full max-w-none object-cover" data-prev-i></div></div>
+          <div class="absolute inset-0 isolate" data-prev-capa><i class="absolute inset-0" data-prev-c></i><img alt="" hidden class="absolute inset-0 h-full w-full max-w-none object-cover" data-prev-i><i class="absolute inset-0 mix-blend-multiply" hidden data-prev-f></i></div></div>
           <p class="mt-1 text-center text-xs text-stone-500">Vista previa</p></div>
       </div></div>`; };
   const panelTarjeta = `<div class="grid gap-4 sm:grid-cols-2">
@@ -1138,7 +1139,6 @@ function configurar(pestana = 'general') {
     <div class="grid grid-cols-3 gap-3 sm:col-span-2">${[['tinta', 'Texto'], ['acento', 'Acento'], ['suave', 'Texto suave']].map(([k, n]) =>
       `<label class="flex items-center gap-2 rounded-xl bg-stone-50 p-2 text-sm"><input type="color" id="t-c-${k}" value="${esc(C[k])}" class="size-9 cursor-pointer rounded-lg border-0 bg-transparent p-0"><span>${n}</span></label>`).join('')}</div>
     <div class="mt-2 sm:col-span-2"><h3 class="font-semibold">Fondos del RSVP</h3></div>
-    <p id="motor-aviso" class="rounded-xl bg-stone-50 p-2.5 text-xs text-stone-500 sm:col-span-2">Comprobando el motor del RSVP…</p>
     <div class="grid gap-2 sm:col-span-2" id="fondos-box">${FONDOS.map(filaFondo).join('')}</div>
     <div class="grid items-center gap-3 rounded-xl bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto]">
       <p class="text-sm font-medium">Casillas y listas del formulario</p>
@@ -1248,9 +1248,11 @@ function configurar(pestana = 'general') {
       tipo: f.querySelector('[data-fondo-tipo]').value, color: f.querySelector('[data-fondo-color]').value,
       opacidad: numF(f.querySelector('[data-fondo-op]').value, 100, 0, 100), zoom: numF(f.querySelector('[data-fondo-zoom]').value, 100, 100, 300),
       pos_x: numF(f.querySelector('[data-fondo-px]').value, 50, 0, 100), pos_y: numF(f.querySelector('[data-fondo-py]').value, 50, 0, 100),
-      origen: f.querySelector('[data-fondo-origen]').value === 'preset' ? 'preset' : 'evento', preset: f.querySelector('[data-fondo-preset]').value });
+      origen: f.querySelector('[data-fondo-origen]').value === 'preset' ? 'preset' : 'evento', preset: f.querySelector('[data-fondo-preset]').value,
+      filtro: f.querySelector('[data-fondo-filtro]').value, filtro_fuerza: numF(f.querySelector('[data-fondo-ff]').value, 0, 0, 100) });
     const previa = f => {                                          // vista previa: mismas reglas que assets/rsvp.js (color/imagen · opacidad · zoom desde la posición)
-      const g = leerFondo(f), capa = f.querySelector('[data-prev-capa]'), col = f.querySelector('[data-prev-c]'), im = f.querySelector('[data-prev-i]');
+      const g = leerFondo(f), capa = f.querySelector('[data-prev-capa]'), col = f.querySelector('[data-prev-c]'), im = f.querySelector('[data-prev-i]'), fl = f.querySelector('[data-prev-f]');
+      fl.hidden = g.tipo !== 'imagen' || !(g.filtro_fuerza > 0); fl.style.background = g.filtro; fl.style.opacity = g.filtro_fuerza / 100;
       capa.style.opacity = g.tipo === 'transparente' ? 0 : g.opacidad / 100;
       col.style.background = g.tipo === 'color' ? g.color : 'transparent';
       if (g.tipo !== 'imagen') { im.hidden = true; return; }
@@ -1259,10 +1261,10 @@ function configurar(pestana = 'general') {
       im.onerror = () => { if (g.origen !== 'preset' && !im.dataset.png) { im.dataset.png = '1'; im.src = urlEvento(f, 'png'); } else im.hidden = true; };
       if (im.getAttribute('src') !== u) { delete im.dataset.png; im.src = u; } im.hidden = false;
     };
-    const sincronizar = f => {                                     // qué controles se ven según el tipo y el motor
-      const tipo = f.querySelector('[data-fondo-tipo]').value, otro = d.dataset.motor === 'otro';
+    const sincronizar = f => {                                     // qué controles se ven según el tipo de fondo
+      const tipo = f.querySelector('[data-fondo-tipo]').value;
       f.querySelector('[data-fondo-color]').style.visibility = tipo === 'color' ? 'visible' : 'hidden';
-      f.querySelector('[data-fondo-avanz]').hidden = tipo === 'transparente' || otro;
+      f.querySelector('[data-fondo-avanz]').hidden = tipo === 'transparente';
       f.querySelector('[data-fondo-img]').hidden = tipo !== 'imagen';
       previa(f);
     };
@@ -1301,14 +1303,6 @@ function configurar(pestana = 'general') {
       sincronizar(f);
     });
     cargarCatalogo().then(() => d.querySelectorAll('[data-fondo]').forEach(pintarPicker));
-    detectarMotor(c.url_rsvp).then(m => {
-      d.dataset.motor = m.estado; const av = q('#motor-aviso');
-      av.className = `rounded-xl p-2.5 text-xs sm:col-span-2 ${m.estado === 'propio' ? 'bg-emerald-50 text-emerald-800' : m.estado === 'otro' ? 'bg-amber-50 text-amber-800' : 'bg-stone-50 text-stone-500'}`;
-      av.innerHTML = m.estado === 'propio' ? `<span>${esc(t('Motor del RSVP: el de este panel. Todas las opciones de fondo están activas.'))}</span>`
-        : m.estado === 'otro' ? `<span>${esc(t('El RSVP de este evento carga otro motor: opacidad, zoom, posición y fondos predeterminados no tendrían efecto, por eso están ocultos. Para usarlos, su rsvp.html debe cargar el motor de este panel.'))}</span> <span data-notr>(${esc(m.url)})</span>`
-        : `<span>${esc(t('No se pudo comprobar qué motor usa el RSVP del evento. Las opciones avanzadas de fondo solo funcionan si su rsvp.html carga el motor de este panel.'))}</span>`;
-      d.querySelectorAll('[data-fondo]').forEach(sincronizar);
-    });
 
     /* --- logo, casillas y QR (vista previa en vivo) --- */
     q('#f-logo-ancho').addEventListener('input', e => { q('#f-logo-v').textContent = e.target.value + ' px'; });
@@ -1430,8 +1424,8 @@ function configurar(pestana = 'general') {
       const texto = (id, k) => { const x = v(id); return x === DEF_TEXTOS[k] ? '' : x; };
       const fondo = k => {                      // el color de la tarjeta va en colores.papel (como siempre); el resto de opciones, en cada fondo
         const g = leerFondo(d.querySelector(`[data-fondo="${k}"]`)), ids = (CATALOGO_FONDOS || []).map(x => x.id);
-        if (d.dataset.motor === 'otro') return { ...((c.tarjeta?.fondos || {})[k] || {}), tipo: g.tipo, ...(k === 'tarjeta' ? {} : { color: g.color }) };   // motor distinto: solo tipo y color; lo demás queda como estaba
-        const o = { tipo: g.tipo, opacidad: Math.round(g.opacidad), origen: g.origen, preset: g.origen === 'preset' && (!ids.length || ids.includes(g.preset)) ? g.preset : '', zoom: Math.round(g.zoom), pos_x: Math.round(g.pos_x), pos_y: Math.round(g.pos_y) };
+        const o = { tipo: g.tipo, opacidad: Math.round(g.opacidad), origen: g.origen, preset: g.origen === 'preset' && (!ids.length || ids.includes(g.preset)) ? g.preset : '', zoom: Math.round(g.zoom), pos_x: Math.round(g.pos_x), pos_y: Math.round(g.pos_y),
+                    filtro: g.filtro_fuerza > 0 ? g.filtro : '', filtro_fuerza: Math.round(g.filtro_fuerza) };
         if (o.origen === 'preset' && !o.preset) o.origen = 'evento';
         return k === 'tarjeta' ? o : { ...o, color: g.color };
       };

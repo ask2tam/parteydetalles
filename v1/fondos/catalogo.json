@@ -1,84 +1,61 @@
 {
- "version": 1,
+ "version": 2,
  "tamano": [
   1200,
   1600
  ],
+ "base": "neutro",
+ "nota": "Texturas en blanco neutro: el color se aplica con el filtro (fondos.<k>.filtro / filtro_fuerza).",
  "imagenes": [
   {
-   "id": "papel-blanco",
-   "nombre": "Papel blanco",
+   "id": "papel-algodon",
+   "nombre": "Papel de algodón",
    "grupo": "Papel"
   },
   {
-   "id": "papel-marfil",
-   "nombre": "Papel marfil",
+   "id": "papel-prensado",
+   "nombre": "Papel prensado",
    "grupo": "Papel"
   },
   {
-   "id": "papel-crema",
-   "nombre": "Papel crema",
+   "id": "papel-fibras",
+   "nombre": "Papel de fibras",
    "grupo": "Papel"
   },
   {
-   "id": "papel-arena",
-   "nombre": "Papel arena",
+   "id": "papel-liso",
+   "nombre": "Papel liso",
    "grupo": "Papel"
   },
   {
-   "id": "lino-natural",
-   "nombre": "Lino natural",
-   "grupo": "Lino"
+   "id": "lino",
+   "nombre": "Lino",
+   "grupo": "Tela"
   },
   {
-   "id": "lino-blanco",
-   "nombre": "Lino blanco",
-   "grupo": "Lino"
+   "id": "tela-acanalada",
+   "nombre": "Tela acanalada",
+   "grupo": "Tela"
   },
   {
-   "id": "acuarela-rosa",
-   "nombre": "Acuarela rosa",
-   "grupo": "Acuarela"
+   "id": "marmol",
+   "nombre": "Mármol",
+   "grupo": "Piedra"
   },
   {
-   "id": "acuarela-salvia",
-   "nombre": "Acuarela salvia",
-   "grupo": "Acuarela"
+   "id": "estuco",
+   "nombre": "Estuco a pincel",
+   "grupo": "Relieve"
   },
   {
-   "id": "acuarela-azul",
-   "nombre": "Acuarela azul",
-   "grupo": "Acuarela"
+   "id": "relieve-botanico",
+   "nombre": "Relieve botánico",
+   "grupo": "Relieve"
   },
   {
-   "id": "acuarela-lavanda",
-   "nombre": "Acuarela lavanda",
-   "grupo": "Acuarela"
-  },
-  {
-   "id": "acuarela-champagne",
-   "nombre": "Acuarela champagne",
-   "grupo": "Acuarela"
-  },
-  {
-   "id": "marmol-blanco",
-   "nombre": "Mármol blanco",
-   "grupo": "Mármol"
-  },
-  {
-   "id": "marmol-rosado",
-   "nombre": "Mármol rosado",
-   "grupo": "Mármol"
-  },
-  {
-   "id": "perla",
-   "nombre": "Perla",
-   "grupo": "Degradado"
-  },
-  {
-   "id": "amanecer",
-   "nombre": "Amanecer",
-   "grupo": "Degradado"
+   "id": "hojas-esculpidas",
+   "nombre": "Hojas esculpidas",
+   "grupo": "Relieve"
   }
  ]
 }

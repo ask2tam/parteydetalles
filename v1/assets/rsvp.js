@@ -148,6 +148,12 @@
      Se resuelve una sola vez por fondo. */
   var _fondos = {}, _fondosImg = [];
   function fondoCfg(k) { return ((cfg.tarjeta || {}).fondos || {})[k] || {}; }
+  /* Filtro de color sobre la imagen (v1.1): el color se MULTIPLICA sobre la textura (blanco → el color elegido; el relieve se conserva).
+     fondos.<k>.filtro = '#RRGGBB' · filtro_fuerza = 0–100 (0 o vacío = sin filtro). Solo aplica a fondos de tipo imagen. */
+  function filtroFondo(f) {
+    var c = /^#[0-9a-f]{6}$/i.test(f.filtro || '') ? f.filtro : '', k = num(f.filtro_fuerza, c ? 100 : 0, 0, 100) / 100;
+    return c && k > 0 ? { color: c, fuerza: k } : null;
+  }
   function resolverFondo(k) {
     var f = fondoCfg(k), preset = f.origen === 'preset' && /^[a-z0-9-]{1,40}$/.test(f.preset || '') && FONDOS_URL, clave = k + '|' + (preset ? f.preset : 'evento');
     if (!_fondos[clave]) _fondos[clave] = preset ? Promise.resolve(FONDOS_URL + f.preset + '.jpg') : new Promise(function (ok) {
@@ -164,7 +170,12 @@
      Devuelve una promesa que se cumple cuando la imagen ya cargó. */
   function pintarCapa(host, k, base) {
     var f = fondoCfg(k), tipo = f.tipo || 'color', c = host.querySelector('.fc-c'), im = host.querySelector('.fc-i'), a = ajusteFondo(f);
+    var fl = host.querySelector('.fc-f');                     /* capa del filtro de color (multiplica sobre la imagen) */
+    if (!fl) { fl = document.createElement('i'); fl.className = 'fc-f'; fl.style.cssText = 'position:absolute;inset:0;mix-blend-mode:multiply;pointer-events:none'; host.appendChild(fl); }
+    var filtro = tipo === 'imagen' ? filtroFondo(f) : null;
+    fl.hidden = !filtro; if (filtro) { fl.style.background = filtro.color; fl.style.opacity = String(filtro.fuerza); }
     host.style.opacity = tipo === 'transparente' ? '0' : String(opacidadFondo(f));
+    host.style.isolation = 'isolate';                         /* el filtro solo tiñe la imagen de esta capa, no lo que hay detrás */
     c.style.background = tipo === 'color' ? (f.color || base || 'transparent') : 'transparent';
     if (tipo !== 'imagen') { im.hidden = true; return Promise.resolve(); }
     return resolverFondo(k).then(function (u) {
@@ -221,7 +232,7 @@ input[type=text],select,textarea{display:block;width:100%;margin:0;border:1px so
 select{padding-right:38px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'9\' viewBox=\'0 0 14 9\'%3E%3Cpath d=\'M1 1l6 6 6-6\' fill=\'none\' stroke=\'%237a7066\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 15px center}\
 textarea{height:calc(96px*var(--fz,1));padding:12px 14px;resize:vertical}textarea.corto{height:calc(70px*var(--fz,1))}\
 input:focus,select:focus,textarea:focus{border-color:var(--boton);box-shadow:0 0 0 3px color-mix(in srgb,var(--boton) 25%,transparent)}\
-input[readonly]{color:#6b6258;cursor:not-allowed;filter:brightness(.97)}\
+input[readonly]{color:color-mix(in srgb,var(--texto) 72%,transparent);cursor:not-allowed;filter:brightness(.97)}\
 .logo-rsvp{display:block;margin:0 auto 18px;max-width:100%;height:auto}:disabled{opacity:.7;cursor:not-allowed}\
 .invalido{border-color:var(--error)!important}.grupo.invalido{border:1px solid var(--error);border-radius:14px;padding:6px}\
 .opciones{display:flex;flex-wrap:wrap;gap:8px}\
@@ -439,6 +450,10 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
     estado.fechaLimite = p.fechaLimite || null; estado.abierto = p.abierto !== false; estado.inactivo = p.activo === false; estado.permitirNuevos = p.permitirNuevos !== false;
     if (!estado.existente) estado.pases = Math.max(1, Math.min(cfg.pasesMax, parseInt(PASE_URL, 10) || 1));
     var raiz = RAIZ.querySelector('.rsvp-raiz'), ac = cfg.tarjeta.colores.acento;
+    /* Texto y Texto suave del panel también pintan el formulario (preguntas, ayudas, contador, fechas…), igual que la tarjeta */
+    var C0 = (p.tarjeta || {}).colores || {};                 /* solo si el evento los guardó: sin colores guardados, el formulario se ve como siempre */
+    if (/^#[0-9a-f]{6}$/i.test(C0.tinta || '')) raiz.style.setProperty('--texto', C0.tinta);
+    if (/^#[0-9a-f]{6}$/i.test(C0.suave || '')) raiz.style.setProperty('--suave', C0.suave);
     raiz.style.setProperty('--boton', ac); raiz.style.setProperty('--boton-osc', oscurecer(ac, .14)); raiz.style.setProperty('--ok', oscurecer(ac, .3));   /* avisos «ok»: el acento del evento, más oscuro para que se lea */
     el.detMensaje.hidden = !cfg.form.permitir_mensaje;
     aplicarGiro();
@@ -722,7 +737,13 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--boton-osc);ou
       var fT = Tj.fondos.tarjeta || {}, opT = opacidadFondo(fT), ajT = ajusteFondo(fT);
       if (tipoF === 'imagen' && fondo) {
         var e = Math.max(W / fondo.naturalWidth, H / fondo.naturalHeight) * ajT.z, sw = fondo.naturalWidth * e, sh = fondo.naturalHeight * e;   /* cover × zoom, desplazado según la posición (%) */
-        ctx.save(); ctx.globalAlpha = opT; ctx.drawImage(fondo, (W - sw) * ajT.x / 100, (H - sh) * ajT.y / 100, sw, sh); ctx.restore();
+        var flT = filtroFondo(fT), src = fondo, dx = (W - sw) * ajT.x / 100, dy = (H - sh) * ajT.y / 100;
+        if (flT) {                                              /* filtro de color: se multiplica sobre la imagen en un lienzo aparte (no tiñe nada más) */
+          var tc = document.createElement('canvas'); tc.width = W; tc.height = H; var tx = tc.getContext('2d');
+          tx.drawImage(fondo, dx, dy, sw, sh); tx.globalCompositeOperation = 'multiply'; tx.globalAlpha = flT.fuerza; tx.fillStyle = flT.color; tx.fillRect(0, 0, W, H);
+          src = tc; dx = 0; dy = 0; sw = W; sh = H;
+        }
+        ctx.save(); ctx.globalAlpha = opT; ctx.drawImage(src, dx, dy, sw, sh); ctx.restore();
       } else if (tipoF !== 'transparente') { ctx.save(); ctx.globalAlpha = opT; ctx.fillStyle = C.papel; ctx.fillRect(0, 0, W, H); ctx.restore(); }
       if (tipoF !== 'imagen') {
         ctx.strokeStyle = C.acento; ctx.lineWidth = 4; ctx.strokeRect(48, 48, W - 96, H - 96);
