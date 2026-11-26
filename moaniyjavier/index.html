@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="es" translate="no" class="bloqueado notranslate">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moani &amp; Javier</title>
+<!-- Vista previa al compartir (WhatsApp, etc.): versión en ESPAÑOL. La versión en inglés tiene la suya en en/index.html (mismo sitio, otro enlace). -->
+<meta property="og:title" content="Moani &amp; Javier · ¡Nos casamos!">
+<meta property="og:description" content="Te invitamos a nuestra boda — 24 de abril de 2027.">
+<meta property="og:image" content="https://bodas.parteydetalles.com/moaniyjavier/miniatura.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="format-detection" content="telephone=no">
+<meta name="google" content="notranslate">
+<meta name="theme-color" content="#F7E4E3">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<!-- IDIOMA: ?lang=en → inglés; sin parámetro → español. Decide la portada, la invitación (invitacion_es / invitacion_en), el RSVP y la guía de la ciudad.
+     Se fija antes de todo lo demás para que no haya «parpadeo» de idioma. -->
+<script>
+  window.MJ_LANG = (new URLSearchParams(location.search).get('lang') || '').toLowerCase().slice(0, 2) === 'en' ? 'en' : 'es';
+  document.documentElement.lang = window.MJ_LANG;
+  /* Antes de pyd-config.js: el crédito se muestra solo al final de la invitación y las animaciones corren aunque el sistema pida «reducir movimiento». */
+  window.PYD_SIN_CREDITO = true; window.PYD_SIEMPRE_ANIMAR = true;
+</script>
+<script src="../v1/assets/pyd-config.js"></script>   <!-- llaves de Supabase, rutas del motor y redirección del rol staff -->
+<script src="../v1/assets/boda-api.js"></script>     <!-- una sola lectura del invitado (tarjeta del sobre) -->
+<link rel="preconnect" href="https://oydjnnbdwtbyufsqrqyh.supabase.co">   <!-- cambia por tu Project URL -->
+<!-- Precarga de lo indispensable para mostrar el sobre (empieza a bajar desde el <head>) -->
+<link rel="preload" as="image" href="assets/portada_fondo.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="assets/portada_titulo.webp">
+<link rel="preload" as="image" href="assets/puerta_izq.webp"><link rel="preload" as="image" href="assets/puerta_der.webp">
+<link rel="preload" as="image" href="assets/sello.webp"><link rel="preload" as="image" href="assets/sobre_base.webp">
+<link rel="preload" as="image" href="assets/tarjeta.webp"><link rel="preload" as="image" href="assets/tarjeta_adorno.webp">
+<link rel="preload" as="font" type="font/woff2" href="assets/1cdd69923e0e144e7975467fb4094299.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="assets/bcf845bc9976372da10183c67cc300c0.woff2" crossorigin>
+<!-- Tipografía de la portada (la misma de Canva, ya aligerada a woff2): «¡NOS CASAMOS!», la tarjeta y la pista -->
+<style id="fuentes-portada">
+@font-face{font-family:"YACgEeV8bIQ_0";font-weight:100 500;font-style:normal;font-display:block;src:url(assets/bcf845bc9976372da10183c67cc300c0.woff2) format("woff2")}
+@font-face{font-family:"YACgEeV8bIQ_0";font-weight:600 900;font-style:normal;font-display:block;src:url(assets/1cdd69923e0e144e7975467fb4094299.woff2) format("woff2")}
+</style>
+<style id="fuentes-canva"></style><!-- @font-face de la invitación (Canva): dentro de un Shadow DOM Chrome los ignora, por eso viven aquí -->
+<style id="fuentes-guia"></style><!-- @font-face de la guía de la ciudad (descubre / alojamiento / cultura / restaurantes) -->
+<style>
+  :root { --rosa: #F7E4E3; --terracota: rgb(178, 100, 78); --oliva: rgb(96, 100, 50); --vino: #7B2427; --papel: #FBF6EF; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #FAF3EA; }
+  html { scrollbar-gutter: stable; }
+  html.bloqueado, html.bloqueado body, html.modal body { overflow: hidden !important; }
+  html.bloqueado { background: #F7E4E3; }                       /* la franja de la barra de desplazamiento (escritorio) toma el rosa de la portada */
+  html.bloqueado body { touch-action: none; }
+
+  /* ---------- Invitación (Canva en un Shadow DOM) ---------- */
+  #invitacion { position: relative; visibility: hidden; }
+  #invitacion.visible { visibility: visible; }
+  .canva-host { display: block; position: relative; }
+
+  /* ---------- Gesto «desliza» (una vez, al abrir la invitación) ---------- */
+  #pista-scroll { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 4px;
+                  padding: 11px 20px 7px; border-radius: 22px; transform: translateX(-50%); pointer-events: none; opacity: 0; transition: opacity .9s ease; color: #fff;
+                  background: rgba(60, 34, 26, .46); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 22px rgba(0,0,0,.18); }
+  #pista-scroll[hidden] { display: none; }
+  #pista-scroll.ver { opacity: 1; }
+  #pista-scroll .ps-txt { font: 700 11px/1 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .34em; text-indent: .34em; text-transform: uppercase; }
+  #pista-scroll .ps-fl { position: relative; display: block; width: 22px; height: 26px; }
+  #pista-scroll .ps-fl i { position: absolute; left: 50%; top: 0; width: 11px; height: 11px; margin-left: -5.5px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+                           transform: rotate(45deg); opacity: 0; animation: ps-baja 1.9s ease-in-out infinite; }
+  #pista-scroll .ps-fl i:nth-child(2) { animation-delay: .28s; }
+  @keyframes ps-baja { 0% { opacity: 0; transform: translateY(-5px) rotate(45deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(13px) rotate(45deg); } }
+
+  /* ---------- Crédito «Hecho con amor»: modo discreto (corazón) a la IZQUIERDA, solo al llegar al final ---------- */
+  #pyd-credito.pc-disc { right: auto; left: calc(12px + env(safe-area-inset-left)); justify-content: flex-start; }
+  #pyd-credito.pc-disc .pc-linea { right: auto; left: 0; justify-content: flex-start; transform-origin: 0 100%; }
+
+  /* ---------- Ventanas (RSVP y guía de la ciudad) ---------- */
+  .ventana { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; visibility: hidden; pointer-events: none; }
+  .ventana[hidden] { display: none; }
+  .ventana.abierta { visibility: visible; pointer-events: auto; }
+  .v-velo { position: absolute; inset: 0; background: rgba(48, 30, 24, .42); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); opacity: 0; transition: opacity .45s ease; }
+  .ventana.abierta .v-velo { opacity: 1; }
+  .v-caja { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; background: var(--papel); overflow: hidden;
+            opacity: 0; transform: translateY(5%) scale(.985); transition: opacity .45s ease, transform .55s cubic-bezier(.16, 1, .3, 1); }
+  .ventana.abierta .v-caja { opacity: 1; transform: none; }
+  .v-caja:focus { outline: none; }
+  @media (min-width: 560px) { .v-caja { width: min(520px, 94vw); height: min(92vh, 940px); border-radius: 18px; box-shadow: 0 24px 70px rgba(40, 20, 12, .35); } }
+  .v-cerrar { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 8px; z-index: 5; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer;
+              background: rgba(251, 246, 239, .92); color: #5a3a2e; display: grid; place-items: center; box-shadow: 0 2px 10px rgba(60, 30, 20, .18); -webkit-appearance: none; appearance: none; }
+  .v-cerrar svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; fill: none; }
+  .v-cerrar:focus-visible { outline: 2px solid var(--terracota); outline-offset: 2px; }
+  /* RSVP: la página rsvp.html del evento en un iframe (mismo origen) */
+  #v-rsvp iframe { flex: 1; width: 100%; border: 0; display: block; background: var(--papel); }
+  .v-carga { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; transition: opacity .4s ease; }
+  .v-carga.fuera { opacity: 0; }
+  .v-carga i { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(178, 100, 78, .2); border-top-color: var(--terracota); animation: v-gira 1s linear infinite; }
+  @keyframes v-gira { to { transform: rotate(360deg); } }
+  /* Guía de la ciudad: barra de menú propia (alineada) + 4 páginas de Canva que se deslizan entre sí */
+  .g-barra { position: relative; z-index: 4; flex: none; display: flex; align-items: stretch; justify-content: space-evenly; gap: 0; padding: calc(6px + env(safe-area-inset-top)) 44px 4px 2px;
+             background: rgba(251, 246, 239, .96); box-shadow: 0 1px 0 rgba(120, 70, 50, .12), 0 6px 16px rgba(80, 40, 20, .06); overflow-x: auto; scrollbar-width: none; }
+  .g-barra::-webkit-scrollbar { display: none; }
+  .g-barra button { flex: 0 0 auto; position: relative; padding: 9px 3px 11px; border: 0; background: transparent; cursor: pointer; color: #8a6a5c; -webkit-appearance: none; appearance: none;
+                    font: 700 clamp(8.6px, 2.7vw, 11.5px)/1.18 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .04em; text-transform: uppercase; text-align: center; white-space: pre; transition: color .3s; }
+  .g-barra button::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 4px; height: 1.5px; background: var(--terracota); transform: scaleX(0); transition: transform .4s cubic-bezier(.16, 1, .3, 1); }
+  .g-barra button[aria-current="page"] { color: var(--terracota); }
+  @media (min-width: 420px) { .g-barra button { letter-spacing: .09em; padding: 9px 6px 11px; } }
+  @media (max-width: 339px) { .g-barra button { letter-spacing: 0; padding: 9px 2px 11px; } }
+  .g-barra button[aria-current="page"]::after { transform: scaleX(1); }
+  .g-barra button:focus-visible { outline: 2px solid var(--terracota); outline-offset: -2px; border-radius: 6px; }
+  #v-guia .v-cerrar { top: calc(6px + env(safe-area-inset-top)); right: 4px; width: 38px; height: 38px; box-shadow: none; background: transparent; }
+  .g-paginas { position: relative; flex: 1; overflow: hidden; }
+  .g-pag { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: var(--papel);
+           transform: translateX(100%); visibility: hidden; transition: transform .6s cubic-bezier(.65, 0, .25, 1), opacity .6s ease, visibility 0s linear .6s; }
+  .g-pag.actual { transform: none; visibility: visible; transition: transform .6s cubic-bezier(.65, 0, .25, 1), opacity .6s ease, visibility 0s; }
+  .g-pag.izq { transform: translateX(-28%); opacity: .4; }
+  .g-pag.der { transform: translateX(100%); }
+  .g-pag .canva-host { min-height: 100%; }
+
+  /* ---------- Portada ---------- */
+  #portada-host { position: fixed; inset: 0; z-index: 100; display: block; background: var(--rosa); }
+
+  /* ---------- Pantalla de carga ---------- */
+  #cargador { position: fixed; inset: 0; z-index: 1000; background: #F2DCD9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+              transition: opacity .9s ease, visibility 0s linear .9s; }
+  #cargador.fuera { opacity: 0; visibility: hidden; pointer-events: none; }
+  .anillo { position: relative; width: 104px; height: 104px; }
+  .anillo svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+  .anillo circle { fill: none; stroke-width: 3; }
+  .anillo .riel { stroke: rgba(178, 100, 78, .16); }
+  .anillo .avance { stroke: rgb(178, 100, 78); stroke-linecap: round; }
+  .anillo .pct { position: absolute; inset: 0; display: grid; place-items: center; color: rgb(150, 82, 62); font: 500 18px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .04em; }
+  .cargador-txt { color: rgba(150, 82, 62, .7); font: 400 11px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .3em; text-transform: uppercase; text-align: center; padding: 0 24px; }
+</style>
+</head>
+<body>
+
+<div id="invitacion" aria-hidden="true">
+  <div id="inv" class="canva-host"></div>
+  <div data-credito></div>
+</div>
+
+<div id="pista-scroll" aria-hidden="true" hidden><span class="ps-txt" id="ps-txt">Desliza</span><span class="ps-fl"><i></i><i></i></span></div>
+
+<!-- Ventana del RSVP: rsvp.html del evento (con el idioma y el código del invitado) -->
+<div class="ventana" id="v-rsvp" role="dialog" aria-modal="true" aria-label="RSVP" hidden>
+  <div class="v-velo" data-cerrar></div>
+  <div class="v-caja">
+    <button class="v-cerrar" type="button" data-cerrar aria-label="Cerrar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="v-carga" id="rsvp-carga"><i></i></div>
+  </div>
+</div>
+
+<!-- Ventana «Pensando en tu comodidad»: guía de la ciudad (4 páginas de Canva) -->
+<div class="ventana" id="v-guia" role="dialog" aria-modal="true" aria-label="Guía" hidden>
+  <div class="v-velo" data-cerrar></div>
+  <div class="v-caja">
+    <nav class="g-barra" id="g-barra" aria-label="Guía"></nav>
+    <button class="v-cerrar" type="button" data-cerrar aria-label="Cerrar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="g-paginas" id="g-paginas"></div>
+  </div>
+</div>
+
+<div id="portada-host"></div>
+
+<div id="cargador" role="status" aria-live="polite">
+  <div class="anillo">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="riel" cx="50" cy="50" r="46"/><circle class="avance" id="anillo-avance" cx="50" cy="50" r="46"/></svg>
+    <div class="pct" id="anillo-pct">0%</div>
+  </div>
+  <div class="cargador-txt" id="cargador-txt">Preparando tu invitaci&oacute;n</div>
+</div>
+
+<!-- =====================================================================================
+     PORTADA EN SHADOW DOM (ningún estilo de Canva la alcanza). Reconstruida a partir de portada.html de Canva, a pantalla completa:
+     papel de fondo (ya horneado con su «filtro»: papel al 24 % sobre el rosa) · título · «¡NOS CASAMOS!» · sobre de DOBLE PUERTA con sello.
+     El escenario (#stage) mide 485 × 1072 (el lienzo de Canva): todo se ubica en % de él, así queda alineado en cualquier pantalla.
+     Apertura: el sello se despega y cae al borde inferior del sobre → las dos puertas giran hacia afuera (JS, cuadro a cuadro: se ve igual
+     en iPhone y Android, aunque el sistema pida reducir movimiento) → la tarjeta del interior se adelanta con el nombre y los pases → «Ver invitación».
+     ===================================================================================== -->
+<template id="portada-plantilla">
+<style>
+  :host { all: initial; display: block; position: fixed; inset: 0; }
+  .gate { position: absolute; inset: 0; overflow: hidden; background: #F7E4E3 url('assets/portada_fondo.jpg') center / cover no-repeat; font-synthesis: none;
+          -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+          --d-tarjeta: 1.75s; --t-tarjeta: 1.1s; --d-cab: .5s; --t-cab: 1.6s; --d-cam: 1.5s; --t-cam: 1.8s; }
+  .gate *, .gate *::before, .gate *::after { box-sizing: border-box; }
+  #stage { position: absolute; left: 0; top: 0; container-type: inline-size; }
+
+  /* ---------- Cabecera: título (imagen) + «¡NOS CASAMOS!» (texto, cambia con el idioma) ---------- */
+  .cab { position: absolute; inset: 0; pointer-events: none; transition: transform var(--t-cab) cubic-bezier(.45,.05,.25,1) var(--d-cab); }
+  .gate.abierto .cab { transform: translateY(-5cqw); }
+  .cab-titulo { position: absolute; left: 11.05%; top: 18.74%; width: 77.9%; margin: 0; }
+  .cab-titulo img { display: block; width: 100%; height: auto; -webkit-user-drag: none;
+                    -webkit-mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+                            mask-image: linear-gradient(90deg, #000 0, #000 50%, transparent 58.3%, transparent 100%);
+                    -webkit-mask-size: 300% 100%; mask-size: 300% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  .gate.lista .cab-titulo img { -webkit-mask-position: 0 0; mask-position: 0 0; transition: -webkit-mask-position 2.2s cubic-bezier(.45,.05,.2,1) .3s, mask-position 2.2s cubic-bezier(.45,.05,.2,1) .3s; }
+  .cab-sub { position: absolute; left: 0; right: 0; top: 28.4%; margin: 0; text-align: center; color: rgb(178, 100, 78);
+             font: 700 4.46cqw/1.2 'YACgEeV8bIQ_0', Georgia, serif; text-transform: uppercase; letter-spacing: .02em;
+             opacity: 0; transform: translateY(1.2cqw); transition: opacity 1.2s ease 1.6s, transform 1.4s cubic-bezier(.16,1,.3,1) 1.6s; }
+  .gate.lista .cab-sub { opacity: 1; transform: none; }
+
+  /* ---------- El sobre (doble puerta) ---------- */
+  .cam-pos { position: absolute; left: 15.72%; width: 68.56%; top: 32.38%; }
+  .cam { opacity: 0; transform-origin: 50% 45%; transition: opacity 1.2s ease, transform var(--t-cam) cubic-bezier(.45,.05,.25,1) var(--d-cam); }
+  .gate.lista .cam { opacity: 1; }
+  .gate.abierto .cam { transform: translateY(4.4%) scale(1.12); }          /* la «cámara» se acerca a la tarjeta (sin tapar el título) */
+  .env { position: relative; width: 100%; aspect-ratio: 582 / 800; perspective-origin: 50% 46%; }
+  .pieza { position: absolute; top: 0; height: 100%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
+  .base { left: 0; width: 100%; z-index: 1; background-image: url('assets/sobre_base.webp'); filter: drop-shadow(0 8px 14px rgba(90, 50, 40, .22)); }
+  /* sombra que las puertas cerradas dejan dentro del sobre (se aclara mientras se abren; la maneja el JS) */
+  .sombra { position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: 1.2%; background: radial-gradient(120% 90% at 50% 50%, rgba(40,30,15,0) 40%, rgba(40,30,15,.5) 100%), rgba(40,30,15,.35); opacity: 1; }
+  /* Puertas: la izquierda gira sobre su borde izquierdo y la derecha sobre el derecho. Cada una tiene dos caras: a los 90° (de canto) el JS cambia
+     de cara (sin backface-visibility: Safari la ignora en algunos contextos). La cara interior se refleja (scaleX(-1)) para anular el espejo del giro. */
+  .puerta { position: absolute; top: 0; height: 100%; z-index: 4; pointer-events: none; will-change: transform; }
+  .p-izq { left: 0; width: 50.17%; transform-origin: 0 50%; }
+  .p-der { right: 0; width: 49.83%; transform-origin: 100% 50%; }
+  .cara { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; --sh: 0; }
+  .cara::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(35, 32, 14, var(--sh)); -webkit-mask: var(--m) 0 0 / 100% 100% no-repeat; mask: var(--m) 0 0 / 100% 100% no-repeat; }
+  .p-izq .frente { background-image: url('assets/puerta_izq.webp'); --m: url('assets/puerta_izq.webp'); }
+  .p-der .frente { background-image: url('assets/puerta_der.webp'); --m: url('assets/puerta_der.webp'); }
+  .p-izq .dorso  { background-image: url('assets/puerta_izq_dentro.webp'); --m: url('assets/puerta_izq_dentro.webp'); transform: scaleX(-1); visibility: hidden; }
+  .p-der .dorso  { background-image: url('assets/puerta_der_dentro.webp'); --m: url('assets/puerta_der_dentro.webp'); transform: scaleX(-1); visibility: hidden; }
+  .p-izq .frente { filter: drop-shadow(1px 0 1px rgba(40, 35, 15, .18)); }
+
+  /* ---------- Sello: late mientras espera · se despega, se levanta y cae al borde inferior del sobre ---------- */
+  .sello-caja { position: absolute; left: 50%; top: 50.44%; width: 26.75%; z-index: 6; transform: translate(-50%, -50%); pointer-events: none; }
+  .sello-lat { width: 100%; transform-origin: 50% 50%; }
+  .sello-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 5px rgba(90, 50, 30, .3)); }
+  .gate.lat-sello:not(.abierto) .sello-lat { animation: sello-latido 1.7s infinite ease-in-out; }
+  @keyframes sello-latido { 0% { transform: scale(1); } 12% { transform: scale(1.1); } 24% { transform: scale(1); } 36% { transform: scale(1.07); } 52% { transform: scale(1); } 100% { transform: scale(1); } }
+  .gate.abierto .sello-caja { animation: sello-caja 1.5s cubic-bezier(.5, 0, .2, 1) forwards; }
+  .gate.abierto .sello-img { animation: sello-img 1.5s cubic-bezier(.5, 0, .2, 1) forwards; }
+  /* cae ~2.5 alturas del sello: su centro queda en el borde inferior del sobre (mitad afuera) */
+  @keyframes sello-caja { 0% { transform: translate(-50%, -50%); } 28% { transform: translate(-50%, -58%); } 100% { transform: translate(-50%, calc(-50% + 250%)); } }
+  @keyframes sello-img  { 0% { transform: scale(1) rotate(0); } 28% { transform: scale(1.16) rotate(-7deg); filter: drop-shadow(0 12px 12px rgba(90,50,30,.38)); }
+                          100% { transform: scale(.66) rotate(4deg); filter: drop-shadow(0 3px 5px rgba(90,50,30,.32)); } }
+
+  /* ---------- Toque: área sobre el sello + «TOCA PARA ABRIR» con brillo ---------- */
+  #sello { position: absolute; z-index: 8; left: 50%; top: 53.73%; width: 22%; aspect-ratio: 1; transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%;
+           background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  #sello:focus-visible { outline: 2px solid rgb(178, 100, 78); outline-offset: 4px; }
+  .pista { position: absolute; z-index: 8; left: 50%; top: 79.4%; transform: translate(-50%, -50%); margin: 0; padding: .8em 1.2em; cursor: pointer; white-space: nowrap;
+           font: 700 2.9cqw/1 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .32em; text-indent: .32em;
+           background: linear-gradient(105deg, transparent 36%, rgba(214,146,120,.95) 45%, #e2aa92 50%, rgba(214,146,120,.95) 55%, transparent 64%),
+                       linear-gradient(105deg, rgb(178,100,78) 0%, rgb(178,100,78) 100%);
+           background-size: 200% 100%, 100% 100%; background-repeat: no-repeat;
+           -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+           animation: reluce 2.6s linear infinite; }
+  @keyframes reluce { from { background-position: 125% 0, 0 0; } to { background-position: -25% 0, 0 0; } }
+  #sello, .pista { opacity: 0; transition: opacity .9s ease .5s; }
+  .gate.lista #sello, .gate.lista .pista { opacity: 1; }
+  .gate.abriendo #sello, .gate.abriendo .pista { opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .gate.abriendo .pista { animation: none; }
+
+  /* ---------- La tarjeta (dentro del sobre): se adelanta y trae el nombre y los pases ---------- */
+  .tarjeta { position: absolute; z-index: 2; left: 7%; top: 7.15%; width: 86%; height: 85.7%; container-type: inline-size;
+             background: url('assets/tarjeta.webp') 0 0 / 100% 100% no-repeat; filter: drop-shadow(0 3px 5px rgba(60, 40, 20, .18));
+             display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 11% 10% 12%; text-align: center; color: rgb(96, 100, 50);
+             transform-origin: 50% 55%; transition: transform var(--t-tarjeta) cubic-bezier(.25, 1, .5, 1) var(--d-tarjeta), filter var(--t-tarjeta) ease var(--d-tarjeta); }
+  .gate.abierto .tarjeta { transform: translateY(-2%) scale(1.08); filter: drop-shadow(0 14px 22px rgba(60, 35, 20, .28)); }
+  .tarjeta > * { opacity: 0; transform: translateY(1.6cqw); transition: opacity 1s ease, transform 1.1s cubic-bezier(.16,1,.3,1); }
+  .gate.abierto .tarjeta > * { opacity: 1; transform: none; }
+  .gate.abierto .tarjeta > :nth-child(1) { transition-delay: calc(var(--d-tarjeta) + .3s); }  .gate.abierto .tarjeta > :nth-child(2) { transition-delay: calc(var(--d-tarjeta) + .45s); }
+  .gate.abierto .tarjeta > :nth-child(3) { transition-delay: calc(var(--d-tarjeta) + .6s); }  .gate.abierto .tarjeta > :nth-child(4) { transition-delay: calc(var(--d-tarjeta) + .75s); }
+  .gate.abierto .tarjeta > :nth-child(5) { transition-delay: calc(var(--d-tarjeta) + .9s); }  .gate.abierto .tarjeta > :nth-child(6) { transition-delay: calc(var(--d-tarjeta) + 1.05s); }
+  .gate.abierto .tarjeta > :nth-child(7) { transition-delay: calc(var(--d-tarjeta) + 1.25s); }
+  .t-flor { display: block; width: 46cqw; height: auto; margin-bottom: 5.5cqw; -webkit-user-drag: none; }
+  .t-etiqueta { font: 700 4.1cqw/1.2 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; color: rgb(178, 100, 78); }
+  .t-trat { margin-top: 5cqw; font: 400 5.2cqw/1.2 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .16em; text-indent: .16em; text-transform: uppercase; color: rgb(120, 116, 80); }
+  .t-trat:empty { display: none; }
+  .t-nombre { display: block; max-width: 100%; margin: 3cqw 0 5.5cqw; white-space: nowrap; font: 700 9.6cqw/1.12 'YACgEeV8bIQ_0', Georgia, serif; text-transform: uppercase; letter-spacing: .02em; color: rgb(96, 100, 50); }
+  .t-trat:empty + .t-nombre { margin-top: 6cqw; }
+  .t-nombre.multilinea { white-space: normal; }
+  .t-linea { display: block; width: 30%; height: 1px; background: rgba(178, 100, 78, .55); }
+  .t-pases { margin-top: 5cqw; font: 400 5.6cqw/1.35 'YACgEeV8bIQ_0', Georgia, serif; color: rgb(110, 86, 70); }
+  .t-pases b { display: block; margin-top: 1cqw; font-weight: 700; font-size: 1.25em; letter-spacing: .12em; text-indent: .12em; text-transform: uppercase; color: rgb(178, 100, 78); }
+  .t-pases:empty, .t-pases[hidden] { display: none; }
+  .t-ver { margin-top: 7.5cqw; padding: 1.05em 2.3em; border: 0; border-radius: 999px; cursor: pointer; -webkit-appearance: none; appearance: none; pointer-events: none;
+           background: #7B2427; color: #fff; font: 700 3.9cqw/1 'YACgEeV8bIQ_0', Georgia, serif; letter-spacing: .2em; text-indent: .2em; text-transform: uppercase;
+           box-shadow: 0 4px 12px rgba(90, 30, 25, .28); transition: opacity 1s ease, transform .2s ease, background .2s ease; }
+  .gate.boton .t-ver { pointer-events: auto; }
+  .t-ver:hover { background: #68191c; transform: scale(1.03); }
+  .t-ver:focus-visible { outline: 2px solid rgb(178, 100, 78); outline-offset: 3px; }
+  .t-ver.espera { pointer-events: none; animation: ver-espera 1.1s ease-in-out infinite; }
+  @keyframes ver-espera { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+</style>
+<div class="gate" id="gate">
+  <div id="stage">
+    <div class="cab">
+      <h1 class="cab-titulo"><img id="cab-titulo" src="assets/portada_titulo.webp" alt="Moani &amp; Javier" draggable="false"></h1>
+      <p class="cab-sub" id="cab-sub">¡Nos casamos!</p>
+    </div>
+    <div class="cam-pos"><div class="cam" id="cam">
+      <div class="env" id="env">
+        <div class="pieza base"></div>
+        <div class="tarjeta" id="tarjeta" role="group" aria-label="Tu invitación">
+          <img class="t-flor" src="assets/tarjeta_adorno.webp" alt="" draggable="false">
+          <span class="t-etiqueta" id="t-etiqueta">Reservado para</span>
+          <span class="t-trat" id="t-trat"></span>
+          <span class="t-nombre" id="t-nombre">Invitado especial</span>
+          <span class="t-linea"></span>
+          <span class="t-pases" id="t-pases" hidden></span>
+          <button class="t-ver" id="t-ver" type="button" tabindex="-1">Ver invitación</button>
+        </div>
+        <div class="sombra" id="sombra"></div>
+        <div class="puerta p-izq" id="p-izq"><div class="cara frente"></div><div class="cara dorso"></div></div>
+        <div class="puerta p-der" id="p-der"><div class="cara frente"></div><div class="cara dorso"></div></div>
+        <div class="sello-caja"><div class="sello-lat" id="sello-lat"><img class="sello-img" src="assets/sello.webp" alt="" draggable="false"></div></div>
+      </div>
+    </div></div>
+    <button id="sello" type="button" aria-label="Abrir la invitación"></button>
+    <p class="pista" id="pista">TOCA PARA ABRIR</p>
+  </div>
+</div>
+</template>
+
+<script src="../v1/assets/responsive.js"></script>
+<script src="../v1/assets/animacion.js"></script>
+<script>
+(function () {
+  'use strict';
+  history.scrollRestoration = 'manual';
+
+  /* =================================== CONFIGURACIÓN =================================== */
+  var LANG = window.MJ_LANG === 'en' ? 'en' : 'es';
+  var CONFIG = {
+    /* Exportaciones de Canva por idioma (mismo diseño, mismos ids): la invitación y las 4 páginas de la guía de la ciudad */
+    invitacion: { es: 'invitacion_es.html', en: 'invitacion_en.html' },
+    anchoCanva: 485, anchoMaximo: 700,
+    /* Clases CSS de ESTE export de Canva (cambian en cada exportación: revísalas si re-exportas) */
+    canva: { selectorPagina: 'div.ZRRuDw', selectorTexto: '._28USrA' },
+    /* Elementos de Canva que se retiran al montar: el RSVP de sinenvolturas incrustado (invisible, encima de «Confirma aquí») */
+    quitar: ['LBf42CYSvdYvT6HS'],
+    /* Cuenta regresiva propia (reemplaza el iframe de tickcounter). Hora de Lima (-05:00): ceremonia 12:30 p. m. */
+    contador: { id: 'LBDy3M0vrz90ztGy', fecha: '2027-04-24T12:30:00-05:00',
+                etiquetas: { es: ['DÍAS', 'HORAS', 'MINUTOS', 'SEGUNDOS'], en: ['DAYS', 'HOURS', 'MINUTES', 'SECONDS'] } },
+    /* Botones de Canva → acción. Se incluye el texto y la píldora de fondo (así responde todo el botón). */
+    enlaces: [
+      { id: 'LBxQDFhxxTZS67B9', accion: 'rsvp' },  { id: 'LBvnKTyQHwMw0pzn', accion: 'rsvp' },    // «Confirma aquí» / «Click here» → RSVP en ventana
+      { id: 'LBFRmDny3w1RFptw', accion: 'guia' },  { id: 'LBHd2YDNG1NhvxxX', accion: 'guia' }     // «Pensando en tu comodidad» · «Click aquí» → guía
+    ],
+    /* Guía de la ciudad: 4 exportaciones de Canva por idioma. «menu» = la sección de Canva con su menú (se retira: la barra es propia y alineada). */
+    guia: [
+      { k: 'inicio',       es: 'descubre_es.html',     en: 'descubre_en.html',     menu: 'PBsPt59krDYqNTqk', t: { es: 'Inicio', en: 'Home' } },
+      { k: 'alojamiento',  es: 'alojamiento_es.html',  en: 'alojamiento_en.html',  menu: 'PB9RzqPWKc3BbHmr', t: { es: 'Alojamiento', en: 'Accommodations' } },
+      { k: 'cultura',      es: 'cultura_es.html',      en: 'cultura_en.html',      menu: 'PB9RHssFJl8DCwlw', t: { es: 'Ciudad y\ncultura', en: 'City &\nculture' } },
+      { k: 'restaurantes', es: 'restaurantes_es.html', en: 'restaurantes_en.html', menu: 'PB1Wgs7hHPHXY2JY', t: { es: 'Restaurantes', en: 'Restaurants' } }
+    ],
+    /* Crédito «Hecho con amor»: discreto (corazón) a la izquierda, solo al final. Si en el panel el evento lo tiene «oculto», no se muestra. */
+    credito: 'discreto',
+    /* Sobre de doble puerta. Medidas en px del lienzo de Canva (485 × 1072). */
+    sobre: {
+      ancho: 485, alto: 1072,
+      zonaSegura: [170, 905],               // franja vertical que nunca se recorta: título, «¡NOS CASAMOS!», sobre abierto (con la cámara cerca) y pista
+      maxAnchoPx: 520,                      // en pantallas anchas el escenario no crece más (el papel del fondo llena los lados)
+      /* Tiempos de la apertura (s, desde el toque) — cámbialos para probar:
+         puertas = cuándo empiezan a abrirse y cuánto tardan · angulo = cuánto se abren (grados; 180 = planas hacia los lados)
+         boton = cuándo se puede pulsar «Ver invitación» (la tarjeta se adelanta en --d-tarjeta del CSS) */
+      puertas: { inicio: .55, duracion: 1.7, angulo: 116 },
+      boton: 3.2,
+      fuentes: ['400 16px "YACgEeV8bIQ_0"', '700 16px "YACgEeV8bIQ_0"'],
+      maxMs: 9000
+    },
+    salida: { ms: 1900, revelarEn: 0.35 },  // fundido portada → invitación y punto en que arrancan sus animaciones
+    /* ANIMACIONES (animacion.js). Criterio: cada tarjeta entra primero (sube), después su título (letra por letra) y su texto (palabra por palabra);
+       los íconos «se acercan» (zoom), los adornos laterales entran desde su lado, los botones suben al final. Foto inicial y final: cámara que se aleja.
+       Los ids que solo existen en un idioma (es / en) se ignoran solos en el otro. */
+    anim: {
+      duracion: 9.5, umbral: 0.5,
+      alejar: ['LBcNbzswgbwrnwsr', 'PBT3nhmFzrpkJc3s'], alejarZoom: 1.2, alejarDuracion: 14,   // foto inicial (con los nombres) · foto final
+      textos: [
+        { id: 'LBqSQJl4ZvQYlQ03', tipo: 'letras',   velocidad: 90 },    // ¡NOS CASAMOS!
+        { id: 'LB5JQj6HdW6xlRkH', tipo: 'palabras', velocidad: 140 },   // Estamos muy felices…
+        { id: 'LBZQNvsMB500l3JY', tipo: 'letras',   velocidad: 110 },   // Faltan (es)
+        { id: 'LBc06Fz0hT4pHLYK', tipo: 'letras',   velocidad: 90 },    // Remaining (en)
+        { id: 'LBmJ9w1Y9wwc9F8t', tipo: 'letras',   velocidad: 110 },   // CEREMONIA
+        { id: 'LBh3NkzsNQ1B5jcG', tipo: 'letras',   velocidad: 110 },   // Recepción
+        { id: 'LBH3dmZhZSDDh5Qq', tipo: 'letras',   velocidad: 110 },   // DRESSCODE
+        { id: 'LBjvYm8FPT19CPhr', tipo: 'letras',   velocidad: 90 },    // PARA ELLOS
+        { id: 'LBpLZVhT9wxGFCwd', tipo: 'palabras', velocidad: 140 },   // Terno…
+        { id: 'LBxhw4kYK5hqDcjp', tipo: 'letras',   velocidad: 90 },    // PARA ELLAS
+        { id: 'LBMxjPjcKmRN3jV4', tipo: 'palabras', velocidad: 90 },    // Vestido largo…
+        { id: 'LBtRMVD8wYMMTQyS', tipo: 'letras',   velocidad: 110 },   // regalos
+        { id: 'LBZNsgQSN14XvvH4', tipo: 'palabras', velocidad: 160 },   // Tu presencia será nuestro mejor regalo
+        { id: 'LB5VcstQz9Mz0TWL', tipo: 'letras',   velocidad: 110 },   // Solo adultos
+        { id: 'LByn3rfqGl16FK25', tipo: 'palabras', velocidad: 110 },   // Para poder disfrutar…
+        { id: 'LBzNF19JK06RJKW0', tipo: 'letras',   velocidad: 80 },    // CONFIRMA TU ASISTENCIA
+        { id: 'LBMl3hpCYWGXrfck', tipo: 'palabras', velocidad: 110 },   // Nos encantaría saber…
+        { id: 'LBw7snz1YLbBtdpW', tipo: 'letras',   velocidad: 110 },   // Transporte
+        { id: 'LBVYp55Xsmq0Yyy4', tipo: 'palabras', velocidad: 110 },   // Para facilitar su llegada…
+        { id: 'LB86TjYBl8rWGWF5', tipo: 'letras',   velocidad: 80 },    // PENSANDO EN TU COMODIDAD
+        { id: 'LB2gd6ClGCsJ1TZd', tipo: 'palabras', velocidad: 100 },   // Si planeas quedarte…
+        { id: 'LBnb8Y5wQ9nDNHWV', tipo: 'letras',   velocidad: 110 }    // ¡LOS ESPERAMOS!
+      ],
+      abajoArriba: [
+        'LBQ1ypF8Lv0J7NCD',                                   // tarjeta terracota de la fecha
+        'LBpc3R67ZF080j5d', 'LBb3hk76XPFBtFTw', 'LBzMShdJp48sj1x3',   // Agendar recordatorio (fondo · ícono · texto)
+        'LBr0JzncgvQwXsys',                                   // tarjeta de ceremonia y recepción
+        'LBxG5N4FSGsn149Y', 'LB8WCXHM7qgjWXry', 'LBHXph7gfFcrvMJs', 'LBZHT5gMyqKxPQdL',   // lugar, dirección y «Ver ubicación»
+        'LBhTnpK3g9dp2xBP', 'LBFXrRQZ7LX3l61S', 'LBw1hq3P63tQP6k5', 'LBDcFBVl7jy38vd5',   // regalos: texto, «Lista de regalos», sobre con la cuenta
+        'LB7Db282X7LLZPf1', 'LBvnKTyQHwMw0pzn', 'LBxQDFhxxTZS67B9',   // RSVP: tarjeta y botón
+        'LBRDvDCGtxmPdR8F', 'LBVdgcp2q1ZrjHZ8', 'LBJB1kB2dxbCDzrd',   // transporte: tarjeta y botón
+        'LBmZdk5756J0pv97', 'LBHd2YDNG1NhvxxX', 'LBFRmDny3w1RFptw'    // comodidad: tarjeta y botón
+      ],
+      arribaAbajo: ['LBRNdSG7BCDj7xVk'],                      // ABRIL
+      izquierdaADerecha: ['LBMFvcmPgrf6MGM4', 'LBrxtxhhQczyrh7n', 'LBqJrt7SG73YdGXh',   // SÁBADO y sus líneas
+                          'LBFsT6MLVt9ZRJpy',                                         // flores de la tarjeta de ceremonia (arriba a la izquierda)
+                          'LB1Pz1jCP06G7lXD', 'LBP6ckcsd8KhMFbJ'],                    // ilustración «para ellos» (es · en)
+      derechaAIzquierda: ['LBR2NQZtKKJdc35s', 'LB7pLFhNxSkmW7wZ', 'LByn9XMZ2Klf5s58',   // 2027 y sus líneas
+                          'LBz39qlpcDWyjqhG', 'LB3lBFZf7Jfd4Kr4',                     // ramas (fecha · ceremonia)
+                          'LBPC1DTSvgy18b3N'],                                        // ilustración «para ellas»
+      zoom: ['LB6GvRxvY10nxjXl',                              // 24
+             'LB7y1NpxXlMS9r02', 'LBMlWpC3wrBnH7lf', 'LB3Yr0bBDH6B6tYY',   // sello de la fecha · anillos · copas
+             'LBX46qQHkyXXHN53', 'LBZBDJjZgy6HqJj4', 'LBn2TLTvkMR4yJHx',   // novios (dresscode) · regalos · sello del sobre
+             'LB9RpKksQ2xQ46HW', 'LBBq4hgwm0LXvvM3', 'LB0L17m3DmqkdFqS', 'LBYdcYJBs2J6t0Rj', 'LB7F6hB4LLBvVM2l',   // copas · sellos y RSVP
+             'LBh70JD7d7CD3tSp', 'LB9pWgXFwYMR4jgP'],         // logo de transporte · maletas
+      fundido: ['LBDy3M0vrz90ztGy',                           // cuenta regresiva
+                'LBCZphDbC0jh4tSt', 'LBsj5ntQvMPP8WLG',       // 12:30 PM · 3:00 PM
+                'LBcyC7VBW3B63hWd', 'PB7cyxm4znnS11qs',       // foto de la playa · foto intermedia
+                'LBmlP0pN79lK9ZmC', 'LBXL2XKsNt0Zqlz6', 'LB2PF4227ln5CqRh', 'LBMZKxlWc5dvCM9t']
+    }
+  };
+  /* CARGA EN DOS TIEMPOS.
+     1) INDISPENSABLE (bloquea el anillo): piezas del sobre, la tipografía de la portada y los datos del invitado (Supabase, con tope de tiempo).
+     2) EN SEGUNDO PLANO (ya con el sobre a la vista): la invitación de Canva del idioma. La guía de la ciudad y el RSVP solo al pedirlos. */
+  var PESO = { sobre: 72, fuentes: 12, datos: 16 };
+  var MIN_MS = 700, LIMITE_MS = 15000, DATOS_MAX_MS = 2500;
+  /* ===================================================================================== */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var E = CONFIG.sobre, P = window.PYD || {}, raizInv = null, ajusteInv = null;
+
+  var TXT = {
+    es: { sub: '¡Nos casamos!', etq: 'Reservado para', anon: 'Invitado especial', ver: 'Ver invitación', abrir: 'TOCA PARA ABRIR', reintentar: 'Reintentar',
+          pases: function (n, c) { return c ? ['Confirmaste tu asistencia para', n + (n === 1 ? ' persona' : ' personas')] : ['Usted tiene reservado pase para', n + (n === 1 ? ' persona' : ' personas')]; },
+          desliza: 'Desliza', cargando: 'Preparando tu invitación', cerrar: 'Cerrar', guia: 'Pensando en tu comodidad', tarjeta: 'Tu invitación', abrirSobre: 'Abrir la invitación' },
+    en: { sub: "We're getting married!", etq: 'Reserved for', anon: 'Special guest', ver: 'View invitation', abrir: 'TAP TO OPEN', reintentar: 'Retry',
+          pases: function (n, c) { return c ? ['You confirmed your attendance for', n + (n === 1 ? ' person' : ' people')] : ['You have a pass reserved for', n + (n === 1 ? ' person' : ' people')]; },
+          desliza: 'Scroll', cargando: 'Preparing your invitation', cerrar: 'Close', guia: 'With your comfort in mind', tarjeta: 'Your invitation', abrirSobre: 'Open the invitation' }
+  };
+  var tx = function (k) { return TXT[LANG][k]; };
+  $('cargador-txt').textContent = tx('cargando');
+  document.title = 'Moani & Javier';
+
+  /* ---------------------------------------------------------------- progreso */
+  var T = {}; Object.keys(PESO).forEach(function (k) { T[k] = { w: PESO[k], p: 0 }; });
+  function avance(k, p) { if (T[k]) T[k].p = Math.max(T[k].p, Math.min(1, p)); }
+  function total() { var s = 0; for (var k in T) s += T[k].w * T[k].p; return s / 100; }
+
+  /* ---------------------------------------------------------------- PORTADA (Shadow DOM) */
+  var hostP = $('portada-host'), raizP = hostP.attachShadow({ mode: 'open' });
+  raizP.appendChild($('portada-plantilla').content.cloneNode(true));
+  var p$ = function (id) { return raizP.getElementById(id); };
+  var gate = p$('gate'), stage = p$('stage'), env = p$('env');
+  var sello = p$('sello'), selloLat = p$('sello-lat'), pista = p$('pista'), tarjeta = p$('tarjeta'), btnVer = p$('t-ver');
+  var pIzq = p$('p-izq'), pDer = p$('p-der'), sombra = p$('sombra');
+  gate.setAttribute('lang', LANG);
+  p$('cab-sub').textContent = tx('sub');
+  pista.textContent = tx('abrir');
+  sello.setAttribute('aria-label', tx('abrirSobre'));
+  tarjeta.setAttribute('aria-label', tx('tarjeta'));
+
+  /* Encuadre: el escenario conserva su proporción y nunca recorta la zona segura; el papel del fondo cubre toda la pantalla. */
+  function encuadre() {
+    var gw = gate.clientWidth, gh = gate.clientHeight; if (!gw || !gh) return;
+    var vw = Math.min(gw, E.maxAnchoPx), seg = E.zonaSegura, hSeg = seg[1] - seg[0];
+    var k = Math.min(Math.max(vw / E.ancho, gh / E.alto), gh / hSeg, gw / E.ancho);
+    var w = E.ancho * k, h = E.alto * k;
+    var top = gh / 2 - (seg[0] + hSeg / 2) * k;
+    top = h >= gh ? Math.min(0, Math.max(gh - h, top)) : (gh - h) / 2;
+    stage.style.width = w + 'px'; stage.style.height = h + 'px';
+    stage.style.left = (gw - w) / 2 + 'px'; stage.style.top = top + 'px';
+    env.style.perspective = Math.round(env.clientWidth * 3.4) + 'px';      // perspectiva proporcional al sobre: el giro se ve igual en cualquier pantalla
+    /* Papel del fondo como en Canva: 240 % del ancho del lienzo, centrado en él (así el relieve tiene la misma escala en cualquier pantalla) */
+    var S = Math.max(w * 2.398, gw, gh), fy = Math.min(0, Math.max(gh - S, top));
+    gate.style.backgroundSize = S + 'px ' + S + 'px'; gate.style.backgroundPosition = ((gw - S) / 2) + 'px ' + fy + 'px';      // perspectiva proporcional al sobre: el giro se ve igual en cualquier pantalla
+  }
+  new ResizeObserver(encuadre).observe(gate);
+  if (window.visualViewport) visualViewport.addEventListener('resize', encuadre);
+
+  /* ---------------------------------------------------------------- datos del invitado */
+  var q0 = new URLSearchParams(location.search);
+  var CODIGO = (q0.get('to') || q0.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  var PASE_URL = parseInt(q0.get('pase') || q0.get('pases'), 10);
+  var datos = { encontrado: false, nombre: '', tratamiento: '', pases: 1, asistencia: '', pasesConfirmados: null };
+  function cargarDatos() {
+    if (!CODIGO || !window.BODA) return Promise.resolve();
+    return window.BODA.invitado(CODIGO).then(function (j) {
+      if (j && j.ok && j.encontrado && j.invitado) {
+        var g = j.invitado;
+        datos = { encontrado: true, nombre: g.nombre, tratamiento: g.tratamiento || '', pases: g.pases || 1, asistencia: g.asistenciaCodigo || '', pasesConfirmados: g.pasesConfirmados };
+      }
+      if (j && j.proyecto && j.proyecto.credito === 'oculto') CONFIG.credito = 'oculto';
+    }).catch(function (e) { console.warn('[tarjeta] No se pudo leer el invitado:', e && e.message); });
+  }
+  function pintarTarjeta() {
+    var trat = datos.encontrado ? (datos.tratamiento || '') : '';
+    if (trat && datos.nombre.toLowerCase().indexOf(trat.toLowerCase()) === 0) trat = '';
+    p$('t-etiqueta').textContent = tx('etq');
+    p$('t-trat').textContent = trat;
+    p$('t-nombre').textContent = datos.encontrado && datos.nombre ? datos.nombre : tx('anon');
+    var conf = datos.asistencia === 'si', n = parseInt(conf ? (datos.pasesConfirmados || datos.pases) : datos.pases, 10) || 1;
+    var conPases = (datos.encontrado || PASE_URL > 0) && datos.asistencia !== 'no';
+    if (!datos.encontrado && PASE_URL > 0) n = Math.min(PASE_URL, 50);
+    var tp = p$('t-pases'); tp.hidden = !conPases; tp.textContent = '';
+    if (conPases) { var l = tx('pases')(n, conf), b = document.createElement('b'); tp.appendChild(document.createTextNode(l[0])); b.textContent = l[1]; tp.appendChild(b); }
+    btnVer.textContent = invFallo ? tx('reintentar') : tx('ver');
+    ajustarNombre();
+  }
+  // El nombre baja de tamaño hasta caber en una línea; si aún no cabe, pasa a dos líneas
+  function ajustarNombre() {
+    var el = p$('t-nombre'); if (!el.clientWidth) return;
+    el.classList.remove('multilinea'); el.style.fontSize = '';
+    var fs = parseFloat(getComputedStyle(el).fontSize), min = fs * 0.62;
+    while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= .5; el.style.fontSize = fs + 'px'; }
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('multilinea');
+  }
+  new ResizeObserver(function () { ajustarNombre(); }).observe(tarjeta);
+
+  /* ---------------------------------------------------------------- sobre: precarga de sus piezas (con progreso real) */
+  var PIEZAS = ['assets/portada_fondo.jpg', 'assets/portada_titulo.webp', 'assets/sobre_base.webp', 'assets/puerta_izq.webp', 'assets/puerta_der.webp',
+                'assets/puerta_izq_dentro.webp', 'assets/puerta_der_dentro.webp', 'assets/tarjeta.webp', 'assets/tarjeta_adorno.webp', 'assets/sello.webp'];
+  var tareaSobre = (function () {
+    var n = 0;
+    return Promise.all(PIEZAS.map(function (u) {
+      return new Promise(function (res) {
+        var im = new Image(), ok = function () { avance('sobre', ++n / PIEZAS.length * .95); (im.decode ? im.decode().catch(function () {}) : Promise.resolve()).then(res); };
+        im.onload = ok; im.onerror = function () { console.warn('[sobre] No se pudo cargar', u); avance('sobre', ++n / PIEZAS.length * .95); res(); }; im.src = u;
+      });
+    })).then(function () { avance('sobre', 1); });
+  })();
+  var tareaFuentes = (function () {
+    var lista = E.fuentes || [], n = 0;
+    if (!lista.length || !document.fonts || !document.fonts.load) { avance('fuentes', 1); return Promise.resolve(); }
+    return Promise.all(lista.map(function (f) {
+      return document.fonts.load(f, '¡AaÁÑ0').catch(function () {}).then(function () { avance('fuentes', ++n / lista.length * .95); });
+    })).then(function () { avance('fuentes', 1); });
+  })();
+
+  /* ---------------------------------------------------------------- CANVA en Shadow DOM (invitación y guía) */
+  function adaptarCss(css) {
+    return css
+      .replace(/:root/g, ':host')
+      .replace(/(^|[}{,;])\s*html(?=[\s,{.:\[])/g, '$1:host')
+      .replace(/(^|[}{,;])\s*body(?=[\s,{.:\[])/g, '$1.__body')
+      .replace(/\(prefers-reduced-motion:\s*reduce\)/g, '(min-width:99999px)');   // nunca «reducir movimiento»: siempre animado
+  }
+  /* El export de Canva declara un @font-face por cada peso y estilo, casi todos apuntando al MISMO archivo: se unen en una sola regla con rango de pesos */
+  function unirFuentes(reglas) {
+    var grupos = {}, orden = [];
+    reglas.forEach(function (r) {
+      var fam = (/font-family:\s*([^;]+);/.exec(r) || [])[1], est = (/font-style:\s*([^;]+);/.exec(r) || [])[1] || 'normal', pes = parseInt((/font-weight:\s*(\d+)/.exec(r) || [])[1], 10);
+      var src = (/src:\s*([^;]+);/.exec(r) || [])[1];
+      if (!fam || !src || !pes) { orden.push({ crudo: r }); return; }
+      var k = fam + '|' + est + '|' + src; if (!grupos[k]) { grupos[k] = { pesos: [], plantilla: r }; orden.push(grupos[k]); }
+      if (grupos[k].pesos.indexOf(pes) < 0) grupos[k].pesos.push(pes);
+    });
+    var salida = [];
+    orden.forEach(function (g) {
+      if (g.crudo) { salida.push(g.crudo); return; }
+      var p = g.pesos.sort(function (a, b) { return a - b; }), i = 0;
+      while (i < p.length) { var j = i; while (j + 1 < p.length && p[j + 1] === p[j] + 100) j++;
+        salida.push(g.plantilla.replace(/font-weight:\s*\d+\s*;/, 'font-weight: ' + p[i] + (j > i ? ' ' + p[j] : '') + ';')); i = j + 1; }
+    });
+    return salida;
+  }
+  /* Lee un export de Canva: quita scripts, iframes y elementos indicados; devuelve { css, cuerpo, fuentes, familias } */
+  function leerCanva(html, quitar) {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
+    doc.querySelectorAll('img[crossorigin]').forEach(function (i) { i.removeAttribute('crossorigin'); });   // misma descarga que el fondo CSS
+    (quitar || []).forEach(function (id) { var e = doc.getElementById(id); if (e) e.remove(); });
+    var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    var fuentes = css.match(/@font-face\s*\{[^}]*\}/g) || [], familias = new Set();
+    css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+    (css + doc.body.innerHTML).replace(/font-family:\s*([A-Za-z0-9_-]+)/g, function (m, f) { familias.add(f); return m; });
+    return { css: css, cuerpo: doc.body, fuentes: fuentes, familias: familias };
+  }
+  function montarCanva(host, partes, cssExtra, primeras) {
+    var raiz = host.attachShadow({ mode: 'open' });
+    var st = document.createElement('style');
+    st.textContent = adaptarCss(partes.css) + '\n:host{display:block}\n*{-webkit-tap-highlight-color:transparent}\nimg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}\n' + (cssExtra || '');
+    raiz.appendChild(st);
+    /* Imágenes: las primeras secciones (lo que se ve al abrir) con prioridad; el resto con loading=lazy (bajan al acercarse) */
+    var arriba = Array.prototype.slice.call(partes.cuerpo.querySelectorAll('section'), 0, primeras || 0);
+    Array.prototype.forEach.call(partes.cuerpo.querySelectorAll('img'), function (i) {
+      var urg = arriba.some(function (s) { return s.contains(i); });
+      i.loading = urg ? 'eager' : 'lazy'; i.decoding = 'async'; if (urg) i.setAttribute('fetchpriority', 'high');
+    });
+    while (partes.cuerpo.firstChild) raiz.appendChild(document.adoptNode(partes.cuerpo.firstChild));
+    /* Dentro de un Shadow DOM no se heredan lang/translate del <html>: se marcan aquí para que ningún traductor toque la invitación */
+    Array.prototype.forEach.call(raiz.children, function (el) { if (el.tagName !== 'STYLE') { el.setAttribute('lang', LANG); el.setAttribute('translate', 'no'); el.classList.add('notranslate'); } });
+    return raiz;
+  }
+  function esperarImg(img) {
+    return new Promise(function (res) {
+      var ok = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(res); };
+      if (img.complete) ok(); else { img.addEventListener('load', ok, { once: true }); img.addEventListener('error', res, { once: true }); }
+    });
+  }
+  function cargarFuentes(familias) {
+    var faces = Array.from(document.fonts).filter(function (f) { return f.style === 'normal' && familias.has(f.family.replace(/["']/g, '')); });
+    return Promise.all(faces.map(function (f) { return f.load().catch(function () {}); }));
+  }
+  var enReposo = function (fn) { return new Promise(function (res, rej) { var f = function () { try { res(fn()); } catch (e) { rej(e); } }; window.requestIdleCallback ? requestIdleCallback(f, { timeout: 900 }) : setTimeout(f, 40); }); };
+
+  /* ---------------------------------------------------------------- cuenta regresiva (código propio, sin librerías ni marcas) */
+  /* Números en Lora (la fuente del «24») y etiquetas en la fuente de «SÁBADO», en marfil sobre la tarjeta terracota.
+     Se dibuja dentro del recuadro de 800 × 200 px que Canva reservó para el iframe (Canva lo escala). */
+  var CSS_CONTADOR = [
+    '.pyd-timer{position:absolute;inset:0;display:flex;justify-content:center;align-items:flex-start;padding-top:22px;box-sizing:border-box;color:rgb(255,255,240);line-height:1;white-space:nowrap}',
+    '.pyd-timer .pt-in{display:flex;align-items:flex-start;transform-origin:50% 0}',
+    '.pyd-timer .pt-g{position:relative;flex:none;text-align:center;min-width:1.25em;font-size:108px}',
+    '.pyd-timer .pt-n{display:block;font:400 1em/1 YAG1m0Ym3NU_1,Lora,Georgia,serif;font-variant-numeric:tabular-nums lining-nums}',
+    '.pyd-timer .pt-l{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:16px;font:400 25px/1 YACgEUFdPdA_0,Georgia,serif;letter-spacing:.16em;text-indent:.16em}',
+    '.pyd-timer .pt-c{flex:none;display:block;font:400 92px/1 YAG1m0Ym3NU_1,Lora,Georgia,serif;padding:0 .3em;opacity:.75;margin-top:6px}'
+  ].join('\n');
+  function ponerContador(raiz) {
+    var C = CONFIG.contador, host = raiz.getElementById(C.id);
+    if (!host) return console.warn('[contador] No existe', C.id);
+    var caja = host.querySelector('div[style*="800px"]') || host;
+    caja.innerHTML = '';                                                 // aquí estaba el iframe de tickcounter
+    var destino = new Date(C.fecha).getTime(), grupos = [], et = C.etiquetas[LANG];
+    var r = document.createElement('div'); r.className = 'pyd-timer notranslate'; r.setAttribute('role', 'timer'); r.setAttribute('translate', 'no');
+    var dentro = document.createElement('div'); dentro.className = 'pt-in'; r.appendChild(dentro);
+    for (var i = 0; i < 4; i++) {
+      if (i) { var c = document.createElement('span'); c.className = 'pt-c'; c.setAttribute('aria-hidden', 'true'); c.textContent = ':'; dentro.appendChild(c); }
+      var g = document.createElement('div'); g.className = 'pt-g';
+      var n = document.createElement('span'); n.className = 'pt-n'; n.setAttribute('aria-hidden', 'true'); n.textContent = '00';
+      var l = document.createElement('span'); l.className = 'pt-l'; l.setAttribute('aria-hidden', 'true'); l.textContent = et[i];
+      g.appendChild(n); g.appendChild(l); dentro.appendChild(g); grupos.push({ n: n, v: '' });
+    }
+    caja.appendChild(r);
+    function valores() { var t = Math.max(0, Math.floor((destino - Date.now()) / 1000)); return [Math.floor(t / 86400), Math.floor(t % 86400 / 3600), Math.floor(t % 3600 / 60), t % 60]; }
+    function ajustar() { dentro.style.transform = ''; var w = caja.clientWidth || 800, a = dentro.offsetWidth; if (a > w * .96) dentro.style.transform = 'scale(' + (w * .96 / a).toFixed(4) + ')'; }
+    function pintar() {
+      var v = valores(), cambio = false;
+      grupos.forEach(function (g, i) { var t = String(v[i]); if (t.length < 2) t = '0' + t; if (t !== g.v) { cambio = cambio || t.length !== g.v.length; g.n.textContent = t; g.v = t; } });
+      r.setAttribute('aria-label', v.map(function (x, i) { return x + ' ' + et[i].toLowerCase(); }).join(', '));
+      if (cambio) ajustar();
+    }
+    (function tic() { pintar(); setTimeout(tic, 1000 - (Date.now() % 1000) + 15); })();
+    ajustar(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustar);
+  }
+
+  /* ---------------------------------------------------------------- INVITACIÓN: carga en segundo plano */
+  var puertaInv = (function () {
+    var abierta = false, cola = [];
+    window.addEventListener('invitacion:visible', function () { abierta = true; cola.splice(0).forEach(function (f) { f(); }); }, { once: true });
+    return function (fn) { abierta ? fn() : cola.push(fn); };
+  })();
+  var invListo = false, invFallo = null, tareaInv = null;
+  function iniciarInvitacion() {
+    if (tareaInv) return tareaInv;
+    tareaInv = tareaCanva().then(function () { invListo = true; },
+      function (e) { invFallo = e; console.error('[carga] invitación:', e); btnVer.textContent = tx('reintentar'); throw e; });
+    return tareaInv;
+  }
+  function tareaCanva() {
+    var archivo = CONFIG.invitacion[LANG], partes;
+    return fetch(archivo).then(function (r) { if (!r.ok) throw new Error(archivo + ' → HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      return enReposo(function () {
+        partes = leerCanva(html, CONFIG.quitar);
+        var extra = CSS_CONTADOR + CONFIG.enlaces.map(function (e) { return '\n#' + e.id + '{cursor:pointer}'; }).join('');
+        raizInv = montarCanva($('inv'), partes, extra, 2);
+        ponerContador(raizInv);
+        $('fuentes-canva').textContent = unirFuentes(partes.fuentes).join('\n');
+        return new Promise(requestAnimationFrame);
+      });
+    }).then(function () {
+      /* Para abrir solo hace falta lo que se ve primero: las 2 primeras secciones y las tipografías */
+      var imgs = [];
+      Array.prototype.slice.call(raizInv.querySelectorAll('section'), 0, 2).forEach(function (s) { imgs = imgs.concat(Array.prototype.slice.call(s.querySelectorAll('img'))); });
+      return Promise.all([Promise.all(imgs.map(esperarImg)), cargarFuentes(partes.familias)]);
+    }).then(function () {
+      ajusteInv = Responsive.montar(raizInv, { anchoOriginal: CONFIG.anchoCanva, anchoMaximo: CONFIG.anchoMaximo, modo: 'ancho', selectorPaginaCanva: CONFIG.canva.selectorPagina });
+      Animacion.montar(raizInv, Object.assign({ cuandoVisible: puertaInv, selectorTexto: CONFIG.canva.selectorTexto }, soloExistentes(raizInv, CONFIG.anim)));
+      enlazarEventos(raizInv);
+      return document.fonts && document.fonts.ready;
+    }).then(function () { ajusteInv && ajusteInv.reajustar(); });
+  }
+  // Cada lista solo con los ids que existen en este idioma (las dos exportaciones difieren en 3 ids)
+  function soloExistentes(raiz, o) {
+    var r = {};
+    Object.keys(o).forEach(function (k) {
+      r[k] = Array.isArray(o[k]) ? o[k].filter(function (x) { return !!raiz.getElementById(typeof x === 'string' ? x : x.id); }) : o[k];
+    });
+    return r;
+  }
+
+  /* ---------------------------------------------------------------- carga: SOLO lo indispensable para mostrar el sobre */
+  var pDatos = cargarDatos().then(function () { pintarTarjeta(); });             // si llegan tarde, la tarjeta se actualiza sola
+  var tareaDatos = Promise.race([pDatos, new Promise(function (r) { setTimeout(r, DATOS_MAX_MS); })]).then(function () { avance('datos', 1); });
+  Promise.race([Promise.all([tareaSobre, tareaFuentes, tareaDatos]), new Promise(function (res) { setTimeout(res, LIMITE_MS); })])
+    .then(function () { Object.keys(T).forEach(function (k) { avance(k, 1); }); });
+
+  var circ = $('anillo-avance'), pctTxt = $('anillo-pct'), C = 2 * Math.PI * 46;
+  circ.style.strokeDasharray = C.toFixed(2); circ.style.strokeDashoffset = C.toFixed(2);
+  var t0 = Date.now(), mostrado = 0;
+  (function tick() {
+    var obj = total();
+    mostrado = Math.min(obj, mostrado + Math.max(.004, (obj - mostrado) * .08));
+    circ.style.strokeDashoffset = (C * (1 - mostrado)).toFixed(2);
+    pctTxt.textContent = Math.round(mostrado * 100) + '%';
+    if (mostrado >= .999 && Date.now() - t0 >= MIN_MS) {
+      circ.style.strokeDashoffset = '0'; pctTxt.textContent = '100%';
+      setTimeout(function () {
+        $('cargador').classList.add('fuera');
+        encuadre(); pintarTarjeta();
+        setTimeout(function () {
+          gate.classList.add('lista');
+          setTimeout(function () { if (!abierta) gate.classList.add('lat-sello'); }, 1500);   // el sello late mientras espera el toque
+        }, 300);
+        setTimeout(iniciarInvitacion, 450);                                   // ya se ve el sobre: ahora sí, la invitación en segundo plano
+        setTimeout(function () { var c = $('cargador'); c && c.parentNode && c.parentNode.removeChild(c); }, 1000);
+      }, 280);
+      return;
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  /* ---------------------------------------------------------------- SECUENCIA: toque → sello → puertas → tarjeta → invitación */
+  var abierta = false, tarjetaVista = false, saliendo = false;
+  var easeIO = function (p) { return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  /* Las puertas se dibujan cuadro a cuadro: ángulo, cara visible (a los 90° se cambia) y luz (la cara que se aleja se oscurece) */
+  function pintarPuertas(a) {
+    var dorso = a > 90, cosA = Math.cos(a * Math.PI / 180);
+    [pIzq, pDer].forEach(function (p, i) {
+      p.style.transform = 'rotateY(' + (i ? a : -a).toFixed(2) + 'deg)';
+      var f = p.children[0], d = p.children[1];
+      f.style.visibility = dorso ? 'hidden' : 'visible'; d.style.visibility = dorso ? 'visible' : 'hidden';
+      f.style.setProperty('--sh', (Math.max(0, 1 - cosA) * .32).toFixed(3));                 // de frente → de canto: se oscurece
+      d.style.setProperty('--sh', (Math.max(0, 1 + cosA) * .28).toFixed(3));                 // de canto → abierta: se aclara
+    });
+    sombra.style.opacity = Math.max(0, 1 - a / 70).toFixed(3);                               // la sombra interior desaparece al entrar la luz
+  }
+  function abrirPuertas() {
+    var D = E.puertas, t0p = performance.now(), dur = D.duracion * 1000;
+    (function paso(ahora) {
+      var p = Math.min(1, (ahora - t0p) / dur);
+      pintarPuertas(D.angulo * easeIO(p));
+      if (p < 1) requestAnimationFrame(paso);
+    })(t0p);
+  }
+  function abrirSobre() {
+    if (abierta || !gate.classList.contains('lista')) return;
+    abierta = true;
+    gate.classList.add('abriendo');
+    var m = getComputedStyle(selloLat).transform; gate.classList.remove('lat-sello');      // el latido se detiene sin «salto»
+    if (m && m !== 'none') { selloLat.style.transform = m; void selloLat.offsetWidth; selloLat.style.transition = 'transform .28s ease'; selloLat.style.transform = 'none'; }
+    gate.classList.add('abierto');                                                          // sello, cabecera y tarjeta (CSS)
+    setTimeout(abrirPuertas, E.puertas.inicio * 1000);
+    var listo = function () { if (tarjetaVista) return; gate.classList.add('boton'); btnVer.tabIndex = 0; tarjetaVista = true; ajustarNombre(); };
+    setTimeout(listo, E.boton * 1000); setTimeout(listo, E.maxMs);
+  }
+  sello.addEventListener('click', abrirSobre);
+  pista.addEventListener('click', abrirSobre);
+  env.addEventListener('click', function () { if (!abierta) abrirSobre(); });
+  tarjeta.addEventListener('click', function () { if (tarjetaVista) verInvitacion(); });
+
+  /* Fundido portada → invitación (cuadro a cuadro, opacidad en línea: nada la pisa) */
+  var suave = function (p) { return -(Math.cos(Math.PI * p) - 1) / 2; };
+  function animar(ms, paso, fin) {
+    var ini = performance.now(), hecho = false;
+    var terminar = function () { if (hecho) return; hecho = true; paso(1); fin && fin(); };
+    (function f(now) { if (hecho) return; var p = Math.min(1, (now - ini) / ms); paso(suave(p)); if (p < 1) requestAnimationFrame(f); else terminar(); })(ini);
+    setTimeout(terminar, ms + 1500);
+  }
+  var esperando = false;
+  function verInvitacion() {
+    if (saliendo) return;
+    if (invFallo) { location.reload(); return; }
+    if (!invListo) {                                          // el invitado llegó antes de que terminara la carga: se espera sin perder el toque
+      if (esperando) return; esperando = true; btnVer.classList.add('espera');
+      iniciarInvitacion().then(function () { esperando = false; btnVer.classList.remove('espera'); verInvitacion(); },
+        function () { esperando = false; btnVer.classList.remove('espera'); btnVer.textContent = tx('reintentar'); });
+      return;
+    }
+    saliendo = true;
+    ajusteInv && ajusteInv.reajustar();
+    var inv = $('invitacion'); inv.classList.add('visible'); inv.removeAttribute('aria-hidden');
+    hostP.style.setProperty('pointer-events', 'none', 'important');
+    var revelado = false;
+    animar(CONFIG.salida.ms, function (p) {
+      hostP.style.setProperty('opacity', (1 - p).toFixed(4), 'important');
+      if (!revelado && p >= CONFIG.salida.revelarEn) { revelado = true; revelar(); }
+    }, function () { if (!revelado) revelar(); hostP.parentNode && hostP.parentNode.removeChild(hostP); });
+  }
+  function revelar() {
+    document.documentElement.classList.remove('bloqueado');
+    window.scrollTo(0, 0);
+    window.__invitacionVisible = true;
+    window.dispatchEvent(new Event('invitacion:visible'));    // arranca animacion.js
+    creditoAlFinal();
+    setTimeout(pistaScroll, 2200);
+  }
+  /* Gesto «desliza»: una sola vez, cuando la invitación ya se ve; se va al empezar a desplazarse (o a los 16 s) */
+  function pistaScroll() {
+    var el = $('pista-scroll'); if (!el || window.scrollY > 30) return;
+    $('ps-txt').textContent = tx('desliza');
+    el.hidden = false; void el.offsetWidth;
+    var sec = raizInv && raizInv.querySelector('section'), r = sec && sec.getBoundingClientRect();
+    if (r && r.bottom < window.innerHeight - 8) { el.style.bottom = 'auto'; el.style.top = Math.max(60, r.bottom - 16 - el.offsetHeight) + 'px'; }
+    el.classList.add('ver');
+    var fin = function () {
+      window.removeEventListener('scroll', alMover); window.removeEventListener('wheel', fin); window.removeEventListener('touchmove', fin); window.removeEventListener('keydown', fin);
+      clearTimeout(t); el.classList.remove('ver'); setTimeout(function () { el.hidden = true; }, 1000);
+    };
+    var alMover = function () { if (window.scrollY > 30) fin(); };
+    var t = setTimeout(fin, 16000);
+    window.addEventListener('scroll', alMover, { passive: true }); window.addEventListener('wheel', fin, { passive: true });
+    window.addEventListener('touchmove', fin, { passive: true }); window.addEventListener('keydown', fin);
+  }
+  /* Crédito «Hecho con amor»: discreto (corazón a la izquierda). pyd-config.js lo muestra solo al llegar al final y lo oculta al subir. */
+  function creditoAlFinal() {
+    if (!P.credito || CONFIG.credito === 'oculto') return;
+    window.PYD_SIN_CREDITO = false;
+    P.credito({ modo: CONFIG.credito, lang: LANG });
+  }
+
+  /* ---------------------------------------------------------------- VENTANAS: RSVP y guía de la ciudad */
+  var ventanaAbierta = null, foco = null;
+  function abrirVentana(v) {
+    if (ventanaAbierta === v) return;
+    if (ventanaAbierta) cerrarVentana(true);
+    foco = document.activeElement; ventanaAbierta = v;
+    v.hidden = false; void v.offsetWidth; v.classList.add('abierta');
+    document.documentElement.classList.add('modal');
+    v.querySelector('.v-cerrar').setAttribute('aria-label', tx('cerrar'));
+    var caja = v.querySelector('.v-caja'); caja.tabIndex = -1;
+    setTimeout(function () { try { caja.focus({ preventScroll: true }); } catch (e) {} }, 60);
+    try { history.pushState({ ventana: v.id }, ''); } catch (e) {}                 // el botón «atrás» del celular cierra la ventana
+  }
+  function cerrarVentana(sinHistoria) {
+    var v = ventanaAbierta; if (!v) return;
+    ventanaAbierta = null; v.classList.remove('abierta');
+    document.documentElement.classList.remove('modal');
+    setTimeout(function () { if (ventanaAbierta !== v) v.hidden = true; }, 600);
+    if (!sinHistoria && history.state && history.state.ventana) { try { history.back(); } catch (e) {} }
+    if (foco && foco.focus) try { foco.focus({ preventScroll: true }); } catch (e) {}
+  }
+  window.addEventListener('popstate', function () { if (ventanaAbierta) cerrarVentana(true); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ventanaAbierta) cerrarVentana(); });
+  ['v-rsvp', 'v-guia'].forEach(function (id) {
+    $(id).addEventListener('click', function (e) { if (e.target.closest('[data-cerrar]')) cerrarVentana(); });
+  });
+
+  /* RSVP: rsvp.html del evento en un iframe (mismo origen), con el código del invitado y el idioma.
+     Dentro se ocultan el selector ES/EN (el idioma ya viene dado), el enlace «Ver invitación completa» y el crédito (ya está en la invitación). */
+  var iframeRsvp = null;
+  function abrirRsvp() {
+    var v = $('v-rsvp');
+    if (!iframeRsvp) {
+      var u = new URLSearchParams(); if (CODIGO) u.set('to', CODIGO); if (!CODIGO && PASE_URL > 0) u.set('pase', PASE_URL); u.set('lang', LANG);
+      iframeRsvp = document.createElement('iframe');
+      iframeRsvp.title = 'RSVP'; iframeRsvp.src = 'rsvp.html?' + u.toString();
+      iframeRsvp.addEventListener('load', function () {
+        try {
+          var d = iframeRsvp.contentDocument, st = d.createElement('style');
+          st.textContent = '.cab,.ver,#pyd-credito{display:none!important}.pagina{padding-bottom:28px!important}body{padding-top:max(52px,env(safe-area-inset-top))!important}';
+          d.head.appendChild(st);
+        } catch (e) {}
+        setTimeout(function () { $('rsvp-carga').classList.add('fuera'); }, 250);
+      });
+      v.querySelector('.v-caja').appendChild(iframeRsvp);
+    }
+    abrirVentana(v);
+  }
+
+  /* Guía de la ciudad: barra propia (alineada) + 4 páginas de Canva. Cada página se carga la primera vez que se abre;
+     al cambiar de pestaña la nueva entra desde el lado que corresponde y la anterior se desliza al otro. «Inicio» = descubre. */
+  var G = { creada: false, actual: -1, pags: [] };
+  function crearGuia() {
+    if (G.creada) return; G.creada = true;
+    var barra = $('g-barra'), cont = $('g-paginas');
+    $('v-guia').setAttribute('aria-label', tx('guia'));
+    CONFIG.guia.forEach(function (g, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = g.t[LANG]; b.dataset.i = i;
+      b.addEventListener('click', function () { irA(i); });
+      barra.appendChild(b);
+      var pag = document.createElement('div'); pag.className = 'g-pag der'; pag.setAttribute('role', 'region'); pag.setAttribute('aria-label', g.t[LANG].replace('\n', ' '));
+      var host = document.createElement('div'); host.className = 'canva-host'; pag.appendChild(host);
+      var carga = document.createElement('div'); carga.className = 'v-carga'; carga.innerHTML = '<i></i>'; pag.appendChild(carga);
+      cont.appendChild(pag);
+      G.pags.push({ cfg: g, pag: pag, host: host, carga: carga, tarea: null, boton: b });
+    });
+  }
+  function cargarPagina(i) {
+    var x = G.pags[i]; if (x.tarea) return x.tarea;
+    var archivo = x.cfg[LANG], partes, raiz;
+    x.tarea = fetch(archivo).then(function (r) { if (!r.ok) throw new Error(archivo + ' → HTTP ' + r.status); return r.text(); })
+      .then(function (html) {
+        partes = leerCanva(html, [x.cfg.menu]);                       // sin el menú de Canva: la barra de arriba lo reemplaza (alineada)
+        raiz = montarCanva(x.host, partes, '', 1);
+        var reglas = $('fuentes-guia'); reglas.textContent += '\n' + unirFuentes(partes.fuentes).join('\n');
+        raiz.addEventListener('click', function (e) {                // anclas internas del export (#page-…) no navegan
+          var a = e.target.closest && e.target.closest('a'); if (a && (a.getAttribute('href') || '').charAt(0) === '#') e.preventDefault();
+        });
+        Array.prototype.forEach.call(raiz.querySelectorAll('a[href^="http"]'), function (a) { a.target = '_blank'; a.rel = 'noopener'; });
+        var primeras = Array.prototype.slice.call(raiz.querySelectorAll('section'), 0, 1), imgs = [];
+        primeras.forEach(function (s) { imgs = imgs.concat(Array.prototype.slice.call(s.querySelectorAll('img'))); });
+        return Promise.all([Promise.all(imgs.map(esperarImg)), cargarFuentes(partes.familias)]);
+      }).then(function () {
+        x.ajuste = Responsive.montar(raiz, { anchoOriginal: CONFIG.anchoCanva, anchoMaximo: CONFIG.anchoMaximo, modo: 'ancho', selectorPaginaCanva: CONFIG.canva.selectorPagina });
+        x.carga.classList.add('fuera');
+        if (window.ResizeObserver) new ResizeObserver(function () { x.ajuste && x.ajuste.reajustar(); }).observe(x.pag);
+      }).catch(function (e) { console.error('[guía]', e); x.tarea = null; });
+    return x.tarea;
+  }
+  function irA(i) {
+    if (i === G.actual) { G.pags[i].pag.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    var ant = G.actual; G.actual = i;
+    G.pags.forEach(function (x, k) {
+      x.boton.setAttribute('aria-current', k === i ? 'page' : 'false');
+      x.pag.classList.toggle('actual', k === i);
+      x.pag.classList.toggle('izq', k !== i && k < i);
+      x.pag.classList.toggle('der', k !== i && k > i);
+      x.pag.inert = k !== i;
+    });
+    if (ant < 0) { G.pags[i].pag.style.transition = 'none'; void G.pags[i].pag.offsetWidth; G.pags[i].pag.style.transition = ''; }   // la 1.ª vez entra con la ventana
+    G.pags[i].pag.scrollTop = 0;
+    G.pags[i].boton.scrollIntoView({ block: 'nearest', inline: 'center', behavior: ant < 0 ? 'auto' : 'smooth' });
+    cargarPagina(i).then(function () {
+      var x = G.pags[i]; x.ajuste && x.ajuste.reajustar();
+      if (ant < 0) enReposo(function () { G.pags.forEach(function (y, k) { if (k !== i) cargarPagina(k); }); });   // las demás, en segundo plano
+    });
+  }
+  function abrirGuia() {
+    crearGuia(); abrirVentana($('v-guia'));
+    irA(0);                                                          // siempre abre en «Inicio» (descubre)
+  }
+
+  /* ---------------------------------------------------------------- botones dentro de Canva */
+  function enlazarEventos(raiz) {
+    raiz.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a'), h = a ? a.getAttribute('href') || '' : '';
+      var dest = CONFIG.enlaces.find(function (x) { return e.target.closest && e.target.closest('#' + x.id); });
+      if (dest) { e.preventDefault(); e.stopPropagation(); if (dest.accion === 'rsvp') abrirRsvp(); else if (dest.accion === 'guia') abrirGuia(); return; }
+      if (a && h.charAt(0) === '#') e.preventDefault();               // anclas internas del export (#page-1…)
+    });
+  }
+  window.MJ = { abrirRsvp: abrirRsvp, abrirGuia: abrirGuia };        // (para probar desde la consola)
+})();
+</script>
+</body>
+</html>
