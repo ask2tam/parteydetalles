@@ -1,0 +1,340 @@
+
+
+taskkill /F /IM msedge.exe
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --allow-file-access-from-files
+
+
+portada(es) -> https://invitaciones.parteydetalles.com/moani-y-javier
+portada(en) -> https://invitaciones.parteydetalles.com/ingles-moani-y-javier
+invitación(es) -> https://invitaciones.parteydetalles.com/moani-y-javier/page-2
+invitación(en) -> https://invitaciones.parteydetalles.com/ingles-moani-y-javier/page-2
+
+https://bodas.parteydetalles.com/moaniyjavier
+https://bodas.parteydetalles.com/moaniyjavier/rsvp
+
+500
+
+Trabajaremos en el evento moaniyjavier toma como ejemplo lo trabajado en ignacioysuly. La particularidad en este proyecto en que tenemos invitaciones personalizadas en español y el ingles, no sé si podemos poner el idioma como parámetro que luego servirá para el rsvp y la llamada a determinados canvas según el idioma o debemos trabajarlo con index distintos. Mi dilema es que la vista minuatura y descripciones no podrían distinguir entre idiomas al momento de enviar codigo e idioma al invitado. Evalua cual conviene.
+
+La portada tiene elementos como el fondo, el sobre y el sello puedes tomar el diseño de portada.html pero reconstruyela a partir de los elementos adjuntos para que se vea en full pantalla como ignacioysuly y escapemos de la restricción que inpone canva, reutiliza las fuentes originales y el filtro de la imagen del fondo, titulo de los nombres y "¡NOS CASAMOS!" o "We're getting married!" segun corresponda. La animación es un poco distinta en este proyecto fijate en el diseño del sobre que tiene como doble puerta, adaptemos la animación para que funcione con este diseño, igual el lacre se desplaza en una posición adecuada a la nueva animación, el sobre se abre, se muestra una tarjeta con el nombre y "Usted tiene resevado pase para ( n ) personas" o "you have a pass reserved for ( n ) people" segun corresponda. Luego al hacer click en ver invitación una transición suave revela invitacion_es.html o invitacion_en.html. Los novios no han pedido musica asi que no será necesario cargar estos elementos. El promise_all con lo minimo indispensable supabase, sobre, background, sello, tarjeta, etc. carga rápida real.
+
+Respecto a la invitación (es y en) cambiar el link al momento de hacer click en "confirma aqui" o equivalente en inglés, debe aparecer aqui nuestro rsvp.html con el idioma correspondiente como ventana modal. Luego en el tag de "pensando en tu comodidad" al hacer click en el boton debe aparecer como ventana modal descubre_es, alojamiento_es, cultura_es, restaurantes_es debe fluir la vista de uno y otro segun se elija en el menú de la parte superior (de paso alinearlos por error de diseño no se ven alineados). Considera además que el boton de inicio redirige a descubre_es y el boton de cerrar (agregar) cierra el modal para continuar explorando la invitación. Lo mismo debe suceder con sus versiones en inglés.
+
+Anima adecualamente los elementos de la invitación (es y en) mediante la listas de animaciones con cierto criterio natural, no al azar. Las imagenes de inicio y fin con el efecto parallax de siempre. En la cuenta regresiva reemplazar el iframe con un contador propio (ver ignacioysuly), ten en cuenta las letras dias, horas, minutos y segundos sean en español o ingles según corresponda. Agregemos los creditos hecho con amor con el icono discreto que se muestre solo al final y desaparesca al volver hacer scroll-up, colocalo a la izquierda. Recuerda que todos estos diseños son canva asi que tendremos un shadow dom y como siempre se deben mostrar todas las animación ignora reducir movimiento.
+
+Dale una revisada a invitados.xlsx crees que tenga algun problema para cargar la información en el panel de invitados?, cómo haremos para discriminar los grupos en español y en inglés?
+
+
+
+
+Sigamos introduciendo cambios en la libreria para la v1.11 para el Panel de invitados. Ya que ningun proyecto está utilizando los fondos papel, lino, acuarela, marmol, degradado, introduzcamos fondos que ya he utilizado en otros proyectos (_fondo_ref{i}), catalogemos los nombres adecuadamente en el json lo dejo a tu criterio, en vez de ofrecer variantes o filtros de color ofrezcamos elegir el color de filtro a aplicar sobre la imagen. Comparto de manera referencial los fondos de otros proyectos en la carpeta de las tramas actuales como referencia, trabajalas, recortalas, estandariza los colores base adecuadamente. No veo un favicon.ico ni miniatura para el panel podrías crear ambos que se diferencie del icono de la marca para que se de a entender que se trata de un panel o gestor de invitados.
+
+El el RSVP en la parte frontal veo que los colores de las preguntas negro y gris parecen estar con código en duro y no cambian cuando modifico colores "texto" y "texto suave", como si lo hace la parte del reverso QR.
+
+En la promise_all de index.html, pedir tambien la configuración del rsvp. Cuando el sobre se abre con el efecto puerta queda una distancia entre ambas puerta y el cuerpo, es más pronunciado en la puerta izquierda pero hay que corregir ambas. Tambien en la portada veo un pequeño margen derecho que no llega a cubrir el fondo rosado.
+
+Elimina las advertencias de referencias a versiones anteriores y el limitar las funciones ya que todos los proyectos han iniciado con esta version y la configuración escogida en teoría no debería afectar lo nuevo que estamos introduciendo. Me apareció lo siguiente "El RSVP de este evento carga otro motor: opacidad, zoom, posición y fondos predeterminados no tendrían efecto, por eso están ocultos. Para usarlos, su rsvp.html debe cargar el motor de este panel." pero mi versión es correcta solo que lo estuve probando en local antes de subir.
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="es" translate="no" class="bloqueado notranslate">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Moani &amp; Javier</title>
+<meta property="og:title" content="Moani &amp; Javier · Nos casamos" />
+<meta property="og:description" content="Te invitamos a nuestra boda — 24 de abril del 2027." />
+<meta property="og:image" content="https://bodas.parteydetalles.com/moaniyjavier/miniatura.jpg" />
+<meta name="format-detection" content="telephone=no">
+<meta name="google" content="notranslate">
+<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+
+
+
+[PASO 1]
+
+
+(() => {
+  // 1. Sobrescribir estilos que ocultan contenido fuera de pantalla
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * { 
+      content-visibility: visible !important; 
+      animation: none !important; 
+      transition: none !important; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 2. Simular un contenedor con scroll de altura completa
+  document.body.style.overflow = 'visible';
+  document.documentElement.style.overflow = 'visible';
+  // document.body.style.height = 'auto';
+
+  console.log('Fuerza bruta aplicada. Por favor, haz scroll manual hasta el final de la página.');
+})();
+
+
+[PASO 2]
+
+
+(async () => {
+  console.log('🔍 Analizando solo fuentes e imágenes ACTIVAS en pantalla...');
+
+  const downloads = [];
+  const deduplicacion = new Map();
+
+  const getExactFileName = (urlStr, contentType = '') => {
+    try {
+      const parsed = new URL(urlStr, document.baseURI);
+      let filename = parsed.pathname.split('/').pop().split('?')[0];
+      filename = decodeURIComponent(filename);
+      if (filename && filename.includes('.') && filename.length > 3) {
+        return filename;
+      }
+    } catch {}
+
+    let ext = 'asset';
+    if (contentType.includes('image/png')) ext = 'png';
+    else if (contentType.includes('image/jpeg')) ext = 'jpg';
+    else if (contentType.includes('image/webp')) ext = 'webp';
+    else if (contentType.includes('image/svg')) ext = 'svg';
+    else if (contentType.includes('video/mp4')) ext = 'mp4';
+    else if (contentType.includes('font/woff2')) ext = 'woff2';
+    else if (contentType.includes('font/woff')) ext = 'woff';
+
+    let hash = 0;
+    for (let i = 0; i < urlStr.length; i++) {
+      hash = (hash << 5) - hash + urlStr.charCodeAt(i);
+      hash |= 0;
+    }
+    return `file_${Math.abs(hash)}.${ext}`;
+  };
+
+  const fetchResource = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const contentType = res.headers.get('content-type') || '';
+      return { blob, contentType };
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Identificar familias de fuentes verdaderamente usadas en el DOM
+  const activeFontFamilies = new Set();
+  document.querySelectorAll('*').forEach((el) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent.trim().length > 0) {
+      const fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim().toLowerCase();
+      if (fontFamily) activeFontFamilies.add(fontFamily);
+    }
+  });
+
+  console.log('✏️ Fuentes realmente usadas en el texto:', Array.from(activeFontFamilies));
+
+  // 2. Clonar el DOM y limpiar scripts/srcset
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('script, noscript').forEach((el) => el.remove());
+  clone.querySelectorAll('img').forEach((img) => img.removeAttribute('srcset'));
+
+  // 3. Procesar imágenes <img> visibles
+  const liveImages = Array.from(document.querySelectorAll('img'));
+  for (const liveImg of liveImages) {
+    const style = window.getComputedStyle(liveImg);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+    const srcAttr = liveImg.getAttribute('src') || liveImg.src;
+    if (srcAttr && !srcAttr.startsWith('data:')) {
+      const absUrl = new URL(srcAttr, document.baseURI).href;
+
+      if (!deduplicacion.has(absUrl)) {
+        const data = await fetchResource(absUrl);
+        if (data) {
+          const fileName = getExactFileName(absUrl, data.contentType);
+          const localPath = `assets/${fileName}`;
+          deduplicacion.set(absUrl, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+      }
+
+      const matchingCloneImg = clone.querySelector(`img[src="${srcAttr}"]`) || clone.querySelectorAll('img')[liveImages.indexOf(liveImg)];
+      if (matchingCloneImg && deduplicacion.has(absUrl)) {
+        matchingCloneImg.src = deduplicacion.get(absUrl);
+      }
+    }
+  }
+
+  // 4. Procesar Vídeo activo
+  const liveVideo = document.querySelector('video');
+  if (liveVideo) {
+    let raw = liveVideo.src || liveVideo.querySelector('source')?.src || '';
+    if (raw) {
+      const parsedUrl = new URL(raw, document.baseURI);
+      let startTrim = 0;
+      let endTrim = null;
+      const hashMatch = parsedUrl.hash.match(/#t=([\d.]+),?([\d.]*)/);
+      if (hashMatch) {
+        startTrim = parseFloat(hashMatch[1]) || 0;
+        if (hashMatch[2]) endTrim = parseFloat(hashMatch[2]);
+      }
+
+      const data = await fetchResource(parsedUrl.href);
+      if (data) {
+        const fileName = getExactFileName(parsedUrl.href, data.contentType);
+        const localPath = `assets/${fileName}`;
+
+        if (!deduplicacion.has(parsedUrl.href)) {
+          deduplicacion.set(parsedUrl.href, localPath);
+          downloads.push({ fileName, blob: data.blob });
+        }
+
+        const videoClonado = clone.querySelector('video');
+        if (videoClonado) {
+          videoClonado.removeAttribute('controls');
+          videoClonado.setAttribute('playsinline', 'true');
+          videoClonado.setAttribute('autoplay', 'true');
+          videoClonado.setAttribute('muted', 'true');
+          videoClonado.setAttribute('data-start', startTrim);
+          if (endTrim !== null) videoClonado.setAttribute('data-end', endTrim);
+          videoClonado.innerHTML = '';
+          videoClonado.src = localPath;
+        }
+      }
+    }
+  }
+
+  // 5. Filtrar CSS: Mantener solo fuentes usadas (priorizando .woff2) y descartar redundancias
+  console.log('🎨 Filtrando reglas CSS y tipografías activas...');
+  let cssIncrustado = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules || sheet.rules;
+      if (!rules) continue;
+      const sheetBase = sheet.href || document.baseURI;
+
+      for (const rule of Array.from(rules)) {
+        // Si es una regla @font-face, verificar si pertenece a una fuente activa
+        if (rule.type === CSSRule.FONT_FACE_RULE) {
+          const fontFamily = rule.style.fontFamily.replace(/['"]/g, '').trim().toLowerCase();
+          if (!activeFontFamilies.has(fontFamily)) {
+            continue; // Omitir fuentes que no se usan en ningún texto
+          }
+        }
+
+        let cssText = rule.cssText;
+        const matches = [...cssText.matchAll(/url\((['"]?)(?!data:)([^'"]+)\1\)/g)];
+
+        for (const match of matches) {
+          const rawUrl = match[2];
+          const absUrl = new URL(rawUrl, sheetBase).href;
+
+          // Filtrar formatos obsoletos de fuentes (.eot, .ttf si existe woff2)
+          if (absUrl.match(/\.(eot|ttf)(\?.*)?$/i) && !absUrl.includes('fontawesome')) {
+            continue; 
+          }
+
+          if (absUrl.match(/\.(woff2?|otf|png|jpe?g|svg|webp|gif)(\?.*)?$/i)) {
+            if (!deduplicacion.has(absUrl)) {
+              const data = await fetchResource(absUrl);
+              if (data) {
+                const fileName = getExactFileName(absUrl, data.contentType);
+                const localPath = `assets/${fileName}`;
+                deduplicacion.set(absUrl, localPath);
+                downloads.push({ fileName, blob: data.blob });
+              }
+            }
+
+            if (deduplicacion.has(absUrl)) {
+              cssText = cssText.replace(match[0], `url("${deduplicacion.get(absUrl)}")`);
+            }
+          }
+        }
+        cssIncrustado += cssText + '\n';
+      }
+    } catch {}
+  }
+
+  // 6. Controlador de vídeo
+  const customVideoControllerScript = `
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.querySelector('video');
+      if (!video) return;
+
+      const start = parseFloat(video.getAttribute('data-start')) || 0;
+      const end = parseFloat(video.getAttribute('data-end'));
+
+      const applyStartTime = () => {
+        if (start > 0) video.currentTime = start;
+      };
+
+      if (video.readyState >= 1) {
+        applyStartTime();
+      } else {
+        video.addEventListener('loadedmetadata', applyStartTime, { once: true });
+      }
+
+      video.addEventListener('timeupdate', () => {
+        if (end && video.currentTime >= end) {
+          video.currentTime = start;
+        }
+      });
+
+      video.muted = true;
+      video.play().catch(() => {});
+
+      document.addEventListener('click', (e) => {
+        if (['A', 'BUTTON', 'INPUT'].includes(e.target.tagName) && !e.target.closest('video')) return;
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      });
+    });
+  </script>
+  `;
+
+  // 7. Generar HTML final
+  const htmlFinal = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${document.title}</title>
+  <style>
+${cssIncrustado}
+video { cursor: pointer; }
+  </style>
+</head>
+${clone.outerHTML}
+${customVideoControllerScript}
+</html>`;
+
+  // Descargar HTML
+  const htmlBlob = new Blob([htmlFinal], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(htmlBlob);
+  a.download = 'invitacion_optimizada.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Descargar conjunto limpio
+  console.log(`⬇️ Descargando exclusivamente ${downloads.length} archivos indispensables para assets/...`);
+  for (const item of downloads) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(item.blob);
+    link.download = item.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    await new Promise((r) => setTimeout(r, 300));
+    URL.revokeObjectURL(link.href);
+  }
+
+  console.log('✅ ¡Proceso completado! Archivos reducidos drásticamente.');
+})();
+

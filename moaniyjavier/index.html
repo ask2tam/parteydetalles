@@ -44,6 +44,7 @@
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #FAF3EA; }
   html { scrollbar-gutter: stable; }
+  html.bloqueado { scrollbar-gutter: auto; }                    /* con la portada no hay barra: sin la franja reservada que dejaba un margen a la derecha */
   html.bloqueado, html.bloqueado body, html.modal body { overflow: hidden !important; }
   html.bloqueado { background: #F7E4E3; }                       /* la franja de la barra de desplazamiento (escritorio) toma el rosa de la portada */
   html.bloqueado body { touch-action: none; }
@@ -87,6 +88,11 @@
   .v-cerrar:focus-visible { outline: 2px solid var(--terracota); outline-offset: 2px; }
   /* RSVP: la página rsvp.html del evento en un iframe (mismo origen) */
   #v-rsvp iframe { flex: 1; width: 100%; border: 0; display: block; background: var(--papel); }
+  /* RSVP transparente: se ve la invitación detrás (el velo la oscurece un poco); el formulario conserva su propio fondo */
+  #v-rsvp .v-caja { background: transparent; box-shadow: none; }
+  #v-rsvp iframe { background: transparent; color-scheme: normal; opacity: 0; transition: opacity .35s ease; }
+  #v-rsvp iframe.listo { opacity: 1; }
+  #v-rsvp .v-velo { background: rgba(48, 30, 24, .30); }   /* opcional: más o menos oscuro (0 = sin velo) */
   .v-carga { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; transition: opacity .4s ease; }
   .v-carga.fuera { opacity: 0; }
   .v-carga i { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(178, 100, 78, .2); border-top-color: var(--terracota); animation: v-gira 1s linear infinite; }
@@ -197,11 +203,13 @@
   .gate.lista .cab-sub { opacity: 1; transform: none; }
 
   /* ---------- El sobre (doble puerta) ---------- */
-  .cam-pos { position: absolute; left: 15.72%; width: 68.56%; top: 32.38%; }
+  /* Marco del sobre = la parte OPACA del PNG de Canva (575 × 800, ver generar_portada_moaniyjavier.py): así la bisagra de cada puerta
+     coincide con el borde del cuerpo y no queda rendija al abrir. Posición = la del sobre de Canva corrida 5 px de 582. */
+  .cam-pos { position: absolute; left: 16.31%; width: 67.735%; top: 32.38%; }
   .cam { opacity: 0; transform-origin: 50% 45%; transition: opacity 1.2s ease, transform var(--t-cam) cubic-bezier(.45,.05,.25,1) var(--d-cam); }
   .gate.lista .cam { opacity: 1; }
   .gate.abierto .cam { transform: translateY(4.4%) scale(1.12); }          /* la «cámara» se acerca a la tarjeta (sin tapar el título) */
-  .env { position: relative; width: 100%; aspect-ratio: 582 / 800; perspective-origin: 50% 46%; }
+  .env { position: relative; width: 100%; aspect-ratio: 575 / 800; perspective-origin: 50% 46%; }
   .pieza { position: absolute; top: 0; height: 100%; background-size: 100% 100%; background-repeat: no-repeat; pointer-events: none; }
   .base { left: 0; width: 100%; z-index: 1; background-image: url('assets/sobre_base.webp'); filter: drop-shadow(0 8px 14px rgba(90, 50, 40, .22)); }
   /* sombra que las puertas cerradas dejan dentro del sobre (se aclara mientras se abren; la maneja el JS) */
@@ -209,8 +217,8 @@
   /* Puertas: la izquierda gira sobre su borde izquierdo y la derecha sobre el derecho. Cada una tiene dos caras: a los 90° (de canto) el JS cambia
      de cara (sin backface-visibility: Safari la ignora en algunos contextos). La cara interior se refleja (scaleX(-1)) para anular el espejo del giro. */
   .puerta { position: absolute; top: 0; height: 100%; z-index: 4; pointer-events: none; will-change: transform; }
-  .p-izq { left: 0; width: 50.17%; transform-origin: 0 50%; }
-  .p-der { right: 0; width: 49.83%; transform-origin: 100% 50%; }
+  .p-izq { left: 0; width: 49.913%; transform-origin: 0 50%; }          /* 287 / 575: la costura queda donde estaba */
+  .p-der { right: 0; width: 50.087%; transform-origin: 100% 50%; }       /* 288 / 575 */
   .cara { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; --sh: 0; }
   .cara::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(35, 32, 14, var(--sh)); -webkit-mask: var(--m) 0 0 / 100% 100% no-repeat; mask: var(--m) 0 0 / 100% 100% no-repeat; }
   .p-izq .frente { background-image: url('assets/puerta_izq.webp'); --m: url('assets/puerta_izq.webp'); }
@@ -220,7 +228,7 @@
   .p-izq .frente { filter: drop-shadow(1px 0 1px rgba(40, 35, 15, .18)); }
 
   /* ---------- Sello: late mientras espera · se despega, se levanta y cae al borde inferior del sobre ---------- */
-  .sello-caja { position: absolute; left: 50%; top: 50.44%; width: 26.75%; z-index: 6; transform: translate(-50%, -50%); pointer-events: none; }
+  .sello-caja { position: absolute; left: 49.74%; top: 50.44%; width: 26.75%; z-index: 6; transform: translate(-50%, -50%); pointer-events: none; }
   .sello-lat { width: 100%; transform-origin: 50% 50%; }
   .sello-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 5px rgba(90, 50, 30, .3)); }
   .gate.lat-sello:not(.abierto) .sello-lat { animation: sello-latido 1.7s infinite ease-in-out; }
@@ -250,7 +258,7 @@
   .gate.abriendo .pista { animation: none; }
 
   /* ---------- La tarjeta (dentro del sobre): se adelanta y trae el nombre y los pases ---------- */
-  .tarjeta { position: absolute; z-index: 2; left: 7%; top: 7.15%; width: 86%; height: 85.7%; container-type: inline-size;
+  .tarjeta { position: absolute; z-index: 2; left: 6.216%; top: 7.15%; width: 87.05%; height: 85.7%; container-type: inline-size;
              background: url('assets/tarjeta.webp') 0 0 / 100% 100% no-repeat; filter: drop-shadow(0 3px 5px rgba(60, 40, 20, .18));
              display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 11% 10% 12%; text-align: center; color: rgb(96, 100, 50);
              transform-origin: 50% 55%; transition: transform var(--t-tarjeta) cubic-bezier(.25, 1, .5, 1) var(--d-tarjeta), filter var(--t-tarjeta) ease var(--d-tarjeta); }
@@ -480,8 +488,12 @@
   var CODIGO = (q0.get('to') || q0.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   var PASE_URL = parseInt(q0.get('pase') || q0.get('pases'), 10);
   var datos = { encontrado: false, nombre: '', tratamiento: '', pases: 1, asistencia: '', pasesConfirmados: null };
+  /* Carga crítica: el invitado (si hay código) y SIEMPRE la configuración del evento/RSVP (BODA.proyecto). Con código, la misma lectura trae
+     ambas; sin código se pide la configuración. Así el RSVP en ventana (que reutiliza esta conexión) abre al instante, ya configurado. */
   function cargarDatos() {
-    if (!CODIGO || !window.BODA) return Promise.resolve();
+    if (!window.BODA) return Promise.resolve();
+    if (!CODIGO) return window.BODA.proyecto().then(function (pr) { if (pr && pr.credito === 'oculto') CONFIG.credito = 'oculto'; })
+      .catch(function (e) { console.warn('[rsvp] No se pudo leer la configuración:', e && e.message); });
     return window.BODA.invitado(CODIGO).then(function (j) {
       if (j && j.ok && j.encontrado && j.invitado) {
         var g = j.invitado;
@@ -855,9 +867,13 @@
       iframeRsvp.addEventListener('load', function () {
         try {
           var d = iframeRsvp.contentDocument, st = d.createElement('style');
-          st.textContent = '.cab,.ver,#pyd-credito{display:none!important}.pagina{padding-bottom:28px!important}body{padding-top:max(52px,env(safe-area-inset-top))!important}';
+		  st.textContent = '.cab,.ver,#pyd-credito{display:none!important}.pagina{padding-bottom:28px!important}' +
+            'body{padding-top:max(52px,env(safe-area-inset-top))!important}' +
+            /* transparencia: sin fondo de página, sin la capa de fondo de rsvp.js y sin la pantalla de carga opaca */
+            'html,body{background:transparent!important}#rsvp-pagina{display:none!important}#carga{background:transparent!important}';
           d.head.appendChild(st);
         } catch (e) {}
+        iframeRsvp.classList.add('listo');
         setTimeout(function () { $('rsvp-carga').classList.add('fuera'); }, 250);
       });
       v.querySelector('.v-caja').appendChild(iframeRsvp);
